@@ -9,10 +9,11 @@ import (
 )
 
 type Repository interface {
-	Query(limit int, offset int) ([]Machine, error)
+	Query(limit int, offset int, sortField string, reversedOrder bool) ([]Machine, error)
 	GetBySerialNumber(serialNumber string) (*Machine, error)
 	Create(m *Machine) (*Machine, error)
 	Update(m *Machine) (*Machine, error)
+	DeleteBySerialNumber(serialNumber string) error
 }
 
 type repo struct {
@@ -23,9 +24,18 @@ func NewRepository(db *gorm.DB) Repository {
 	return &repo{db}
 }
 
-func (r *repo) Query(limit int, offset int) ([]Machine, error) {
+func (r *repo) Query(limit int, offset int, sortField string, reversedOrder bool) ([]Machine, error) {
+	if sortField == "" {
+		sortField = "updated_at"
+	}
+
+	sortOrder := "desc"
+	if reversedOrder {
+		sortOrder = "asc"
+	}
+
 	var machines []Machine
-	res := r.db.Order("updated_at desc").
+	res := r.db.Order(fmt.Sprintf("%s %s", sortField, sortOrder)).
 		Limit(limit).
 		Offset(offset).
 		Find(&machines)
@@ -74,4 +84,16 @@ func (r *repo) Update(m *Machine) (*Machine, error) {
 	}
 
 	return &updatedMachine, nil
+}
+
+func (r *repo) DeleteBySerialNumber(serialNumber string) error {
+	res := r.db.Delete(&Machine{}, "serial_number = ?", serialNumber)
+	if res.Error != nil {
+		return fmt.Errorf("failed to delete machine: %w", res.Error)
+	}
+	if res.RowsAffected == 0 {
+		return pkgpg.ErrNotFound
+	}
+
+	return nil
 }
