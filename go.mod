@@ -3,6 +3,7 @@ module ralts-cms
 go 1.21
 
 require (
+	github.com/aws/aws-lambda-go v1.47.0
 	github.com/caarlos0/env/v9 v9.0.0
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1

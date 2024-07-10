@@ -380,11 +380,21 @@ func (suite *RepositoryTestSuite) TestUpdateNotFound() {
 
 func (suite *RepositoryTestSuite) TestDeleteBySerialNumber() {
 	var (
-		t = suite.T()
+		machine = factory.BuildMachine()
+		t       = suite.T()
 	)
 
-	err := suite.repo.DeleteBySerialNumber("testing")
+	res, err := suite.repo.Create(machine)
+	require.NoError(t, err)
+	assert.NotNil(t, res)
+	assert.Equal(t, machine.SerialNumber, res.SerialNumber)
+
+	err = suite.repo.DeleteBySerialNumber(machine.SerialNumber)
+	require.NoError(t, err)
+
+	res, err = suite.repo.GetBySerialNumber(machine.SerialNumber)
 	require.ErrorIs(t, err, pkgpg.ErrNotFound)
+	assert.Nil(t, res)
 }
 
 func (suite *RepositoryTestSuite) TestDeleteBySerialNumberNotFound() {

@@ -10,16 +10,16 @@ import (
 )
 
 type Database struct {
-	Hostname string `env:"HOSTNAME" envDefault:"localhost"`
-	Port     int    `env:"PORT" envDefault:"5432"`
-	Username string `env:"USERNAME" envDefault:"postgres"`
-	Password string `env:"PASSWORD" envDefault:"postgres"`
+	Hostname string `env:"DB_HOSTNAME" envDefault:"localhost"`
+	Port     int    `env:"DB_PORT" envDefault:"5432"`
+	Username string `env:"DB_USERNAME" envDefault:"postgres"`
+	Password string `env:"DB_PASSWORD" envDefault:"postgres"`
 	DbName   string `env:"DB_NAME" envDefault:"postgres"`
 }
 
 type Config struct {
 	AppName string `env:"APP_NAME" envDefault:"ralts-cms"`
-	Env     string `env:"ENV" envDefault:"development"`
+	Env     string `env:"APP_ENV" envDefault:"development"`
 	DB      Database
 }
 
