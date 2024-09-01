@@ -7,7 +7,7 @@ import (
 )
 
 func BuildMachine() *machines.Machine {
-	today := time.Date(2024, time.January, 11, 0, 0, 0, 0, time.Local)
+	today := time.Date(2024, time.January, 11, 0, 0, 0, 0, time.UTC)
 
 	return &machines.Machine{
 		SerialNumber:    TestUUID(),

@@ -1,3 +1,5 @@
+//go:generate mockgen -destination=../machines/mock_machines_repository.go -package=machines -source=repository.go
+
 package machines
 
 import (

@@ -7,11 +7,16 @@ import (
 	"log"
 	"ralts-cms/internal/machines"
 	"ralts-cms/internal/maintenance"
+	"time"
 )
 
 func main() {
 	dsn := "host=localhost user=postgres password=postgres dbname=postgres port=5432 sslmode=disable TimeZone=Europe/London"
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		NowFunc: func() time.Time {
+			return time.Now().UTC()
+		},
+	})
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}

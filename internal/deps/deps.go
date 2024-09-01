@@ -3,11 +3,13 @@ package deps
 import (
 	"gorm.io/gorm"
 	"log"
+	"ralts-cms/internal/machines"
 )
 
 type Dependencies struct {
-	Config *Config
-	DB     *gorm.DB
+	Config            *Config
+	DB                *gorm.DB
+	MachineRepository machines.Repository
 }
 
 func Initialise() *Dependencies {
@@ -21,8 +23,11 @@ func Initialise() *Dependencies {
 		log.Fatalf("failed to initialise db: %e", err)
 	}
 
+	mr := machines.NewRepository(db)
+
 	return &Dependencies{
-		Config: cfg,
-		DB:     db,
+		Config:            cfg,
+		DB:                db,
+		MachineRepository: mr,
 	}
 }
