@@ -42,7 +42,7 @@ func (suite *MachineHandlerTestSuite) TestGet() {
 		m = factory.BuildMachine()
 	)
 
-	suite.repo.EXPECT().GetBySerialNumber(gomock.Any()).Return(m, nil)
+	suite.repo.EXPECT().GetBySerialNumber(gomock.Any(), gomock.Any()).Return(m, nil)
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/api", nil)
@@ -67,7 +67,7 @@ func (suite *MachineHandlerTestSuite) TestGetInternalServerError() {
 		t = suite.T()
 	)
 
-	suite.repo.EXPECT().GetBySerialNumber(gomock.Any()).Return(nil, nil)
+	suite.repo.EXPECT().GetBySerialNumber(gomock.Any(), gomock.Any()).Return(nil, nil)
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/api", nil)
@@ -87,7 +87,7 @@ func (suite *MachineHandlerTestSuite) TestGetNotFound() {
 		t = suite.T()
 	)
 
-	suite.repo.EXPECT().GetBySerialNumber(gomock.Any()).Return(nil, errors.New("something went wrong"))
+	suite.repo.EXPECT().GetBySerialNumber(gomock.Any(), gomock.Any()).Return(nil, errors.New("something went wrong"))
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/api", nil)

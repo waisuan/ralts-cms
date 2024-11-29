@@ -1,10 +1,12 @@
 package machines
 
 import (
+	"context"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/gommon/log"
 	"net/http"
 	"ralts-cms/internal/deps"
+	"time"
 )
 
 type Handler struct {
@@ -18,7 +20,10 @@ func NewHandler(deps *deps.Dependencies) *Handler {
 }
 
 func (h *Handler) Get(c echo.Context) error {
-	m, err := h.deps.MachineRepository.GetBySerialNumber(c.Param("serialnumber"))
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	m, err := h.deps.MachineRepository.GetBySerialNumber(ctx, c.Param("serialnumber"))
 	if err != nil {
 		log.Errorf("failed to get machine by serial number: %s", err)
 		return c.JSON(http.StatusInternalServerError, "")

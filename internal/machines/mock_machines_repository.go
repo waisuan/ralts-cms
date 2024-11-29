@@ -5,6 +5,7 @@
 package machines
 
 import (
+	context "context"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -63,33 +64,33 @@ func (mr *MockRepositoryMockRecorder) DeleteBySerialNumber(serialNumber interfac
 }
 
 // GetBySerialNumber mocks base method.
-func (m *MockRepository) GetBySerialNumber(serialNumber string) (*Machine, error) {
+func (m *MockRepository) GetBySerialNumber(ctx context.Context, serialNumber string) (*Machine, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetBySerialNumber", serialNumber)
+	ret := m.ctrl.Call(m, "GetBySerialNumber", ctx, serialNumber)
 	ret0, _ := ret[0].(*Machine)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetBySerialNumber indicates an expected call of GetBySerialNumber.
-func (mr *MockRepositoryMockRecorder) GetBySerialNumber(serialNumber interface{}) *gomock.Call {
+func (mr *MockRepositoryMockRecorder) GetBySerialNumber(ctx, serialNumber interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBySerialNumber", reflect.TypeOf((*MockRepository)(nil).GetBySerialNumber), serialNumber)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBySerialNumber", reflect.TypeOf((*MockRepository)(nil).GetBySerialNumber), ctx, serialNumber)
 }
 
 // Query mocks base method.
-func (m *MockRepository) Query(limit, offset int, sortField string, reversedOrder bool) ([]Machine, error) {
+func (m *MockRepository) Query(ctx context.Context, limit, offset int, sortField string, reversedOrder bool) ([]Machine, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Query", limit, offset, sortField, reversedOrder)
+	ret := m.ctrl.Call(m, "Query", ctx, limit, offset, sortField, reversedOrder)
 	ret0, _ := ret[0].([]Machine)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Query indicates an expected call of Query.
-func (mr *MockRepositoryMockRecorder) Query(limit, offset, sortField, reversedOrder interface{}) *gomock.Call {
+func (mr *MockRepositoryMockRecorder) Query(ctx, limit, offset, sortField, reversedOrder interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Query", reflect.TypeOf((*MockRepository)(nil).Query), limit, offset, sortField, reversedOrder)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Query", reflect.TypeOf((*MockRepository)(nil).Query), ctx, limit, offset, sortField, reversedOrder)
 }
 
 // Update mocks base method.

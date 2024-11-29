@@ -2,6 +2,7 @@ package machines_test
 
 // Basic imports
 import (
+	"context"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -53,7 +54,7 @@ func (suite *RepositoryTestSuite) TestQuery() {
 		testMachines = append(testMachines, machine)
 	}
 
-	res, err := suite.repo.Query(100, 0, "", false)
+	res, err := suite.repo.Query(context.Background(), 100, 0, "", false)
 	require.NoError(t, err)
 	assert.Len(t, res, numOfMachines)
 	// By default, the queried result is returned in descending updated_at order.
@@ -80,7 +81,7 @@ func (suite *RepositoryTestSuite) TestQueryWithLimit() {
 		testMachines = append(testMachines, machine)
 	}
 
-	res, err := suite.repo.Query(1, 0, "", false)
+	res, err := suite.repo.Query(context.Background(), 1, 0, "", false)
 	require.NoError(t, err)
 	assert.Len(t, res, 1)
 	// By default, the queried result is returned in descending updated_at order.
@@ -105,7 +106,7 @@ func (suite *RepositoryTestSuite) TestQueryWithOffset() {
 		testMachines = append(testMachines, machine)
 	}
 
-	res, err := suite.repo.Query(1, 2, "", false)
+	res, err := suite.repo.Query(context.Background(), 1, 2, "", false)
 	require.NoError(t, err)
 	assert.Len(t, res, 1)
 	// By default, the queried result is returned in descending updated_at order.
@@ -130,7 +131,7 @@ func (suite *RepositoryTestSuite) TestQueryWithReversedSortOrder() {
 		testMachines = append(testMachines, machine)
 	}
 
-	res, err := suite.repo.Query(100, 0, "", true)
+	res, err := suite.repo.Query(context.Background(), 100, 0, "", true)
 	require.NoError(t, err)
 	assert.Len(t, res, numOfMachines)
 	assert.Equal(t, testMachines[0].SerialNumber, res[0].SerialNumber)
@@ -155,7 +156,7 @@ func (suite *RepositoryTestSuite) TestQueryWithSortField() {
 		testMachines = append(testMachines, machine)
 	}
 
-	res, err := suite.repo.Query(100, 0, "ppm_date", false)
+	res, err := suite.repo.Query(context.Background(), 100, 0, "ppm_date", false)
 	require.NoError(t, err)
 	assert.Len(t, res, numOfMachines)
 	assert.Equal(t, testMachines[0].SerialNumber, res[0].SerialNumber)
@@ -180,7 +181,7 @@ func (suite *RepositoryTestSuite) TestQueryWithSortFieldAndReversedOrder() {
 		testMachines = append(testMachines, machine)
 	}
 
-	res, err := suite.repo.Query(100, 0, "ppm_date", true)
+	res, err := suite.repo.Query(context.Background(), 100, 0, "ppm_date", true)
 	require.NoError(t, err)
 	assert.Len(t, res, numOfMachines)
 	assert.Equal(t, testMachines[2].SerialNumber, res[0].SerialNumber)
@@ -206,7 +207,7 @@ func (suite *RepositoryTestSuite) TestQueryWithInvalidSortField() {
 		testMachines = append(testMachines, machine)
 	}
 
-	res, err := suite.repo.Query(100, 0, "dummy_field", false)
+	res, err := suite.repo.Query(context.Background(), 100, 0, "dummy_field", false)
 	require.ErrorContains(t, err, "does not exist")
 	assert.Empty(t, res, numOfMachines)
 }
@@ -218,8 +219,24 @@ func (suite *RepositoryTestSuite) TestQueryNoMachines() {
 		t      = suite.T()
 	)
 
-	res, err := suite.repo.Query(limit, offset, "", false)
+	res, err := suite.repo.Query(context.Background(), limit, offset, "", false)
 	require.NoError(t, err)
+	assert.Empty(t, res)
+}
+
+func (suite *RepositoryTestSuite) TestQueryMachinesWithTimeout() {
+	var (
+		limit   = 100
+		offset  = 0
+		timeout = 0 * time.Second
+		t       = suite.T()
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	res, err := suite.repo.Query(ctx, limit, offset, "", false)
+	require.ErrorContains(t, err, "context deadline exceeded")
 	assert.Empty(t, res)
 }
 
@@ -232,10 +249,24 @@ func (suite *RepositoryTestSuite) TestGet() {
 	_, err := suite.repo.Create(machine)
 	require.NoError(t, err)
 
-	res, err := suite.repo.GetBySerialNumber(machine.SerialNumber)
+	res, err := suite.repo.GetBySerialNumber(context.Background(), machine.SerialNumber)
 	require.NoError(t, err)
 	assert.NotNil(t, res)
 	assert.Equal(t, machine.SerialNumber, res.SerialNumber)
+}
+
+func (suite *RepositoryTestSuite) TestGetWithTimeout() {
+	var (
+		timeout = 0 * time.Second
+		t       = suite.T()
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	res, err := suite.repo.GetBySerialNumber(ctx, "*")
+	require.ErrorContains(t, err, "context deadline exceeded")
+	assert.Nil(t, res)
 }
 
 func (suite *RepositoryTestSuite) TestGetNotFound() {
@@ -243,7 +274,7 @@ func (suite *RepositoryTestSuite) TestGetNotFound() {
 		t = suite.T()
 	)
 
-	res, err := suite.repo.GetBySerialNumber("test")
+	res, err := suite.repo.GetBySerialNumber(context.Background(), "test")
 	require.ErrorIs(t, err, pkgpg.ErrNotFound)
 	assert.Nil(t, res)
 }
@@ -276,7 +307,7 @@ func (suite *RepositoryTestSuite) TestCreate() {
 	assert.WithinDuration(t, time.Now(), res.CreatedAt, 10*time.Second)
 	assert.WithinDuration(t, time.Now(), res.UpdatedAt, 10*time.Second)
 
-	res, err = suite.repo.GetBySerialNumber(machine.SerialNumber)
+	res, err = suite.repo.GetBySerialNumber(context.Background(), machine.SerialNumber)
 	require.NoError(t, err)
 	assert.NotNil(t, res)
 	assert.Equal(t, machine.SerialNumber, res.SerialNumber)
@@ -349,7 +380,7 @@ func (suite *RepositoryTestSuite) TestUpdate() {
 	assert.Nil(t, res.PpmDate)
 	assert.Greater(t, res.UpdatedAt, machine.UpdatedAt)
 
-	res, err = suite.repo.GetBySerialNumber(machine.SerialNumber)
+	res, err = suite.repo.GetBySerialNumber(context.Background(), machine.SerialNumber)
 	require.NoError(t, err)
 	assert.NotNil(t, res)
 	assert.Equal(t, targetID, res.ID)
@@ -373,7 +404,7 @@ func (suite *RepositoryTestSuite) TestUpdateNotFound() {
 	err = suite.repo.DeleteBySerialNumber(machine.SerialNumber)
 	require.NoError(t, err)
 
-	res, err = suite.repo.GetBySerialNumber(machine.SerialNumber)
+	res, err = suite.repo.GetBySerialNumber(context.Background(), machine.SerialNumber)
 	require.ErrorIs(t, err, pkgpg.ErrNotFound)
 	assert.Nil(t, res)
 }
@@ -392,7 +423,7 @@ func (suite *RepositoryTestSuite) TestDeleteBySerialNumber() {
 	err = suite.repo.DeleteBySerialNumber(machine.SerialNumber)
 	require.NoError(t, err)
 
-	res, err = suite.repo.GetBySerialNumber(machine.SerialNumber)
+	res, err = suite.repo.GetBySerialNumber(context.Background(), machine.SerialNumber)
 	require.ErrorIs(t, err, pkgpg.ErrNotFound)
 	assert.Nil(t, res)
 }

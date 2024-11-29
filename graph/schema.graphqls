@@ -1,0 +1,55 @@
+# GraphQL schema example
+#
+# https://gqlgen.com/getting-started/
+
+type EditForm {
+  fields: [FormField!]!
+}
+
+type FormField {
+  type: FormFieldType!
+  label: String!
+  value: String!
+}
+
+enum FormFieldType {
+  TEXT
+  RADIO
+  CALENDAR
+}
+
+type Machine {
+  serialNumber: String!
+  customer: String!
+  accountType: String!
+  reportedBy: String!
+  ppmDate: String!
+}
+
+type Todo {
+  id: ID!
+  text: String!
+  done: Boolean!
+  user: User!
+  createdAt: Int!
+}
+
+type User {
+  id: ID!
+  name: String!
+}
+
+type Query {
+  todos: [Todo!]!
+  machines: [Machine]!
+  machineForm: EditForm!
+}
+
+input NewTodo {
+  text: String!
+  userId: String!
+}
+
+type Mutation {
+  createTodo(input: NewTodo!): Todo!
+}

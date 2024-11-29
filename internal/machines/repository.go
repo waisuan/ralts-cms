@@ -3,6 +3,7 @@
 package machines
 
 import (
+	"context"
 	"fmt"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -11,8 +12,8 @@ import (
 )
 
 type Repository interface {
-	Query(limit int, offset int, sortField string, reversedOrder bool) ([]Machine, error)
-	GetBySerialNumber(serialNumber string) (*Machine, error)
+	Query(ctx context.Context, limit int, offset int, sortField string, reversedOrder bool) ([]Machine, error)
+	GetBySerialNumber(ctx context.Context, serialNumber string) (*Machine, error)
 	Create(m *Machine) (*Machine, error)
 	Update(m *Machine) (*Machine, error)
 	DeleteBySerialNumber(serialNumber string) error
@@ -26,7 +27,7 @@ func NewRepository(db *gorm.DB) Repository {
 	return &repo{db}
 }
 
-func (r *repo) Query(limit int, offset int, sortField string, reversedOrder bool) ([]Machine, error) {
+func (r *repo) Query(ctx context.Context, limit int, offset int, sortField string, reversedOrder bool) ([]Machine, error) {
 	if sortField == "" {
 		sortField = "updated_at"
 	}
@@ -37,7 +38,7 @@ func (r *repo) Query(limit int, offset int, sortField string, reversedOrder bool
 	}
 
 	var machines []Machine
-	res := r.db.Order(fmt.Sprintf("%s %s", sortField, sortOrder)).
+	res := r.db.WithContext(ctx).Order(fmt.Sprintf("%s %s", sortField, sortOrder)).
 		Limit(limit).
 		Offset(offset).
 		Find(&machines)
@@ -48,9 +49,9 @@ func (r *repo) Query(limit int, offset int, sortField string, reversedOrder bool
 	return machines, nil
 }
 
-func (r *repo) GetBySerialNumber(serialNumber string) (*Machine, error) {
+func (r *repo) GetBySerialNumber(ctx context.Context, serialNumber string) (*Machine, error) {
 	var m Machine
-	res := r.db.Where("serial_number = ?", serialNumber).First(&m)
+	res := r.db.WithContext(ctx).Where("serial_number = ?", serialNumber).First(&m)
 	if res.Error != nil {
 		if strings.Contains(res.Error.Error(), "record not found") {
 			return nil, pkgpg.ErrNotFound
