@@ -45,7 +45,7 @@ func (suite *RepositoryTestSuite) TestQuery() {
 	testMachines := make([]*machines.Machine, 0)
 	for i := 0; i < numOfMachines; i++ {
 		machine := factory.BuildMachine()
-		_, err := suite.repo.Create(machine)
+		_, err := suite.repo.Create(context.Background(), machine)
 		require.NoError(t, err)
 
 		// Ensure that there's a gap in the created_at/updated_at timestamps between data creation.
@@ -72,7 +72,7 @@ func (suite *RepositoryTestSuite) TestQueryWithLimit() {
 	testMachines := make([]*machines.Machine, 0)
 	for i := 0; i < numOfMachines; i++ {
 		machine := factory.BuildMachine()
-		_, err := suite.repo.Create(machine)
+		_, err := suite.repo.Create(context.Background(), machine)
 		require.NoError(t, err)
 
 		// Ensure that there's a gap in the created_at/updated_at timestamps between data creation.
@@ -97,7 +97,7 @@ func (suite *RepositoryTestSuite) TestQueryWithOffset() {
 	testMachines := make([]*machines.Machine, 0)
 	for i := 0; i < numOfMachines; i++ {
 		machine := factory.BuildMachine()
-		_, err := suite.repo.Create(machine)
+		_, err := suite.repo.Create(context.Background(), machine)
 		require.NoError(t, err)
 
 		// Ensure that there's a gap in the created_at/updated_at timestamps between data creation.
@@ -122,7 +122,7 @@ func (suite *RepositoryTestSuite) TestQueryWithReversedSortOrder() {
 	testMachines := make([]*machines.Machine, 0)
 	for i := 0; i < numOfMachines; i++ {
 		machine := factory.BuildMachine()
-		_, err := suite.repo.Create(machine)
+		_, err := suite.repo.Create(context.Background(), machine)
 		require.NoError(t, err)
 
 		// Ensure that there's a gap in the created_at/updated_at timestamps between data creation.
@@ -150,7 +150,7 @@ func (suite *RepositoryTestSuite) TestQueryWithSortField() {
 		machine := factory.BuildMachine()
 		d := time.Date(2024, time.November, 5-i, 0, 0, 0, 0, time.Local)
 		machine.PpmDate = &d
-		_, err := suite.repo.Create(machine)
+		_, err := suite.repo.Create(context.Background(), machine)
 		require.NoError(t, err)
 
 		testMachines = append(testMachines, machine)
@@ -175,7 +175,7 @@ func (suite *RepositoryTestSuite) TestQueryWithSortFieldAndReversedOrder() {
 		machine := factory.BuildMachine()
 		d := time.Date(2024, time.November, 5-i, 0, 0, 0, 0, time.Local)
 		machine.PpmDate = &d
-		_, err := suite.repo.Create(machine)
+		_, err := suite.repo.Create(context.Background(), machine)
 		require.NoError(t, err)
 
 		testMachines = append(testMachines, machine)
@@ -198,7 +198,7 @@ func (suite *RepositoryTestSuite) TestQueryWithInvalidSortField() {
 	testMachines := make([]*machines.Machine, 0)
 	for i := 0; i < numOfMachines; i++ {
 		machine := factory.BuildMachine()
-		_, err := suite.repo.Create(machine)
+		_, err := suite.repo.Create(context.Background(), machine)
 		require.NoError(t, err)
 
 		// Ensure that there's a gap in the created_at/updated_at timestamps between data creation.
@@ -246,7 +246,7 @@ func (suite *RepositoryTestSuite) TestGet() {
 		t       = suite.T()
 	)
 
-	_, err := suite.repo.Create(machine)
+	_, err := suite.repo.Create(context.Background(), machine)
 	require.NoError(t, err)
 
 	res, err := suite.repo.GetBySerialNumber(context.Background(), machine.SerialNumber)
@@ -285,7 +285,7 @@ func (suite *RepositoryTestSuite) TestCreate() {
 		t       = suite.T()
 	)
 
-	res, err := suite.repo.Create(machine)
+	res, err := suite.repo.Create(context.Background(), machine)
 	require.NoError(t, err)
 	assert.NotNil(t, res)
 	assert.Equal(t, machine.SerialNumber, res.SerialNumber)
@@ -338,7 +338,7 @@ func (suite *RepositoryTestSuite) TestCreateEmptySerialNum() {
 
 	machine.SerialNumber = ""
 
-	res, err := suite.repo.Create(machine)
+	res, err := suite.repo.Create(context.Background(), machine)
 	require.ErrorContains(t, err, "violates not-null constraint")
 	assert.Nil(t, res)
 }
@@ -349,11 +349,26 @@ func (suite *RepositoryTestSuite) TestCreateDupSerialNum() {
 		t       = suite.T()
 	)
 
-	_, err := suite.repo.Create(machine)
+	_, err := suite.repo.Create(context.Background(), machine)
 	require.NoError(t, err)
 
-	_, err = suite.repo.Create(machine)
+	_, err = suite.repo.Create(context.Background(), machine)
 	require.ErrorContains(t, err, "duplicate key")
+}
+
+func (suite *RepositoryTestSuite) TestCreateWithTimeout() {
+	var (
+		machine = factory.BuildMachine()
+		timeout = 0 * time.Second
+		t       = suite.T()
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	res, err := suite.repo.Create(ctx, machine)
+	require.ErrorContains(t, err, "context deadline exceeded")
+	assert.Empty(t, res)
 }
 
 func (suite *RepositoryTestSuite) TestUpdate() {
@@ -362,7 +377,7 @@ func (suite *RepositoryTestSuite) TestUpdate() {
 		t       = suite.T()
 	)
 
-	res, err := suite.repo.Create(machine)
+	res, err := suite.repo.Create(context.Background(), machine)
 	require.NoError(t, err)
 	assert.NotNil(t, res)
 	assert.Equal(t, machine.SerialNumber, res.SerialNumber)
@@ -371,7 +386,7 @@ func (suite *RepositoryTestSuite) TestUpdate() {
 
 	machine.Status = "WIP"
 	machine.PpmDate = nil
-	res, err = suite.repo.Update(machine)
+	res, err = suite.repo.Update(context.Background(), machine)
 	require.NoError(t, err)
 	assert.NotNil(t, res)
 	assert.Equal(t, targetID, res.ID)
@@ -396,17 +411,32 @@ func (suite *RepositoryTestSuite) TestUpdateNotFound() {
 		t       = suite.T()
 	)
 
-	res, err := suite.repo.Create(machine)
+	res, err := suite.repo.Create(context.Background(), machine)
 	require.NoError(t, err)
 	assert.NotNil(t, res)
 	assert.Equal(t, machine.SerialNumber, res.SerialNumber)
 
-	err = suite.repo.DeleteBySerialNumber(machine.SerialNumber)
+	err = suite.repo.DeleteBySerialNumber(context.Background(), machine.SerialNumber)
 	require.NoError(t, err)
 
 	res, err = suite.repo.GetBySerialNumber(context.Background(), machine.SerialNumber)
 	require.ErrorIs(t, err, pkgpg.ErrNotFound)
 	assert.Nil(t, res)
+}
+
+func (suite *RepositoryTestSuite) TestUpdateWithTimeout() {
+	var (
+		machine = factory.BuildMachine()
+		timeout = 0 * time.Second
+		t       = suite.T()
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	res, err := suite.repo.Update(ctx, machine)
+	require.ErrorContains(t, err, "context deadline exceeded")
+	assert.Empty(t, res)
 }
 
 func (suite *RepositoryTestSuite) TestDeleteBySerialNumber() {
@@ -415,12 +445,12 @@ func (suite *RepositoryTestSuite) TestDeleteBySerialNumber() {
 		t       = suite.T()
 	)
 
-	res, err := suite.repo.Create(machine)
+	res, err := suite.repo.Create(context.Background(), machine)
 	require.NoError(t, err)
 	assert.NotNil(t, res)
 	assert.Equal(t, machine.SerialNumber, res.SerialNumber)
 
-	err = suite.repo.DeleteBySerialNumber(machine.SerialNumber)
+	err = suite.repo.DeleteBySerialNumber(context.Background(), machine.SerialNumber)
 	require.NoError(t, err)
 
 	res, err = suite.repo.GetBySerialNumber(context.Background(), machine.SerialNumber)
@@ -433,8 +463,22 @@ func (suite *RepositoryTestSuite) TestDeleteBySerialNumberNotFound() {
 		t = suite.T()
 	)
 
-	err := suite.repo.DeleteBySerialNumber("testing")
+	err := suite.repo.DeleteBySerialNumber(context.Background(), "testing")
 	require.ErrorIs(t, err, pkgpg.ErrNotFound)
+}
+
+func (suite *RepositoryTestSuite) TestDeleteBySerialNumberWithTimeout() {
+	var (
+		machine = factory.BuildMachine()
+		timeout = 0 * time.Second
+		t       = suite.T()
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	err := suite.repo.DeleteBySerialNumber(ctx, machine.SerialNumber)
+	require.ErrorContains(t, err, "context deadline exceeded")
 }
 
 // In order for 'go test' to run this suite, we need to create

@@ -42,7 +42,7 @@ type User {
 type Query {
   todos: [Todo!]!
   machines: [Machine]!
-  machineForm: EditForm!
+  machineForm(serialNumber: String): EditForm!
 }
 
 input NewTodo {

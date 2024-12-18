@@ -14,9 +14,9 @@ import (
 type Repository interface {
 	Query(ctx context.Context, limit int, offset int, sortField string, reversedOrder bool) ([]Machine, error)
 	GetBySerialNumber(ctx context.Context, serialNumber string) (*Machine, error)
-	Create(m *Machine) (*Machine, error)
-	Update(m *Machine) (*Machine, error)
-	DeleteBySerialNumber(serialNumber string) error
+	Create(ctx context.Context, m *Machine) (*Machine, error)
+	Update(ctx context.Context, m *Machine) (*Machine, error)
+	DeleteBySerialNumber(ctx context.Context, serialNumber string) error
 }
 
 type repo struct {
@@ -63,8 +63,8 @@ func (r *repo) GetBySerialNumber(ctx context.Context, serialNumber string) (*Mac
 	return &m, nil
 }
 
-func (r *repo) Create(m *Machine) (*Machine, error) {
-	res := r.db.Create(m)
+func (r *repo) Create(ctx context.Context, m *Machine) (*Machine, error) {
+	res := r.db.WithContext(ctx).Create(m)
 	if res.Error != nil {
 		return nil, fmt.Errorf("failed to create machine: %w", res.Error)
 	}
@@ -72,9 +72,9 @@ func (r *repo) Create(m *Machine) (*Machine, error) {
 	return m, nil
 }
 
-func (r *repo) Update(m *Machine) (*Machine, error) {
+func (r *repo) Update(ctx context.Context, m *Machine) (*Machine, error) {
 	var updatedMachine Machine
-	res := r.db.Model(&updatedMachine).
+	res := r.db.WithContext(ctx).Model(&updatedMachine).
 		Clauses(clause.Returning{}).
 		Where("serial_number = ?", m.SerialNumber).
 		Select("*").
@@ -89,8 +89,8 @@ func (r *repo) Update(m *Machine) (*Machine, error) {
 	return &updatedMachine, nil
 }
 
-func (r *repo) DeleteBySerialNumber(serialNumber string) error {
-	res := r.db.Delete(&Machine{}, "serial_number = ?", serialNumber)
+func (r *repo) DeleteBySerialNumber(ctx context.Context, serialNumber string) error {
+	res := r.db.WithContext(ctx).Delete(&Machine{}, "serial_number = ?", serialNumber)
 	if res.Error != nil {
 		return fmt.Errorf("failed to delete machine: %w", res.Error)
 	}

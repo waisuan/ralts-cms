@@ -35,32 +35,32 @@ func (m *MockRepository) EXPECT() *MockRepositoryMockRecorder {
 }
 
 // Create mocks base method.
-func (m_2 *MockRepository) Create(m *Machine) (*Machine, error) {
+func (m_2 *MockRepository) Create(ctx context.Context, m *Machine) (*Machine, error) {
 	m_2.ctrl.T.Helper()
-	ret := m_2.ctrl.Call(m_2, "Create", m)
+	ret := m_2.ctrl.Call(m_2, "Create", ctx, m)
 	ret0, _ := ret[0].(*Machine)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Create indicates an expected call of Create.
-func (mr *MockRepositoryMockRecorder) Create(m interface{}) *gomock.Call {
+func (mr *MockRepositoryMockRecorder) Create(ctx, m interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockRepository)(nil).Create), m)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockRepository)(nil).Create), ctx, m)
 }
 
 // DeleteBySerialNumber mocks base method.
-func (m *MockRepository) DeleteBySerialNumber(serialNumber string) error {
+func (m *MockRepository) DeleteBySerialNumber(ctx context.Context, serialNumber string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteBySerialNumber", serialNumber)
+	ret := m.ctrl.Call(m, "DeleteBySerialNumber", ctx, serialNumber)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // DeleteBySerialNumber indicates an expected call of DeleteBySerialNumber.
-func (mr *MockRepositoryMockRecorder) DeleteBySerialNumber(serialNumber interface{}) *gomock.Call {
+func (mr *MockRepositoryMockRecorder) DeleteBySerialNumber(ctx, serialNumber interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteBySerialNumber", reflect.TypeOf((*MockRepository)(nil).DeleteBySerialNumber), serialNumber)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteBySerialNumber", reflect.TypeOf((*MockRepository)(nil).DeleteBySerialNumber), ctx, serialNumber)
 }
 
 // GetBySerialNumber mocks base method.
@@ -94,16 +94,16 @@ func (mr *MockRepositoryMockRecorder) Query(ctx, limit, offset, sortField, rever
 }
 
 // Update mocks base method.
-func (m_2 *MockRepository) Update(m *Machine) (*Machine, error) {
+func (m_2 *MockRepository) Update(ctx context.Context, m *Machine) (*Machine, error) {
 	m_2.ctrl.T.Helper()
-	ret := m_2.ctrl.Call(m_2, "Update", m)
+	ret := m_2.ctrl.Call(m_2, "Update", ctx, m)
 	ret0, _ := ret[0].(*Machine)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Update indicates an expected call of Update.
-func (mr *MockRepositoryMockRecorder) Update(m interface{}) *gomock.Call {
+func (mr *MockRepositoryMockRecorder) Update(ctx, m interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockRepository)(nil).Update), m)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockRepository)(nil).Update), ctx, m)
 }

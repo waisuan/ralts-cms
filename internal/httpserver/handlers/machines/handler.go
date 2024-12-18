@@ -6,6 +6,7 @@ import (
 	"github.com/labstack/gommon/log"
 	"net/http"
 	"ralts-cms/internal/deps"
+	"ralts-cms/internal/machines"
 	"time"
 )
 
@@ -20,7 +21,7 @@ func NewHandler(deps *deps.Dependencies) *Handler {
 }
 
 func (h *Handler) Get(c echo.Context) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
 	m, err := h.deps.MachineRepository.GetBySerialNumber(ctx, c.Param("serialnumber"))
@@ -30,7 +31,7 @@ func (h *Handler) Get(c echo.Context) error {
 	}
 
 	if m == nil {
-		return c.JSON(http.StatusNotFound, "machine not found")
+		return c.JSON(http.StatusNotFound, machines.ErrMachineNotFound.Error())
 	}
 
 	return c.JSON(http.StatusOK, m)

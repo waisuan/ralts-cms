@@ -6,8 +6,10 @@ package graph
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"ralts-cms/graph/model"
+	"ralts-cms/internal/machines"
 )
 
 // CreateTodo is the resolver for the createTodo field.
@@ -32,16 +34,20 @@ func (r *queryResolver) Machines(ctx context.Context) ([]*model.Machine, error) 
 }
 
 // MachineForm is the resolver for the machineForm field.
-func (r *queryResolver) MachineForm(ctx context.Context) (*model.EditForm, error) {
-	return &model.EditForm{
-		Fields: []*model.FormField{
-			{
-				Type:  model.FormFieldTypeText,
-				Label: "Serial No.",
-				Value: "123-A",
-			},
-		},
-	}, nil
+func (r *queryResolver) MachineForm(ctx context.Context, serialNumber *string) (*model.EditForm, error) {
+	if serialNumber != nil {
+		fields, err := r.MachineResolver.GetFormFieldsBySerialNumber(*serialNumber)
+		if err != nil {
+			if errors.Is(err, machines.ErrMachineNotFound) {
+				return nil, fmt.Errorf("machine with serial number %s not found", *serialNumber)
+			}
+			return nil, fmt.Errorf("failed to get machine form fields: %w", err)
+		}
+
+		return &model.EditForm{Fields: fields}, nil
+	}
+
+	return nil, nil
 }
 
 // Mutation returns MutationResolver implementation.

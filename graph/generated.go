@@ -70,7 +70,7 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		MachineForm func(childComplexity int) int
+		MachineForm func(childComplexity int, serialNumber *string) int
 		Machines    func(childComplexity int) int
 		Todos       func(childComplexity int) int
 	}
@@ -95,7 +95,7 @@ type MutationResolver interface {
 type QueryResolver interface {
 	Todos(ctx context.Context) ([]*model.Todo, error)
 	Machines(ctx context.Context) ([]*model.Machine, error)
-	MachineForm(ctx context.Context) (*model.EditForm, error)
+	MachineForm(ctx context.Context, serialNumber *string) (*model.EditForm, error)
 }
 
 type executableSchema struct {
@@ -197,7 +197,12 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			break
 		}
 
-		return e.complexity.Query.MachineForm(childComplexity), true
+		args, err := ec.field_Query_machineForm_args(context.TODO(), rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.complexity.Query.MachineForm(childComplexity, args["serialNumber"].(*string)), true
 
 	case "Query.machines":
 		if e.complexity.Query.Machines == nil {
@@ -430,6 +435,29 @@ func (ec *executionContext) field_Query___type_argsName(
 	}
 
 	var zeroVal string
+	return zeroVal, nil
+}
+
+func (ec *executionContext) field_Query_machineForm_args(ctx context.Context, rawArgs map[string]interface{}) (map[string]interface{}, error) {
+	var err error
+	args := map[string]interface{}{}
+	arg0, err := ec.field_Query_machineForm_argsSerialNumber(ctx, rawArgs)
+	if err != nil {
+		return nil, err
+	}
+	args["serialNumber"] = arg0
+	return args, nil
+}
+func (ec *executionContext) field_Query_machineForm_argsSerialNumber(
+	ctx context.Context,
+	rawArgs map[string]interface{},
+) (*string, error) {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("serialNumber"))
+	if tmp, ok := rawArgs["serialNumber"]; ok {
+		return ec.unmarshalOString2ᚖstring(ctx, tmp)
+	}
+
+	var zeroVal *string
 	return zeroVal, nil
 }
 
@@ -1084,7 +1112,7 @@ func (ec *executionContext) _Query_machineForm(ctx context.Context, field graphq
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (interface{}, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().MachineForm(rctx)
+		return ec.resolvers.Query().MachineForm(rctx, fc.Args["serialNumber"].(*string))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1101,7 +1129,7 @@ func (ec *executionContext) _Query_machineForm(ctx context.Context, field graphq
 	return ec.marshalNEditForm2ᚖraltsᚑcmsᚋgraphᚋmodelᚐEditForm(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Query_machineForm(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Query_machineForm(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Query",
 		Field:      field,
@@ -1114,6 +1142,17 @@ func (ec *executionContext) fieldContext_Query_machineForm(_ context.Context, fi
 			}
 			return nil, fmt.Errorf("no field named %q was found under type EditForm", field.Name)
 		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_machineForm_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
 	}
 	return fc, nil
 }
