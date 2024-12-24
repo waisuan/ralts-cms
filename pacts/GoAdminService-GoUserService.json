@@ -1,0 +1,145 @@
+{
+  "consumer": {
+    "name": "GoAdminService"
+  },
+  "interactions": [
+    {
+      "description": "A request to login with user 'sally'",
+      "providerState": "User is not authenticated",
+      "request": {
+        "matchingRules": {
+          "$.path": {
+            "match": "regex",
+            "regex": "/user/[0-9]+"
+          }
+        },
+        "method": "GET",
+        "path": "/user/10"
+      },
+      "response": {
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Api-Correlation-Id": "100"
+        },
+        "matchingRules": {
+          "$.headers['Content-Type']": {
+            "match": "regex",
+            "regex": "application\\/json"
+          },
+          "$.headers['X-Api-Correlation-Id']": {
+            "match": "type"
+          }
+        },
+        "status": 401
+      }
+    },
+    {
+      "description": "A request to login with user 'sally'",
+      "providerState": "User sally does not exist",
+      "request": {
+        "headers": {
+          "Authorization": "Bearer 2019-01-01"
+        },
+        "matchingRules": {
+          "$.headers.Authorization": {
+            "match": "type"
+          },
+          "$.path": {
+            "match": "regex",
+            "regex": "/user/[0-9]+"
+          }
+        },
+        "method": "GET",
+        "path": "/user/10"
+      },
+      "response": {
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Api-Correlation-Id": "100"
+        },
+        "matchingRules": {
+          "$.headers['Content-Type']": {
+            "match": "regex",
+            "regex": "application\\/json"
+          },
+          "$.headers['X-Api-Correlation-Id']": {
+            "match": "type"
+          }
+        },
+        "status": 403
+      }
+    },
+    {
+      "description": "A request to login with user 'sally'",
+      "providerState": "User sally exists",
+      "request": {
+        "headers": {
+          "Authorization": "Bearer 2019-01-01"
+        },
+        "matchingRules": {
+          "$.headers.Authorization": {
+            "match": "type"
+          },
+          "$.path": {
+            "match": "regex",
+            "regex": "/user/[0-9]+"
+          }
+        },
+        "method": "GET",
+        "path": "/user/10"
+      },
+      "response": {
+        "body": {
+          "firstName": "Sally",
+          "id": 10,
+          "lastName": "McSmiley Face😀😍",
+          "type": "admin",
+          "username": "sally"
+        },
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Api-Correlation-Id": "100"
+        },
+        "matchingRules": {
+          "$.body.firstName": {
+            "match": "type"
+          },
+          "$.body.id": {
+            "match": "type"
+          },
+          "$.body.lastName": {
+            "match": "type"
+          },
+          "$.body.type": {
+            "match": "regex",
+            "regex": "^(admin|user|guest)$"
+          },
+          "$.body.username": {
+            "match": "type"
+          },
+          "$.headers['Content-Type']": {
+            "match": "regex",
+            "regex": "application\\/json"
+          },
+          "$.headers['X-Api-Correlation-Id']": {
+            "match": "type"
+          }
+        },
+        "status": 200
+      }
+    }
+  ],
+  "metadata": {
+    "pactRust": {
+      "ffi": "0.4.23",
+      "mockserver": "1.2.10",
+      "models": "1.2.5"
+    },
+    "pactSpecification": {
+      "version": "2.0.0"
+    }
+  },
+  "provider": {
+    "name": "GoUserService"
+  }
+}
