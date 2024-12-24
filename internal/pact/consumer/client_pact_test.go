@@ -81,7 +81,7 @@ func TestClientPact_GetUser(t *testing.T) {
 			WithRequestPathMatcher("GET", Regex("/user/"+strconv.Itoa(id), "/user/[0-9]+"), func(b *consumer.V2RequestBuilder) {
 				b.Header("Authorization", Like("Bearer 2019-01-01"))
 			}).
-			WillRespondWith(403, func(b *consumer.V2ResponseBuilder) {
+			WillRespondWith(404, func(b *consumer.V2ResponseBuilder) {
 				b.Header("Content-Type", Term("application/json", `application\/json`)).
 					Header("X-Api-Correlation-Id", Like("100"))
 			}).
