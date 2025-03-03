@@ -1,13 +1,18 @@
 include config.mk
 
+export POSTGRESQL_URL='postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable'
+
 generate:
 	go generate ./...
 
 fmt:
 	go fmt ./...
 
-pact-run-provider:
-	go run internal/pact/provider/cmd/main.go
+migrate-up:
+	migrate -database ${POSTGRESQL_URL} -path db/migrations up
+
+migrate-down:
+	migrate -database ${POSTGRESQL_URL} -path db/migrations down
 
 pact-consumer: export PACT_TEST := true
 pact-consumer:

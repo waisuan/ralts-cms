@@ -1,6 +1,5 @@
 package machines_test
 
-// Basic imports
 import (
 	"context"
 	"github.com/stretchr/testify/assert"

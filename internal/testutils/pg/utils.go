@@ -5,6 +5,7 @@ import (
 	"gorm.io/gorm"
 	"ralts-cms/internal/machines"
 	"ralts-cms/internal/maintenance"
+	"ralts-cms/internal/posts"
 )
 
 func TruncateTables(db *gorm.DB) error {
@@ -14,6 +15,11 @@ func TruncateTables(db *gorm.DB) error {
 	}
 
 	res = db.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&maintenance.Maintenance{})
+	if res.Error != nil {
+		return fmt.Errorf("failed to truncate Maintenance table %e", res.Error)
+	}
+
+	res = db.Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(&posts.Post{})
 	if res.Error != nil {
 		return fmt.Errorf("failed to truncate Maintenance table %e", res.Error)
 	}
