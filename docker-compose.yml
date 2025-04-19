@@ -18,24 +18,6 @@ services:
       interval: 1s
       timeout: 5s
       retries: 10
-#  pact-broker:
-#    image: pactfoundation/pact-broker:latest-multi
-#    links:
-#      - db
-#    ports:
-#      - 8081:9292
-#    restart: always
-#    environment:
-#      PACT_BROKER_BASIC_AUTH_USERNAME: pact_workshop
-#      PACT_BROKER_BASIC_AUTH_PASSWORD: pact_workshop
-#      PACT_BROKER_DATABASE_USERNAME: postgres
-#      PACT_BROKER_DATABASE_PASSWORD: postgres
-#      PACT_BROKER_DATABASE_HOST: postgres
-#      PACT_BROKER_DATABASE_NAME: postgres
-#      PACT_BROKER_DATABASE_CONNECT_MAX_RETRIES: "10"
-#      PACT_BROKER_PUBLIC_HEARTBEAT: "true"
-#      PACT_BROKER_WEBHOOK_SCHEME_WHITELIST: http
-#      PACT_BROKER_WEBHOOK_HOST_WHITELIST: host.docker.internal
 
 volumes:
   data:
