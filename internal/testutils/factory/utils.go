@@ -3,7 +3,6 @@ package factory
 import (
 	"github.com/google/uuid"
 	"ralts-cms/internal/machines"
-	"ralts-cms/internal/posts"
 	"time"
 )
 
@@ -26,14 +25,6 @@ func BuildMachine() *machines.Machine {
 		PpmStatus:       "PENDING",
 		TncDate:         &today,
 		PpmDate:         &today,
-	}
-}
-
-func BuildPost() *posts.Post {
-	return &posts.Post{
-		Title:   "Test",
-		Content: "Lorem Ipsum is simply dummy text of the printing and typesetting industry",
-		UserID:  1,
 	}
 }
 

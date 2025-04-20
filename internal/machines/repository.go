@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	pkgpg "ralts-cms/pkg/pg"
 	"strings"
 )
 
@@ -54,7 +53,7 @@ func (r *repo) GetBySerialNumber(ctx context.Context, serialNumber string) (*Mac
 	res := r.db.WithContext(ctx).Where("serial_number = ?", serialNumber).First(&m)
 	if res.Error != nil {
 		if strings.Contains(res.Error.Error(), "record not found") {
-			return nil, pkgpg.ErrNotFound
+			//return nil, pkgpg.ErrNotFound
 		}
 
 		return nil, fmt.Errorf("failed to get machine: %w", res.Error)
@@ -83,7 +82,7 @@ func (r *repo) Update(ctx context.Context, m *Machine) (*Machine, error) {
 		return nil, fmt.Errorf("failed to update machine: %w", res.Error)
 	}
 	if res.RowsAffected == 0 {
-		return nil, pkgpg.ErrNotFound
+		//return nil, pkgpg.ErrNotFound
 	}
 
 	return &updatedMachine, nil
@@ -95,7 +94,7 @@ func (r *repo) DeleteBySerialNumber(ctx context.Context, serialNumber string) er
 		return fmt.Errorf("failed to delete machine: %w", res.Error)
 	}
 	if res.RowsAffected == 0 {
-		return pkgpg.ErrNotFound
+		//return pkgpg.ErrNotFound
 	}
 
 	return nil

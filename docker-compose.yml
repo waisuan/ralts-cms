@@ -2,19 +2,18 @@ version: '3'
 
 services:
   db:
-    image: postgres:16
+    image: amazon/dynamodb-local
     restart: always
-    container_name: postgres
+    container_name: dynamodb
     ports:
-      - "5432:5432"
-    user: postgres
-    environment:
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=postgres
+      - "8000:8000"
     volumes:
-      - data:/var/lib/postgresql/data
+      - data:/home/dynamodblocal/data
+    environment:
+      - AWS_REGION=us-west-1
+      - DYNAMODB_DATA_PATH=/home/dynamodblocal/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready"]
+      test: ["CMD-SHELL", "curl -s http://localhost:8000 || exit 1"]
       interval: 1s
       timeout: 5s
       retries: 10

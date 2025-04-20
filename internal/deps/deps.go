@@ -1,14 +1,14 @@
 package deps
 
 import (
-	"gorm.io/gorm"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"log"
 	"ralts-cms/internal/machines"
 )
 
 type Dependencies struct {
 	Config            *Config
-	DB                *gorm.DB
+	DB                *dynamodb.Client
 	MachineRepository machines.Repository
 }
 
@@ -18,12 +18,12 @@ func Initialise() *Dependencies {
 		log.Fatalf("failed to load config: %e", err)
 	}
 
-	db, err := InitPostgres(cfg)
+	db, err := InitDynamoDBClient(cfg)
 	if err != nil {
 		log.Fatalf("failed to initialise db: %e", err)
 	}
 
-	mr := machines.NewRepository(db)
+	mr := machines.NewRepository(nil)
 
 	return &Dependencies{
 		Config:            cfg,
