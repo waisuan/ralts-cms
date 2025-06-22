@@ -3,3 +3,4 @@ vendor/
 .env.*
 bootstrap
 *.zip
+tmp/

@@ -1,22 +1,18 @@
-version: '3'
+version: '3.8'
 
 services:
-  db:
-    image: amazon/dynamodb-local
-    restart: always
-    container_name: dynamodb
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
+    container_name: ralts-dynamodb-local
     ports:
       - "8000:8000"
+    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath ./data"
     volumes:
-      - data:/home/dynamodblocal/data
+      - dynamodb_data:/home/dynamodblocal/data
     environment:
-      - AWS_REGION=us-west-1
-      - DYNAMODB_DATA_PATH=/home/dynamodblocal/data
-    healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:8000 || exit 1"]
-      interval: 1s
-      timeout: 5s
-      retries: 10
+      - AWS_ACCESS_KEY_ID=local
+      - AWS_SECRET_ACCESS_KEY=local
+      - AWS_DEFAULT_REGION=us-east-1
 
 volumes:
-  data:
+  dynamodb_data: 

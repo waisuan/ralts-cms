@@ -2,23 +2,38 @@ package deps
 
 import (
 	"fmt"
-	"github.com/caarlos0/env/v9"
-	"github.com/joho/godotenv"
 	"log"
 	"os"
 	"path/filepath"
-)
+	"time"
 
-type Database struct {
-	Hostname string `env:"DB_HOSTNAME"`
-	Port     int    `env:"DB_PORT"`
-	DbName   string `env:"DB_NAME"`
-}
+	"github.com/caarlos0/env/v9"
+	"github.com/joho/godotenv"
+)
 
 type Config struct {
 	AppName string `env:"APP_NAME"`
 	Env     string `env:"APP_ENV" envDefault:"development"`
-	DB      Database
+
+	// DynamoDB Configuration
+	DynamoDBEndpoint string `env:"DYNAMODB_ENDPOINT" envDefault:"http://localhost:8000"`
+	DynamoDBRegion   string `env:"DYNAMODB_REGION" envDefault:"us-east-1"`
+	DynamoDBTable    string `env:"DYNAMODB_TABLE" envDefault:"ralts"`
+
+	// AWS Credentials (for local development)
+	AwsAccessKeyID     string `env:"AWS_ACCESS_KEY_ID" envDefault:"local"`
+	AwsSecretAccessKey string `env:"AWS_SECRET_ACCESS_KEY" envDefault:"local"`
+
+	// Server Configuration
+	ServerPort string `env:"SERVER_PORT" envDefault:"8080"`
+
+	// HTTP Timeouts
+	ReadTimeout  time.Duration `env:"HTTP_READ_TIMEOUT" envDefault:"15s"`
+	WriteTimeout time.Duration `env:"HTTP_WRITE_TIMEOUT" envDefault:"15s"`
+	IdleTimeout  time.Duration `env:"HTTP_IDLE_TIMEOUT" envDefault:"60s"`
+
+	// Authentication
+	Credentials string `env:"CREDENTIALS" envDefault:"admin:password"`
 }
 
 func LoadConfig() (*Config, error) {
