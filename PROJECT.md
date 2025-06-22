@@ -157,5 +157,6 @@ type Maintenance struct {
 
 - [x] Setup and configure local DynamoDB instance
 - [x] Create DynamoDB table
-- [x] Create a web server
+- [x] Create a web server (using `gorilla/mux`)
 - [x] Construct a `/health` endpoint
+- [x] Write unit tests

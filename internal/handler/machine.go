@@ -7,6 +7,8 @@ import (
 	"ralts-cms/internal/deps"
 	"ralts-cms/internal/machine"
 	"strings"
+
+	"github.com/gorilla/mux"
 )
 
 type MachineHandler struct {
@@ -19,9 +21,10 @@ func NewMachineHandler(deps *deps.Dependencies) *MachineHandler {
 	}
 }
 
-// GetMachine handles GET /machines/:serial_number
+// GetMachine handles GET /machines/{serial_number}
 func (h *MachineHandler) GetMachine(w http.ResponseWriter, r *http.Request) {
-	serialNumber := strings.TrimPrefix(r.URL.Path, "/machines/")
+	vars := mux.Vars(r)
+	serialNumber := vars["serial_number"]
 	if serialNumber == "" {
 		http.Error(w, "Serial number is required", http.StatusBadRequest)
 		return
@@ -103,9 +106,10 @@ func (h *MachineHandler) UpdateMachine(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(machine)
 }
 
-// DeleteMachine handles DELETE /machines/:serial_number
+// DeleteMachine handles DELETE /machines/{serial_number}
 func (h *MachineHandler) DeleteMachine(w http.ResponseWriter, r *http.Request) {
-	serialNumber := strings.TrimPrefix(r.URL.Path, "/machines/")
+	vars := mux.Vars(r)
+	serialNumber := vars["serial_number"]
 	if serialNumber == "" {
 		http.Error(w, "Serial number is required", http.StatusBadRequest)
 		return

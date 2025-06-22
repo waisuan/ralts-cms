@@ -7,6 +7,8 @@ import (
 	"ralts-cms/internal/deps"
 	"ralts-cms/internal/maintenance"
 	"strings"
+
+	"github.com/gorilla/mux"
 )
 
 type MaintenanceHandler struct {
@@ -19,18 +21,15 @@ func NewMaintenanceHandler(deps *deps.Dependencies) *MaintenanceHandler {
 	}
 }
 
-// GetMaintenance handles GET /machines/:serial_number/maintenance/:work_order_number
+// GetMaintenance handles GET /machines/{serial_number}/maintenance/{work_order_number}
 func (h *MaintenanceHandler) GetMaintenance(w http.ResponseWriter, r *http.Request) {
-	path := strings.TrimPrefix(r.URL.Path, "/machines/")
-	parts := strings.Split(path, "/")
-
-	if len(parts) < 3 || parts[0] == "" || parts[2] == "" {
+	vars := mux.Vars(r)
+	machineSerialNumber := vars["serial_number"]
+	workOrderNumber := vars["work_order_number"]
+	if machineSerialNumber == "" || workOrderNumber == "" {
 		http.Error(w, "Machine serial number and work order number are required", http.StatusBadRequest)
 		return
 	}
-
-	machineSerialNumber := parts[0]
-	workOrderNumber := parts[2]
 
 	maintenance, err := h.deps.MaintenanceRepository.GetByWorkOrder(r.Context(), machineSerialNumber, workOrderNumber)
 	if err != nil {
@@ -46,17 +45,14 @@ func (h *MaintenanceHandler) GetMaintenance(w http.ResponseWriter, r *http.Reque
 	json.NewEncoder(w).Encode(maintenance)
 }
 
-// ListMaintenance handles GET /machines/:serial_number/maintenance
+// ListMaintenance handles GET /machines/{serial_number}/maintenance
 func (h *MaintenanceHandler) ListMaintenance(w http.ResponseWriter, r *http.Request) {
-	path := strings.TrimPrefix(r.URL.Path, "/machines/")
-	parts := strings.Split(path, "/")
-
-	if len(parts) < 2 || parts[0] == "" {
+	vars := mux.Vars(r)
+	machineSerialNumber := vars["serial_number"]
+	if machineSerialNumber == "" {
 		http.Error(w, "Machine serial number is required", http.StatusBadRequest)
 		return
 	}
-
-	machineSerialNumber := parts[0]
 
 	maintenanceList, err := h.deps.MaintenanceRepository.ListByMachine(r.Context(), machineSerialNumber)
 	if err != nil {
@@ -68,17 +64,14 @@ func (h *MaintenanceHandler) ListMaintenance(w http.ResponseWriter, r *http.Requ
 	json.NewEncoder(w).Encode(maintenanceList)
 }
 
-// CreateMaintenance handles POST /machines/:serial_number/maintenance
+// CreateMaintenance handles POST /machines/{serial_number}/maintenance
 func (h *MaintenanceHandler) CreateMaintenance(w http.ResponseWriter, r *http.Request) {
-	path := strings.TrimPrefix(r.URL.Path, "/machines/")
-	parts := strings.Split(path, "/")
-
-	if len(parts) < 2 || parts[0] == "" {
+	vars := mux.Vars(r)
+	machineSerialNumber := vars["serial_number"]
+	if machineSerialNumber == "" {
 		http.Error(w, "Machine serial number is required", http.StatusBadRequest)
 		return
 	}
-
-	machineSerialNumber := parts[0]
 
 	var maintenance maintenance.Maintenance
 	if err := json.NewDecoder(r.Body).Decode(&maintenance); err != nil {
@@ -109,17 +102,14 @@ func (h *MaintenanceHandler) CreateMaintenance(w http.ResponseWriter, r *http.Re
 	json.NewEncoder(w).Encode(maintenance)
 }
 
-// UpdateMaintenance handles PUT /machines/:serial_number/maintenance
+// UpdateMaintenance handles PUT /machines/{serial_number}/maintenance
 func (h *MaintenanceHandler) UpdateMaintenance(w http.ResponseWriter, r *http.Request) {
-	path := strings.TrimPrefix(r.URL.Path, "/machines/")
-	parts := strings.Split(path, "/")
-
-	if len(parts) < 2 || parts[0] == "" {
+	vars := mux.Vars(r)
+	machineSerialNumber := vars["serial_number"]
+	if machineSerialNumber == "" {
 		http.Error(w, "Machine serial number is required", http.StatusBadRequest)
 		return
 	}
-
-	machineSerialNumber := parts[0]
 
 	var maintenance maintenance.Maintenance
 	if err := json.NewDecoder(r.Body).Decode(&maintenance); err != nil {
@@ -156,18 +146,15 @@ func (h *MaintenanceHandler) UpdateMaintenance(w http.ResponseWriter, r *http.Re
 	json.NewEncoder(w).Encode(maintenance)
 }
 
-// DeleteMaintenance handles DELETE /machines/:serial_number/maintenance/:work_order_number
+// DeleteMaintenance handles DELETE /machines/{serial_number}/maintenance/{work_order_number}
 func (h *MaintenanceHandler) DeleteMaintenance(w http.ResponseWriter, r *http.Request) {
-	path := strings.TrimPrefix(r.URL.Path, "/machines/")
-	parts := strings.Split(path, "/")
-
-	if len(parts) < 3 || parts[0] == "" || parts[2] == "" {
+	vars := mux.Vars(r)
+	machineSerialNumber := vars["serial_number"]
+	workOrderNumber := vars["work_order_number"]
+	if machineSerialNumber == "" || workOrderNumber == "" {
 		http.Error(w, "Machine serial number and work order number are required", http.StatusBadRequest)
 		return
 	}
-
-	machineSerialNumber := parts[0]
-	workOrderNumber := parts[2]
 
 	// Check if maintenance exists
 	_, err := h.deps.MaintenanceRepository.GetByWorkOrder(r.Context(), machineSerialNumber, workOrderNumber)

@@ -43,8 +43,11 @@ func LoadConfig() (*Config, error) {
 	if "" != appEnv {
 		log.Printf("Loading %s config\n", appEnv)
 		err := godotenv.Load(dir(".env." + appEnv))
-		if err != nil {
+		if err != nil && !os.IsNotExist(err) {
 			return nil, fmt.Errorf("error loading app config: %w", err)
+		}
+		if err != nil && os.IsNotExist(err) {
+			log.Printf("Warning: .env.%s not found, continuing without it", appEnv)
 		}
 	}
 
