@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
+//go:generate mockgen -destination=../machine/mock_machines_repository.go -package=machine -source=repository.go
 type Repository interface {
 	GetBySerialNumber(ctx context.Context, serialNumber string) (*Machine, error)
 	Create(ctx context.Context, machine *Machine) error

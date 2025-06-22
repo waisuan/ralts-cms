@@ -153,10 +153,10 @@ type Maintenance struct {
 - Able to update an existing `maintenance` record.
 - Able to delete an existing `maintenance` record.
 
+# Testing
+
+- Run a local instance of DynamoDB before running the test suite
+
 # Implementation Checklist
 
-- [x] Setup and configure local DynamoDB instance
-- [x] Create DynamoDB table
-- [x] Create a web server (using `gorilla/mux`)
-- [x] Construct a `/health` endpoint
-- [x] Write unit tests
+- [ ] Implement Me

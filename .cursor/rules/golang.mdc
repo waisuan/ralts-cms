@@ -42,7 +42,7 @@ You are an expert in Go, microservices architecture, and clean backend developme
 - Consider implementing **distributed rate-limiting** to prevent abuse across services (e.g., using Redis).
 
 ### Testing:
-- Use the testify library (https://github.com/stretchr/testify) for test assertions and mocks
+- Use the testify library (https://github.com/stretchr/testify) for test assertions and mocks (generated with https://github.com/vektra/mockery)
 - Write **unit tests** using table-driven patterns and parallel execution.
 - **Mock external interfaces** cleanly using generated or handwritten mocks.
 - Separate **fast unit tests** from slower integration and E2E tests.

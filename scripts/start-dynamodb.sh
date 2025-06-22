@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "Starting local DynamoDB instance..."
-docker-compose up -d dynamodb-local
+docker compose up --wait -d dynamodb-local
 
 echo "Waiting for DynamoDB to be ready..."
 sleep 5
