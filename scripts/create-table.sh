@@ -13,7 +13,7 @@ aws dynamodb create-table \
         AttributeName=PK,KeyType=HASH \
         AttributeName=SK,KeyType=RANGE \
     --global-secondary-indexes \
-        IndexName=gsi_1,KeySchema=[{AttributeName=GSI1_PK,KeyType=HASH},{AttributeName=GSI1_SK,KeyType=RANGE}],Projection={ProjectionType=ALL},BillingMode=PAY_PER_REQUEST \
+        '[{"IndexName":"gsi_1","KeySchema":[{"AttributeName":"GSI1_PK","KeyType":"HASH"},{"AttributeName":"GSI1_SK","KeyType":"RANGE"}],"Projection":{"ProjectionType":"ALL"}}]' \
     --billing-mode PAY_PER_REQUEST \
     --endpoint-url http://localhost:8000 \
     --region us-east-1

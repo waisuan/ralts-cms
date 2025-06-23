@@ -20,10 +20,6 @@ type Config struct {
 	DynamoDBRegion   string `env:"DYNAMODB_REGION" envDefault:"us-east-1"`
 	DynamoDBTable    string `env:"DYNAMODB_TABLE" envDefault:"ralts"`
 
-	// AWS Credentials (for local development)
-	AwsAccessKeyID     string `env:"AWS_ACCESS_KEY_ID" envDefault:"local"`
-	AwsSecretAccessKey string `env:"AWS_SECRET_ACCESS_KEY" envDefault:"local"`
-
 	// Server Configuration
 	ServerPort string `env:"SERVER_PORT" envDefault:"8080"`
 

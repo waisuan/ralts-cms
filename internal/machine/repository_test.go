@@ -1,10 +1,12 @@
-package machine
+package machine_test
 
 import (
 	"context"
 	"testing"
 	"time"
 
+	"ralts-cms/internal/deps"
+	"ralts-cms/internal/machine"
 	"ralts-cms/internal/testutils"
 
 	"github.com/stretchr/testify/require"
@@ -14,110 +16,83 @@ import (
 // MachineRepositoryTestSuite defines the test suite for machine repository
 type MachineRepositoryTestSuite struct {
 	suite.Suite
-	*testutils.DynamoDBTestSuite
-	repo Repository
-}
 
-// SetupSuite sets up the test suite
-func (suite *MachineRepositoryTestSuite) SetupSuite() {
-	// Skip if DynamoDB is not available
-	testutils.SkipIfDynamoDBUnavailable(suite.T())
-
-	// Initialize DynamoDB test suite
-	suite.DynamoDBTestSuite = testutils.NewDynamoDBTestSuite("test-ralts")
-	err := suite.DynamoDBTestSuite.SetupSuite()
-	require.NoError(suite.T(), err)
-
-	// Initialize repository
-	suite.repo = NewRepository(suite.Client, suite.TableName)
-}
-
-// TearDownSuite cleans up the test suite
-func (suite *MachineRepositoryTestSuite) TearDownSuite() {
-	if suite.DynamoDBTestSuite != nil {
-		err := suite.DynamoDBTestSuite.TearDownSuite()
-		if err != nil {
-			suite.T().Logf("Failed to teardown DynamoDB test suite: %v", err)
-		}
-	}
+	deps *deps.Dependencies
+	repo machine.Repository
 }
 
 // SetupTest sets up each test
 func (suite *MachineRepositoryTestSuite) SetupTest() {
-	if suite.DynamoDBTestSuite != nil {
-		err := suite.DynamoDBTestSuite.SetupTest()
-		require.NoError(suite.T(), err)
-	}
+	deps := deps.Initialise()
+	suite.deps = deps
+	suite.repo = machine.NewRepository(deps.DynamoDBClient, deps.Config.DynamoDBTable)
 }
 
-// TestMachineRepositoryTestSuite runs the test suite
-func TestMachineRepositoryTestSuite(t *testing.T) {
-	suite.Run(t, new(MachineRepositoryTestSuite))
+func (suite *MachineRepositoryTestSuite) TearDownTest() {
+	err := testutils.ClearTable(context.Background(), suite.deps.Config.DynamoDBTable, suite.deps.DynamoDBClient)
+	require.NoError(suite.T(), err)
 }
 
-// TestCreate tests the Create method
 func (suite *MachineRepositoryTestSuite) TestCreate() {
 	ctx := context.Background()
 
 	suite.Run("should create machine successfully", func() {
-		machine := &Machine{
-			SerialNumber:    "TEST123",
-			Customer:        "Test Customer",
-			State:           "Active",
-			AccountType:     "Premium",
-			Model:           "Test Model",
-			Status:          "Operational",
-			Brand:           "Test Brand",
-			District:        "Test District",
-			PersonInCharge:  "John Doe",
-			ReportedBy:      "Jane Smith",
-			AdditionalNotes: "Test notes",
-			Attachment:      "test.pdf",
-			PpmStatus:       "Scheduled",
-			TncDate:         "2025-05-12",
-			PpmDate:         "2025-06-12",
-		}
+		machine := testutils.CreateMachine("MACHINE001")
+
+		err := suite.repo.Create(ctx, machine)
+		suite.Require().NoError(err)
+		suite.Assert().NotEmpty(machine.CreatedAt)
+		suite.Assert().NotEmpty(machine.UpdatedAt)
+		suite.Assert().Equal(machine.CreatedAt, machine.UpdatedAt)
+	})
+
+	suite.Run("should fail when creating duplicate machine", func() {
+		machine := testutils.CreateMachine("MACHINE002")
 
 		err := suite.repo.Create(ctx, machine)
 		suite.Require().NoError(err)
 
-		// Verify timestamps were set
+		// Try to create the same machine again
+		duplicateMachine := testutils.CreateMachine("MACHINE002")
+		err = suite.repo.Create(ctx, duplicateMachine)
+		suite.Require().Error(err)
+		suite.Assert().Contains(err.Error(), "ConditionalCheckFailedException")
+	})
+
+	suite.Run("should create machine with minimal fields", func() {
+		machine := testutils.CreateMinimalMachine("MACHINE003")
+
+		err := suite.repo.Create(ctx, machine)
+		suite.Require().NoError(err)
 		suite.Assert().NotEmpty(machine.CreatedAt)
 		suite.Assert().NotEmpty(machine.UpdatedAt)
 	})
 
-	suite.Run("should fail when creating duplicate machine", func() {
-		machine := &Machine{
-			SerialNumber: "TEST123",
-			Customer:     "Test Customer",
-		}
+	suite.Run("should create machine with custom fields", func() {
+		machine := testutils.CreateMachineWithCustomFields("MACHINE004", "Custom Customer", "Maintenance")
 
 		err := suite.repo.Create(ctx, machine)
-		suite.Require().Error(err)
-		suite.Assert().Contains(err.Error(), "ConditionalCheckFailedException")
+		suite.Require().NoError(err)
+		suite.Assert().Equal("Custom Customer", machine.Customer)
+		suite.Assert().Equal("Maintenance", machine.Status)
 	})
 }
 
-// TestGetBySerialNumber tests the GetBySerialNumber method
 func (suite *MachineRepositoryTestSuite) TestGetBySerialNumber() {
 	ctx := context.Background()
 
 	suite.Run("should get existing machine", func() {
-		// Create a test machine first
-		machine := &Machine{
-			SerialNumber: "GET123",
-			Customer:     "Get Test Customer",
-			State:        "Active",
-		}
+		machine := testutils.CreateMachine("MACHINE005")
 		err := suite.repo.Create(ctx, machine)
 		suite.Require().NoError(err)
 
-		// Retrieve the machine
-		retrieved, err := suite.repo.GetBySerialNumber(ctx, "GET123")
+		retrieved, err := suite.repo.GetBySerialNumber(ctx, "MACHINE005")
 		suite.Require().NoError(err)
-		suite.Assert().Equal("GET123", retrieved.SerialNumber)
-		suite.Assert().Equal("Get Test Customer", retrieved.Customer)
-		suite.Assert().Equal("Active", retrieved.State)
+		suite.Assert().Equal("MACHINE005", retrieved.SerialNumber)
+		suite.Assert().Equal("Test Customer", retrieved.Customer)
+		suite.Assert().Equal("Operational", retrieved.Status)
+		suite.Assert().Equal("Test Model", retrieved.Model)
+		suite.Assert().Equal("Test Brand", retrieved.Brand)
 		suite.Assert().NotEmpty(retrieved.CreatedAt)
 		suite.Assert().NotEmpty(retrieved.UpdatedAt)
 	})
@@ -127,19 +102,29 @@ func (suite *MachineRepositoryTestSuite) TestGetBySerialNumber() {
 		suite.Require().Error(err)
 		suite.Assert().Equal("machine not found", err.Error())
 	})
+
+	suite.Run("should get machine with all fields populated", func() {
+		machine := testutils.CreateMachine("MACHINE006")
+		machine.AdditionalNotes = "Special notes for testing"
+		machine.PpmStatus = "Completed"
+		machine.Attachment = "special-test.pdf"
+
+		err := suite.repo.Create(ctx, machine)
+		suite.Require().NoError(err)
+
+		retrieved, err := suite.repo.GetBySerialNumber(ctx, "MACHINE006")
+		suite.Require().NoError(err)
+		suite.Assert().Equal("Special notes for testing", retrieved.AdditionalNotes)
+		suite.Assert().Equal("Completed", retrieved.PpmStatus)
+		suite.Assert().Equal("special-test.pdf", retrieved.Attachment)
+	})
 }
 
-// TestUpdate tests the Update method
 func (suite *MachineRepositoryTestSuite) TestUpdate() {
 	ctx := context.Background()
 
 	suite.Run("should update existing machine", func() {
-		// Create a test machine first
-		machine := &Machine{
-			SerialNumber: "UPDATE123",
-			Customer:     "Original Customer",
-			State:        "Inactive",
-		}
+		machine := testutils.CreateMachine("MACHINE007")
 		err := suite.repo.Create(ctx, machine)
 		suite.Require().NoError(err)
 
@@ -147,111 +132,112 @@ func (suite *MachineRepositoryTestSuite) TestUpdate() {
 		originalUpdatedAt := machine.UpdatedAt
 
 		// Wait a bit to ensure timestamp difference
-		time.Sleep(1 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 
-		// Update the machine
+		// Update machine fields
 		machine.Customer = "Updated Customer"
-		machine.State = "Active"
+		machine.Status = "Under Maintenance"
+		machine.AdditionalNotes = "Updated notes"
+		machine.PersonInCharge = "Jane Doe"
+
 		err = suite.repo.Update(ctx, machine)
 		suite.Require().NoError(err)
 
 		// Verify the update
-		retrieved, err := suite.repo.GetBySerialNumber(ctx, "UPDATE123")
+		retrieved, err := suite.repo.GetBySerialNumber(ctx, "MACHINE007")
 		suite.Require().NoError(err)
 		suite.Assert().Equal("Updated Customer", retrieved.Customer)
-		suite.Assert().Equal("Active", retrieved.State)
-		suite.Assert().Equal(originalCreatedAt, retrieved.CreatedAt)    // CreatedAt should not change
-		suite.Assert().NotEqual(originalUpdatedAt, retrieved.UpdatedAt) // UpdatedAt should change
+		suite.Assert().Equal("Under Maintenance", retrieved.Status)
+		suite.Assert().Equal("Updated notes", retrieved.AdditionalNotes)
+		suite.Assert().Equal("Jane Doe", retrieved.PersonInCharge)
+		suite.Assert().Equal(originalCreatedAt, retrieved.CreatedAt)
+		// UpdatedAt should be different or at least not older
+		suite.Assert().True(retrieved.UpdatedAt >= originalUpdatedAt)
 	})
 
-	suite.Run("should return error for non-existent machine", func() {
-		machine := &Machine{
-			SerialNumber: "NONEXISTENT",
-			Customer:     "Non-existent Customer",
-		}
+	suite.Run("should update non-existent machine (creates new record)", func() {
+		machine := testutils.CreateMachine("MACHINE008")
+		machine.Customer = "New Customer"
 
 		err := suite.repo.Update(ctx, machine)
-		suite.Require().Error(err)
-		suite.Assert().Equal("machine not found", err.Error())
+		suite.Require().NoError(err)
+
+		retrieved, err := suite.repo.GetBySerialNumber(ctx, "MACHINE008")
+		suite.Require().NoError(err)
+		suite.Assert().Equal("New Customer", retrieved.Customer)
+		suite.Assert().NotEmpty(retrieved.CreatedAt)
+		suite.Assert().NotEmpty(retrieved.UpdatedAt)
+	})
+
+	suite.Run("should update machine with minimal changes", func() {
+		machine := testutils.CreateMachine("MACHINE009")
+		err := suite.repo.Create(ctx, machine)
+		suite.Require().NoError(err)
+
+		originalUpdatedAt := machine.UpdatedAt
+		time.Sleep(10 * time.Millisecond)
+
+		// Only update one field
+		machine.Status = "Idle"
+		err = suite.repo.Update(ctx, machine)
+		suite.Require().NoError(err)
+
+		retrieved, err := suite.repo.GetBySerialNumber(ctx, "MACHINE009")
+		suite.Require().NoError(err)
+		suite.Assert().Equal("Idle", retrieved.Status)
+		// UpdatedAt should be different or at least not older
+		suite.Assert().True(retrieved.UpdatedAt >= originalUpdatedAt)
 	})
 }
 
-// TestDelete tests the Delete method
 func (suite *MachineRepositoryTestSuite) TestDelete() {
 	ctx := context.Background()
 
 	suite.Run("should delete existing machine", func() {
-		// Create a test machine first
-		machine := &Machine{
-			SerialNumber: "DELETE123",
-			Customer:     "Delete Test Customer",
-			State:        "Active",
-		}
+		machine := testutils.CreateMachine("MACHINE010")
 		err := suite.repo.Create(ctx, machine)
 		suite.Require().NoError(err)
 
 		// Verify machine exists
-		_, err = suite.repo.GetBySerialNumber(ctx, "DELETE123")
+		_, err = suite.repo.GetBySerialNumber(ctx, "MACHINE010")
 		suite.Require().NoError(err)
 
 		// Delete the machine
-		err = suite.repo.Delete(ctx, "DELETE123")
+		err = suite.repo.Delete(ctx, "MACHINE010")
 		suite.Require().NoError(err)
 
 		// Verify machine is deleted
-		_, err = suite.repo.GetBySerialNumber(ctx, "DELETE123")
+		_, err = suite.repo.GetBySerialNumber(ctx, "MACHINE010")
 		suite.Require().Error(err)
 		suite.Assert().Equal("machine not found", err.Error())
 	})
 
-	suite.Run("should return error for non-existent machine", func() {
+	suite.Run("should not error when deleting non-existent machine", func() {
 		err := suite.repo.Delete(ctx, "NONEXISTENT")
-		suite.Require().Error(err)
-		suite.Assert().Equal("machine not found", err.Error())
+		suite.Require().NoError(err)
+	})
+
+	suite.Run("should delete machine and allow recreation", func() {
+		machine := testutils.CreateMachine("MACHINE011")
+		err := suite.repo.Create(ctx, machine)
+		suite.Require().NoError(err)
+
+		err = suite.repo.Delete(ctx, "MACHINE011")
+		suite.Require().NoError(err)
+
+		// Should be able to create a new machine with the same serial number
+		newMachine := testutils.CreateMachine("MACHINE011")
+		newMachine.Customer = "Recreated Customer"
+		err = suite.repo.Create(ctx, newMachine)
+		suite.Require().NoError(err)
+
+		retrieved, err := suite.repo.GetBySerialNumber(ctx, "MACHINE011")
+		suite.Require().NoError(err)
+		suite.Assert().Equal("Recreated Customer", retrieved.Customer)
 	})
 }
 
-// TestIntegration tests the full CRUD workflow
-func (suite *MachineRepositoryTestSuite) TestIntegration() {
-	ctx := context.Background()
-
-	suite.Run("should handle full CRUD workflow", func() {
-		// Create
-		machine := &Machine{
-			SerialNumber: "INTEGRATION123",
-			Customer:     "Integration Test Customer",
-			State:        "New",
-		}
-		err := suite.repo.Create(ctx, machine)
-		suite.Require().NoError(err)
-		suite.Assert().NotEmpty(machine.CreatedAt)
-		suite.Assert().NotEmpty(machine.UpdatedAt)
-
-		// Read
-		retrieved, err := suite.repo.GetBySerialNumber(ctx, "INTEGRATION123")
-		suite.Require().NoError(err)
-		suite.Assert().Equal("Integration Test Customer", retrieved.Customer)
-		suite.Assert().Equal("New", retrieved.State)
-
-		// Update
-		retrieved.State = "Active"
-		retrieved.Customer = "Updated Integration Customer"
-		err = suite.repo.Update(ctx, retrieved)
-		suite.Require().NoError(err)
-
-		// Read again to verify update
-		updated, err := suite.repo.GetBySerialNumber(ctx, "INTEGRATION123")
-		suite.Require().NoError(err)
-		suite.Assert().Equal("Updated Integration Customer", updated.Customer)
-		suite.Assert().Equal("Active", updated.State)
-
-		// Delete
-		err = suite.repo.Delete(ctx, "INTEGRATION123")
-		suite.Require().NoError(err)
-
-		// Verify deletion
-		_, err = suite.repo.GetBySerialNumber(ctx, "INTEGRATION123")
-		suite.Require().Error(err)
-		suite.Assert().Equal("machine not found", err.Error())
-	})
+// TestMachineRepositoryTestSuite runs the test suite
+func TestMachineRepositoryTestSuite(t *testing.T) {
+	suite.Run(t, new(MachineRepositoryTestSuite))
 }

@@ -10,46 +10,24 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 )
 
-// DynamoDBConfig holds DynamoDB-specific configuration
-type DynamoDBConfig struct {
-	Endpoint string
-	Region   string
-	Table    string
-	// Production settings
-	UseLocalEndpoint bool
-	// AWS credentials for local development
-	AccessKeyID     string
-	SecretAccessKey string
-}
-
-// NewDynamoDBConfig creates a new DynamoDB configuration from the main config
-func NewDynamoDBConfig(cfg *Config) *DynamoDBConfig {
-	return &DynamoDBConfig{
-		Endpoint:         cfg.DynamoDBEndpoint,
-		Region:           cfg.DynamoDBRegion,
-		Table:            cfg.DynamoDBTable,
-		UseLocalEndpoint: cfg.Env == "development" || cfg.Env == "local",
-		AccessKeyID:      cfg.AwsAccessKeyID,
-		SecretAccessKey:  cfg.AwsSecretAccessKey,
-	}
-}
-
 // NewDynamoDBClient creates a new DynamoDB client based on the configuration
-func NewDynamoDBClient(ctx context.Context, dbConfig *DynamoDBConfig) (*dynamodb.Client, error) {
+func NewDynamoDBClient(ctx context.Context, cfg *Config) (*dynamodb.Client, error) {
 	var awsConfig aws.Config
 	var err error
 
-	if dbConfig.UseLocalEndpoint {
+	useLocalEndpoint := cfg.Env == "development" || cfg.Env == "local"
+
+	if useLocalEndpoint {
 		// Local development configuration
 		log.Printf("Initializing DynamoDB client for local development")
 		awsConfig, err = config.LoadDefaultConfig(ctx,
-			config.WithRegion(dbConfig.Region),
+			config.WithRegion(cfg.DynamoDBRegion),
 			config.WithEndpointResolverWithOptions(aws.EndpointResolverWithOptionsFunc(
 				func(service, region string, options ...interface{}) (aws.Endpoint, error) {
 					return aws.Endpoint{
 						PartitionID:   "aws",
-						URL:           dbConfig.Endpoint,
-						SigningRegion: dbConfig.Region,
+						URL:           cfg.DynamoDBEndpoint,
+						SigningRegion: cfg.DynamoDBRegion,
 					}, nil
 				},
 			)),
@@ -58,7 +36,7 @@ func NewDynamoDBClient(ctx context.Context, dbConfig *DynamoDBConfig) (*dynamodb
 		// Production configuration - uses AWS credentials from environment or IAM roles
 		log.Printf("Initializing DynamoDB client for production environment")
 		awsConfig, err = config.LoadDefaultConfig(ctx,
-			config.WithRegion(dbConfig.Region),
+			config.WithRegion(cfg.DynamoDBRegion),
 		)
 	}
 
