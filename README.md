@@ -324,6 +324,33 @@ make test
 make fmt
 ```
 
+## Scripts
+
+The `scripts/` directory contains utility scripts for development and testing:
+
+### DynamoDB Scripts
+
+- `scripts/start-dynamodb.sh` - Start a local DynamoDB instance using Docker
+- `scripts/create-table.sh` - Create the required DynamoDB table schema
+
+### JWT Token Generator
+
+- `scripts/jwt/` - JWT token generator for local testing
+
+Generate a valid JWT token for testing:
+
+```bash
+go run scripts/jwt/main.go
+```
+
+This generates a JWT token with:
+- **Secret**: Uses the default JWT secret from your config
+- **Subject**: `test-user`
+- **Expiration**: 24 hours from generation
+- **Algorithm**: HS256
+
+The script provides the complete Authorization header and example curl commands for testing API endpoints.
+
 ## Project Structure
 
 ```

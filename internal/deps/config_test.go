@@ -20,7 +20,7 @@ func TestLoadConfig_Defaults(t *testing.T) {
 	os.Unsetenv("HTTP_READ_TIMEOUT")
 	os.Unsetenv("HTTP_WRITE_TIMEOUT")
 	os.Unsetenv("HTTP_IDLE_TIMEOUT")
-	os.Unsetenv("CREDENTIALS")
+	os.Unsetenv("JWT_SECRET")
 
 	// Load config
 	cfg, err := LoadConfig()
@@ -37,7 +37,6 @@ func TestLoadConfig_Defaults(t *testing.T) {
 	assert.Equal(t, 15*time.Second, cfg.ReadTimeout)
 	assert.Equal(t, 15*time.Second, cfg.WriteTimeout)
 	assert.Equal(t, 60*time.Second, cfg.IdleTimeout)
-	assert.Equal(t, "admin:password", cfg.Credentials)
 }
 
 func TestLoadConfig_EnvironmentOverrides(t *testing.T) {
@@ -51,7 +50,7 @@ func TestLoadConfig_EnvironmentOverrides(t *testing.T) {
 	os.Setenv("HTTP_READ_TIMEOUT", "30s")
 	os.Setenv("HTTP_WRITE_TIMEOUT", "30s")
 	os.Setenv("HTTP_IDLE_TIMEOUT", "120s")
-	os.Setenv("CREDENTIALS", "test:credentials")
+	os.Setenv("JWT_SECRET", "test-secret")
 
 	// Clean up after test
 	defer func() {
@@ -64,7 +63,7 @@ func TestLoadConfig_EnvironmentOverrides(t *testing.T) {
 		os.Unsetenv("HTTP_READ_TIMEOUT")
 		os.Unsetenv("HTTP_WRITE_TIMEOUT")
 		os.Unsetenv("HTTP_IDLE_TIMEOUT")
-		os.Unsetenv("CREDENTIALS")
+		os.Unsetenv("JWT_SECRET")
 	}()
 
 	// Load config
@@ -82,7 +81,7 @@ func TestLoadConfig_EnvironmentOverrides(t *testing.T) {
 	assert.Equal(t, 30*time.Second, cfg.ReadTimeout)
 	assert.Equal(t, 30*time.Second, cfg.WriteTimeout)
 	assert.Equal(t, 120*time.Second, cfg.IdleTimeout)
-	assert.Equal(t, "test:credentials", cfg.Credentials)
+	assert.Equal(t, "test-secret", cfg.JWTSecret)
 }
 
 func TestLoadConfig_InvalidTimeout(t *testing.T) {

@@ -29,8 +29,7 @@ type Config struct {
 	IdleTimeout  time.Duration `env:"HTTP_IDLE_TIMEOUT" envDefault:"60s"`
 
 	// Authentication
-	Credentials string `env:"CREDENTIALS" envDefault:"admin:password"`
-	JWTSecret   string `env:"JWT_SECRET" envDefault:"your-jwt-secret-key"`
+	JWTSecret string `env:"JWT_SECRET" envDefault:"your-jwt-secret-key"`
 
 	// API Configuration
 	DefaultMachineLimit int32 `env:"DEFAULT_MACHINE_LIMIT" envDefault:"50"`
