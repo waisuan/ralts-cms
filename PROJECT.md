@@ -13,6 +13,7 @@ For example, "admin:12345". The token is encoded in a base64 format.
 
 Each API endpoint is expected to return the appropriate HTTP status code for successful and non-successful responses.
 
+- GET /machines
 - GET /machines/:serial_number
 - POST /machines
 - PUT /machines
@@ -140,9 +141,18 @@ type Maintenance struct {
 	UpdatedAt           string // ISO 8601 format. E.g. 2015-12-21T17:42:34Z
 }
 ```
+# Authentication
+
+The service uses a Bearer token for authentication public-facing HTTP requests.
+
+```bash
+curl -H "Authorization: Bearer your-secret-token" \
+     http://localhost:8080/machines
+```
 
 # Key Features
 
+- Able to fetch a list of `machine` records.
 - Able to fetch a target `machine` record.
 - Able to create a new `machine` record.
 - Able to update an existing `machine` record.
@@ -156,7 +166,3 @@ type Maintenance struct {
 # Testing
 
 - Run a local instance of DynamoDB before running the test suite
-
-# Implementation Checklist
-
-- [ ] Implement Me

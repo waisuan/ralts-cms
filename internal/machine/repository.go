@@ -2,7 +2,11 @@ package machine
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
+
+	pkgdynamodb "ralts-cms/pkg/dynamodb"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
@@ -13,6 +17,7 @@ import (
 //go:generate mockgen -destination=../machine/mock_machines_repository.go -package=machine -source=repository.go
 type Repository interface {
 	GetBySerialNumber(ctx context.Context, serialNumber string) (*Machine, error)
+	List(ctx context.Context, limit int32, pageToken string) ([]*Machine, string, error)
 	Create(ctx context.Context, machine *Machine) error
 	Update(ctx context.Context, machine *Machine) error
 	Delete(ctx context.Context, serialNumber string) error
@@ -39,14 +44,14 @@ func (r *db) GetBySerialNumber(ctx context.Context, serialNumber string) (*Machi
 	}
 
 	// Add DynamoDB keys
-	item["PK"] = &types.AttributeValueMemberS{Value: machine.GetPartitionKey()}
-	item["SK"] = &types.AttributeValueMemberS{Value: machine.GetSortKey()}
+	item[pkgdynamodb.PartitionKey] = &types.AttributeValueMemberS{Value: machine.GetPartitionKey()}
+	item[pkgdynamodb.SortKey] = &types.AttributeValueMemberS{Value: machine.GetSortKey()}
 
 	result, err := r.client.GetItem(ctx, &dynamodb.GetItemInput{
 		TableName: aws.String(r.table),
 		Key: map[string]types.AttributeValue{
-			"PK": &types.AttributeValueMemberS{Value: machine.GetPartitionKey()},
-			"SK": &types.AttributeValueMemberS{Value: machine.GetSortKey()},
+			pkgdynamodb.PartitionKey: &types.AttributeValueMemberS{Value: machine.GetPartitionKey()},
+			pkgdynamodb.SortKey:      &types.AttributeValueMemberS{Value: machine.GetSortKey()},
 		},
 	})
 	if err != nil {
@@ -66,6 +71,55 @@ func (r *db) GetBySerialNumber(ctx context.Context, serialNumber string) (*Machi
 	return &retrievedMachine, nil
 }
 
+func (r *db) List(ctx context.Context, limit int32, pageToken string) ([]*Machine, string, error) {
+	lastEvaluatedKey, err := decodePageToken(pageToken)
+	if err != nil {
+		return nil, "", fmt.Errorf("invalid page token: %w", err)
+	}
+
+	// Build scan input
+	scanInput := &dynamodb.ScanInput{
+		TableName: aws.String(r.table),
+		Limit:     aws.Int32(limit),
+	}
+
+	// Add filter expression to only get machine records (not maintenance records)
+	scanInput.FilterExpression = aws.String("begins_with(#pk, :pkPrefix)")
+	scanInput.ExpressionAttributeNames = map[string]string{
+		"#pk": pkgdynamodb.PartitionKey,
+	}
+	scanInput.ExpressionAttributeValues = map[string]types.AttributeValue{
+		":pkPrefix": &types.AttributeValueMemberS{Value: "Machine#"},
+	}
+
+	// Add last evaluated key for pagination
+	if lastEvaluatedKey != nil {
+		scanInput.ExclusiveStartKey = lastEvaluatedKey
+	}
+
+	result, err := r.client.Scan(ctx, scanInput)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to scan machines: %w", err)
+	}
+
+	var machines []*Machine
+	for _, item := range result.Items {
+		var machine Machine
+		err := attributevalue.UnmarshalMap(item, &machine)
+		if err != nil {
+			return nil, "", fmt.Errorf("failed to unmarshal machine: %w", err)
+		}
+		machines = append(machines, &machine)
+	}
+
+	nextPageToken, err := encodePageToken(result.LastEvaluatedKey)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to encode next page token: %w", err)
+	}
+
+	return machines, nextPageToken, nil
+}
+
 func (r *db) Create(ctx context.Context, machine *Machine) error {
 	machine.SetTimestamps()
 
@@ -75,13 +129,13 @@ func (r *db) Create(ctx context.Context, machine *Machine) error {
 	}
 
 	// Add DynamoDB keys
-	item["PK"] = &types.AttributeValueMemberS{Value: machine.GetPartitionKey()}
-	item["SK"] = &types.AttributeValueMemberS{Value: machine.GetSortKey()}
+	item[pkgdynamodb.PartitionKey] = &types.AttributeValueMemberS{Value: machine.GetPartitionKey()}
+	item[pkgdynamodb.SortKey] = &types.AttributeValueMemberS{Value: machine.GetSortKey()}
 
 	_, err = r.client.PutItem(ctx, &dynamodb.PutItemInput{
 		TableName:           aws.String(r.table),
 		Item:                item,
-		ConditionExpression: aws.String("attribute_not_exists(PK) AND attribute_not_exists(SK)"),
+		ConditionExpression: aws.String(fmt.Sprintf("attribute_not_exists(%s) AND attribute_not_exists(%s)", pkgdynamodb.PartitionKey, pkgdynamodb.SortKey)),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create machine: %w", err)
@@ -99,8 +153,8 @@ func (r *db) Update(ctx context.Context, machine *Machine) error {
 	}
 
 	// Add DynamoDB keys
-	item["PK"] = &types.AttributeValueMemberS{Value: machine.GetPartitionKey()}
-	item["SK"] = &types.AttributeValueMemberS{Value: machine.GetSortKey()}
+	item[pkgdynamodb.PartitionKey] = &types.AttributeValueMemberS{Value: machine.GetPartitionKey()}
+	item[pkgdynamodb.SortKey] = &types.AttributeValueMemberS{Value: machine.GetSortKey()}
 
 	_, err = r.client.PutItem(ctx, &dynamodb.PutItemInput{
 		TableName: aws.String(r.table),
@@ -119,8 +173,8 @@ func (r *db) Delete(ctx context.Context, serialNumber string) error {
 	_, err := r.client.DeleteItem(ctx, &dynamodb.DeleteItemInput{
 		TableName: aws.String(r.table),
 		Key: map[string]types.AttributeValue{
-			"PK": &types.AttributeValueMemberS{Value: machine.GetPartitionKey()},
-			"SK": &types.AttributeValueMemberS{Value: machine.GetSortKey()},
+			pkgdynamodb.PartitionKey: &types.AttributeValueMemberS{Value: machine.GetPartitionKey()},
+			pkgdynamodb.SortKey:      &types.AttributeValueMemberS{Value: machine.GetSortKey()},
 		},
 	})
 	if err != nil {
@@ -128,4 +182,30 @@ func (r *db) Delete(ctx context.Context, serialNumber string) error {
 	}
 
 	return nil
+}
+
+func encodePageToken(key map[string]types.AttributeValue) (string, error) {
+	if len(key) == 0 {
+		return "", nil
+	}
+	jsonBytes, err := json.Marshal(key)
+	if err != nil {
+		return "", err
+	}
+	return base64.URLEncoding.EncodeToString(jsonBytes), nil
+}
+
+func decodePageToken(token string) (map[string]types.AttributeValue, error) {
+	if token == "" {
+		return nil, nil
+	}
+	jsonBytes, err := base64.URLEncoding.DecodeString(token)
+	if err != nil {
+		return nil, err
+	}
+	var key map[string]types.AttributeValue
+	if err := json.Unmarshal(jsonBytes, &key); err != nil {
+		return nil, err
+	}
+	return key, nil
 }

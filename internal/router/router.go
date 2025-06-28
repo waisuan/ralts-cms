@@ -27,6 +27,7 @@ func NewRouter(deps *deps.Dependencies) http.Handler {
 	api := r.PathPrefix("/").Subrouter()
 
 	// Machine endpoints
+	api.HandleFunc("/machines", handler.NewMachineHandler(deps).ListMachines).Methods(http.MethodGet)
 	api.HandleFunc("/machines/{serial_number}", handler.NewMachineHandler(deps).GetMachine).Methods(http.MethodGet)
 	api.HandleFunc("/machines", handler.NewMachineHandler(deps).CreateMachine).Methods(http.MethodPost)
 	api.HandleFunc("/machines", handler.NewMachineHandler(deps).UpdateMachine).Methods(http.MethodPut)
@@ -42,7 +43,7 @@ func NewRouter(deps *deps.Dependencies) http.Handler {
 	// Apply middleware to protected endpoints
 	api.Use(handler.LoggingMiddleware)
 	api.Use(handler.CORSMiddleware)
-	api.Use(handler.BasicAuthMiddleware(deps.Config.Credentials))
+	api.Use(handler.AuthMiddleware(deps.Config.JWTSecret))
 
 	return r
 }

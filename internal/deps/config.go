@@ -30,13 +30,17 @@ type Config struct {
 
 	// Authentication
 	Credentials string `env:"CREDENTIALS" envDefault:"admin:password"`
+	JWTSecret   string `env:"JWT_SECRET" envDefault:"your-jwt-secret-key"`
+
+	// API Configuration
+	DefaultMachineLimit int32 `env:"DEFAULT_MACHINE_LIMIT" envDefault:"50"`
 }
 
 func LoadConfig() (*Config, error) {
 	appEnv := os.Getenv("APP_ENV")
 	cfg := Config{}
 
-	if "" != appEnv {
+	if appEnv != "" {
 		log.Printf("Loading %s config\n", appEnv)
 		err := godotenv.Load(dir(".env." + appEnv))
 		if err != nil && !os.IsNotExist(err) {

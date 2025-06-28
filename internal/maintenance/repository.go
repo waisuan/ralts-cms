@@ -4,10 +4,16 @@ import (
 	"context"
 	"fmt"
 
+	pkgdynamodb "ralts-cms/pkg/dynamodb"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+)
+
+const (
+	MaintenanceSortKeyPrefix = "Maintenance#"
 )
 
 //go:generate mockgen -destination=../maintenance/mock_maintenance_repository.go -package=maintenance -source=repository.go
@@ -40,8 +46,8 @@ func (r *db) GetByWorkOrder(ctx context.Context, machineSerialNumber, workOrderN
 	result, err := r.client.GetItem(ctx, &dynamodb.GetItemInput{
 		TableName: aws.String(r.table),
 		Key: map[string]types.AttributeValue{
-			"PK": &types.AttributeValueMemberS{Value: maintenance.GetPartitionKey()},
-			"SK": &types.AttributeValueMemberS{Value: maintenance.GetSortKey()},
+			pkgdynamodb.PartitionKey: &types.AttributeValueMemberS{Value: maintenance.GetPartitionKey()},
+			pkgdynamodb.SortKey:      &types.AttributeValueMemberS{Value: maintenance.GetSortKey()},
 		},
 	})
 	if err != nil {
@@ -66,10 +72,10 @@ func (r *db) ListByMachine(ctx context.Context, machineSerialNumber string) ([]*
 
 	result, err := r.client.Query(ctx, &dynamodb.QueryInput{
 		TableName:              aws.String(r.table),
-		KeyConditionExpression: aws.String("PK = :pk AND begins_with(SK, :sk)"),
+		KeyConditionExpression: aws.String(fmt.Sprintf("%s = :pk AND begins_with(%s, :sk)", pkgdynamodb.PartitionKey, pkgdynamodb.SortKey)),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			":pk": &types.AttributeValueMemberS{Value: maintenance.GetPartitionKey()},
-			":sk": &types.AttributeValueMemberS{Value: "Maintenance#"},
+			":sk": &types.AttributeValueMemberS{Value: MaintenanceSortKeyPrefix},
 		},
 	})
 	if err != nil {
@@ -98,13 +104,13 @@ func (r *db) Create(ctx context.Context, maintenance *Maintenance) error {
 	}
 
 	// Add DynamoDB keys
-	item["PK"] = &types.AttributeValueMemberS{Value: maintenance.GetPartitionKey()}
-	item["SK"] = &types.AttributeValueMemberS{Value: maintenance.GetSortKey()}
+	item[pkgdynamodb.PartitionKey] = &types.AttributeValueMemberS{Value: maintenance.GetPartitionKey()}
+	item[pkgdynamodb.SortKey] = &types.AttributeValueMemberS{Value: maintenance.GetSortKey()}
 
 	_, err = r.client.PutItem(ctx, &dynamodb.PutItemInput{
 		TableName:           aws.String(r.table),
 		Item:                item,
-		ConditionExpression: aws.String("attribute_not_exists(PK) AND attribute_not_exists(SK)"),
+		ConditionExpression: aws.String(fmt.Sprintf("attribute_not_exists(%s) AND attribute_not_exists(%s)", pkgdynamodb.PartitionKey, pkgdynamodb.SortKey)),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create maintenance: %w", err)
@@ -122,8 +128,8 @@ func (r *db) Update(ctx context.Context, maintenance *Maintenance) error {
 	}
 
 	// Add DynamoDB keys
-	item["PK"] = &types.AttributeValueMemberS{Value: maintenance.GetPartitionKey()}
-	item["SK"] = &types.AttributeValueMemberS{Value: maintenance.GetSortKey()}
+	item[pkgdynamodb.PartitionKey] = &types.AttributeValueMemberS{Value: maintenance.GetPartitionKey()}
+	item[pkgdynamodb.SortKey] = &types.AttributeValueMemberS{Value: maintenance.GetSortKey()}
 
 	_, err = r.client.PutItem(ctx, &dynamodb.PutItemInput{
 		TableName: aws.String(r.table),
@@ -145,8 +151,8 @@ func (r *db) Delete(ctx context.Context, machineSerialNumber, workOrderNumber st
 	_, err := r.client.DeleteItem(ctx, &dynamodb.DeleteItemInput{
 		TableName: aws.String(r.table),
 		Key: map[string]types.AttributeValue{
-			"PK": &types.AttributeValueMemberS{Value: maintenance.GetPartitionKey()},
-			"SK": &types.AttributeValueMemberS{Value: maintenance.GetSortKey()},
+			pkgdynamodb.PartitionKey: &types.AttributeValueMemberS{Value: maintenance.GetPartitionKey()},
+			pkgdynamodb.SortKey:      &types.AttributeValueMemberS{Value: maintenance.GetSortKey()},
 		},
 	})
 	if err != nil {

@@ -5,7 +5,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -26,7 +28,7 @@ func TestNewRouter(t *testing.T) {
 	// Create mock dependencies
 	mockDeps := &deps.Dependencies{
 		Config: &deps.Config{
-			Credentials: "admin:password",
+			JWTSecret: "test-jwt-secret",
 		},
 	}
 
@@ -43,7 +45,7 @@ func TestRouter_HealthEndpoint(t *testing.T) {
 	// Create mock dependencies
 	mockDeps := &deps.Dependencies{
 		Config: &deps.Config{
-			Credentials: "admin:password",
+			JWTSecret: "test-jwt-secret",
 		},
 	}
 
@@ -65,7 +67,7 @@ func TestRouter_ProtectedEndpoints(t *testing.T) {
 	// Create mock dependencies with a mock MachineRepository
 	mockDeps := &deps.Dependencies{
 		Config: &deps.Config{
-			Credentials: "admin:password",
+			JWTSecret: "test-jwt-secret",
 		},
 		MachineRepository: &mockMachineRepo{},
 	}
@@ -97,7 +99,7 @@ func TestRouter_ProtectedEndpointsWithAuth(t *testing.T) {
 	// Create mock dependencies with a mock MachineRepository
 	mockDeps := &deps.Dependencies{
 		Config: &deps.Config{
-			Credentials: "admin:password",
+			JWTSecret: "test-jwt-secret",
 		},
 		MachineRepository: &mockMachineRepo{},
 	}
@@ -107,7 +109,7 @@ func TestRouter_ProtectedEndpointsWithAuth(t *testing.T) {
 
 	// Test protected endpoints with auth
 	req := httptest.NewRequest(http.MethodGet, "/machines/MACHINE123", nil)
-	req.Header.Set("Authorization", "Basic YWRtaW46cGFzc3dvcmQ=") // admin:password in base64
+	req.Header.Set("Authorization", "Bearer "+createValidJWT("test-jwt-secret"))
 	rr := httptest.NewRecorder()
 
 	router.ServeHTTP(rr, req)
@@ -120,7 +122,7 @@ func TestRouter_InvalidAuth(t *testing.T) {
 	// Create mock dependencies with a mock MachineRepository
 	mockDeps := &deps.Dependencies{
 		Config: &deps.Config{
-			Credentials: "admin:password",
+			JWTSecret: "test-jwt-secret",
 		},
 		MachineRepository: &mockMachineRepo{},
 	}
@@ -130,7 +132,7 @@ func TestRouter_InvalidAuth(t *testing.T) {
 
 	// Test with invalid auth
 	req := httptest.NewRequest(http.MethodGet, "/machines/MACHINE123", nil)
-	req.Header.Set("Authorization", "Basic d3Jvbmc6Y3JlZGVudGlhbHM=") // wrong:credentials in base64
+	req.Header.Set("Authorization", "Bearer invalid.jwt.token")
 	rr := httptest.NewRecorder()
 
 	router.ServeHTTP(rr, req)
@@ -143,7 +145,7 @@ func TestRouter_InvalidEndpoint(t *testing.T) {
 	// Create mock dependencies
 	mockDeps := &deps.Dependencies{
 		Config: &deps.Config{
-			Credentials: "admin:password",
+			JWTSecret: "test-jwt-secret",
 		},
 	}
 
@@ -164,7 +166,7 @@ func TestRouter_OptionsRequest(t *testing.T) {
 	// Create mock dependencies with a mock MachineRepository
 	mockDeps := &deps.Dependencies{
 		Config: &deps.Config{
-			Credentials: "admin:password",
+			JWTSecret: "test-jwt-secret",
 		},
 		MachineRepository: &mockMachineRepo{},
 	}
@@ -181,4 +183,16 @@ func TestRouter_OptionsRequest(t *testing.T) {
 	// Should return 200 OK for OPTIONS requests
 	assert.Equal(t, http.StatusOK, rr.Code)
 	assert.Equal(t, "*", rr.Header().Get("Access-Control-Allow-Origin"))
+}
+
+// Helper function to create JWT tokens for testing
+func createValidJWT(secret string) string {
+	claims := jwt.MapClaims{
+		"sub": "test-user",
+		"exp": time.Now().Add(time.Hour).Unix(),
+		"iat": time.Now().Unix(),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, _ := token.SignedString([]byte(secret))
+	return tokenString
 }

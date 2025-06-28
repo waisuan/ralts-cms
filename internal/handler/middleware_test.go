@@ -1,80 +1,14 @@
 package handler
 
 import (
-	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 )
-
-func TestBasicAuthMiddleware(t *testing.T) {
-	tests := []struct {
-		name           string
-		credentials    string
-		authHeader     string
-		expectedStatus int
-	}{
-		{
-			name:           "valid credentials",
-			credentials:    "admin:password",
-			authHeader:     "Basic " + base64.StdEncoding.EncodeToString([]byte("admin:password")),
-			expectedStatus: http.StatusOK,
-		},
-		{
-			name:           "missing authorization header",
-			credentials:    "admin:password",
-			authHeader:     "",
-			expectedStatus: http.StatusUnauthorized,
-		},
-		{
-			name:           "invalid authorization format",
-			credentials:    "admin:password",
-			authHeader:     "Bearer token",
-			expectedStatus: http.StatusUnauthorized,
-		},
-		{
-			name:           "invalid credentials",
-			credentials:    "admin:password",
-			authHeader:     "Basic " + base64.StdEncoding.EncodeToString([]byte("admin:wrong")),
-			expectedStatus: http.StatusUnauthorized,
-		},
-		{
-			name:           "malformed base64",
-			credentials:    "admin:password",
-			authHeader:     "Basic invalid-base64",
-			expectedStatus: http.StatusUnauthorized,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Create middleware
-			middleware := BasicAuthMiddleware(tt.credentials)
-
-			// Create a simple handler that returns 200 OK
-			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(http.StatusOK)
-			})
-
-			// Create request
-			req := httptest.NewRequest(http.MethodGet, "/test", nil)
-			if tt.authHeader != "" {
-				req.Header.Set("Authorization", tt.authHeader)
-			}
-
-			// Create response recorder
-			rr := httptest.NewRecorder()
-
-			// Apply middleware
-			middleware(handler).ServeHTTP(rr, req)
-
-			// Check status code
-			assert.Equal(t, tt.expectedStatus, rr.Code)
-		})
-	}
-}
 
 func TestCORSMiddleware(t *testing.T) {
 	tests := []struct {
@@ -148,48 +82,168 @@ func TestLoggingMiddleware(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 }
 
-func TestMiddlewareChain(t *testing.T) {
-	// Test that multiple middleware can be chained together
-	credentials := "admin:password"
-	authHeader := "Basic " + base64.StdEncoding.EncodeToString([]byte("admin:password"))
+func TestAuthMiddleware(t *testing.T) {
+	jwtSecret := "test-secret-key"
 
-	// Create a simple handler
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
+	tests := []struct {
+		name           string
+		jwtSecret      string
+		authHeader     string
+		expectedStatus int
+	}{
+		{
+			name:           "Valid JWT token",
+			jwtSecret:      jwtSecret,
+			authHeader:     "Bearer " + createValidJWT(jwtSecret),
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "Missing authorization header",
+			jwtSecret:      jwtSecret,
+			authHeader:     "",
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:           "Invalid authorization format",
+			jwtSecret:      jwtSecret,
+			authHeader:     "Basic dGVzdDp0ZXN0",
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:           "Empty bearer token",
+			jwtSecret:      jwtSecret,
+			authHeader:     "Bearer ",
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:           "Invalid JWT token",
+			jwtSecret:      jwtSecret,
+			authHeader:     "Bearer invalid.jwt.token",
+			expectedStatus: http.StatusUnauthorized,
+		},
+		{
+			name:           "Expired JWT token",
+			jwtSecret:      jwtSecret,
+			authHeader:     "Bearer " + createExpiredJWT(jwtSecret),
+			expectedStatus: http.StatusUnauthorized,
+		},
+	}
 
-	// Create request
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	req.Header.Set("Authorization", authHeader)
-	rr := httptest.NewRecorder()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create middleware
+			middleware := AuthMiddleware(tt.jwtSecret)
 
-	// Apply multiple middleware
-	chainedHandler := LoggingMiddleware(handler)
-	chainedHandler = CORSMiddleware(chainedHandler)
-	chainedHandler = BasicAuthMiddleware(credentials)(chainedHandler)
+			// Create a simple handler that returns 200 OK
+			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			})
 
-	// Serve the request
-	chainedHandler.ServeHTTP(rr, req)
+			// Create request
+			req := httptest.NewRequest("GET", "/test", nil)
+			if tt.authHeader != "" {
+				req.Header.Set("Authorization", tt.authHeader)
+			}
 
-	// Check that all middleware worked
-	assert.Equal(t, http.StatusOK, rr.Code)
-	assert.Equal(t, "*", rr.Header().Get("Access-Control-Allow-Origin"))
+			// Create response recorder
+			rr := httptest.NewRecorder()
+
+			// Apply middleware
+			middleware(handler).ServeHTTP(rr, req)
+
+			// Check status code
+			if rr.Code != tt.expectedStatus {
+				t.Errorf("expected status %d, got %d", tt.expectedStatus, rr.Code)
+			}
+		})
+	}
 }
 
-func TestBasicAuthMiddleware_EmptyCredentials(t *testing.T) {
-	// Test with empty credentials
-	middleware := BasicAuthMiddleware("")
+func TestAuthMiddlewareIntegration(t *testing.T) {
+	// Test that middleware allows request to proceed with valid JWT
+	jwtSecret := "integration-test-secret"
+	middleware := AuthMiddleware(jwtSecret)
 
+	// Create a handler that sets a custom header to verify it was called
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Test-Header", "success")
 		w.WriteHeader(http.StatusOK)
 	})
 
-	req := httptest.NewRequest(http.MethodGet, "/test", nil)
-	req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString([]byte(":")))
+	// Create request with valid JWT token
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Authorization", "Bearer "+createValidJWT(jwtSecret))
+
+	// Create response recorder
 	rr := httptest.NewRecorder()
 
+	// Apply middleware
 	middleware(handler).ServeHTTP(rr, req)
 
-	// Should return 401 Unauthorized for empty credentials
-	assert.Equal(t, http.StatusUnauthorized, rr.Code)
+	// Check that request was allowed to proceed
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", rr.Code)
+	}
+
+	if rr.Header().Get("X-Test-Header") != "success" {
+		t.Error("handler was not called, middleware blocked valid request")
+	}
+}
+
+func TestAuthMiddlewareWithUserContext(t *testing.T) {
+	jwtSecret := "context-test-secret"
+	middleware := AuthMiddleware(jwtSecret)
+
+	// Create a handler that checks for user context
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		user := r.Context().Value("user")
+		if user == nil {
+			http.Error(w, "User context not found", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("X-User-Found", "true")
+		w.WriteHeader(http.StatusOK)
+	})
+
+	// Create request with valid JWT token
+	req := httptest.NewRequest("GET", "/test", nil)
+	req.Header.Set("Authorization", "Bearer "+createValidJWT(jwtSecret))
+
+	// Create response recorder
+	rr := httptest.NewRecorder()
+
+	// Apply middleware
+	middleware(handler).ServeHTTP(rr, req)
+
+	// Check that user context was added
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", rr.Code)
+	}
+
+	if rr.Header().Get("X-User-Found") != "true" {
+		t.Error("user context was not added to request")
+	}
+}
+
+// Helper functions to create JWT tokens for testing
+func createValidJWT(secret string) string {
+	claims := jwt.MapClaims{
+		"sub": "test-user",
+		"exp": time.Now().Add(time.Hour).Unix(),
+		"iat": time.Now().Unix(),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, _ := token.SignedString([]byte(secret))
+	return tokenString
+}
+
+func createExpiredJWT(secret string) string {
+	claims := jwt.MapClaims{
+		"sub": "test-user",
+		"exp": time.Now().Add(-time.Hour).Unix(), // Expired 1 hour ago
+		"iat": time.Now().Add(-2 * time.Hour).Unix(),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, _ := token.SignedString([]byte(secret))
+	return tokenString
 }

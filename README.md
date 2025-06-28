@@ -6,7 +6,7 @@ A web service built in Go for managing machines and their maintenance records. I
 
 - Machine management (CRUD operations)
 - Maintenance record management (CRUD operations)
-- Basic authentication
+- JWT Token authentication
 - Local DynamoDB development setup
 - Production-ready DynamoDB configuration
 - Configurable HTTP timeouts
@@ -72,7 +72,8 @@ SERVER_PORT=8080
 HTTP_READ_TIMEOUT=15s
 HTTP_WRITE_TIMEOUT=15s
 HTTP_IDLE_TIMEOUT=60s
-CREDENTIALS=admin:password
+JWT_SECRET=your-jwt-secret-key
+DEFAULT_MACHINE_LIMIT=50
 ```
 
 ### Production Configuration
@@ -85,7 +86,8 @@ SERVER_PORT=8080
 HTTP_READ_TIMEOUT=30s
 HTTP_WRITE_TIMEOUT=30s
 HTTP_IDLE_TIMEOUT=120s
-CREDENTIALS=your-production-credentials
+JWT_SECRET=your-production-jwt-secret-key
+DEFAULT_MACHINE_LIMIT=100
 ```
 
 ### Configuration Options
@@ -103,7 +105,106 @@ CREDENTIALS=your-production-credentials
 | `HTTP_READ_TIMEOUT` | HTTP read timeout | 15s | No |
 | `HTTP_WRITE_TIMEOUT` | HTTP write timeout | 15s | No |
 | `HTTP_IDLE_TIMEOUT` | HTTP idle timeout | 60s | No |
-| `CREDENTIALS` | Basic auth credentials | admin:password | No |
+| `JWT_SECRET` | JWT secret key | - | Yes |
+| `DEFAULT_MACHINE_LIMIT` | Default number of machines returned per page | 50 | No |
+
+## Authentication
+
+Ralts-CMS uses JWT (JSON Web Token) authentication for all protected API endpoints.
+
+### Configuration
+
+Set the `JWT_SECRET` environment variable with your secret key:
+
+```bash
+# Development
+JWT_SECRET=your-jwt-secret-key
+
+# Production
+JWT_SECRET=your-production-jwt-secret-key
+```
+
+### Usage
+
+Include the JWT token in the `Authorization` header for all API requests:
+
+```bash
+curl -H "Authorization: Bearer <your-jwt-token>" \
+     http://localhost:8080/machines
+```
+
+### JWT Token Structure
+
+JWT tokens should contain the following claims:
+- `sub` (subject): User identifier
+- `exp` (expiration): Token expiration time
+- `iat` (issued at): Token creation time
+
+### Protected Endpoints
+
+All endpoints except `/health` require authentication:
+
+- `GET /machines` - List machines
+- `GET /machines/{serial_number}` - Get specific machine
+- `POST /machines` - Create machine
+- `PUT /machines` - Update machine
+- `DELETE /machines/{serial_number}` - Delete machine
+- `GET /machines/{serial_number}/maintenance` - List maintenance records
+- `GET /machines/{serial_number}/maintenance/{work_order_number}` - Get specific maintenance
+- `POST /machines/{serial_number}/maintenance` - Create maintenance record
+- `PUT /machines/{serial_number}/maintenance` - Update maintenance record
+- `DELETE /machines/{serial_number}/maintenance/{work_order_number}` - Delete maintenance record
+
+### Public Endpoints
+
+- `GET /health` - Health check (no authentication required)
+
+### Error Responses
+
+- `401 Unauthorized` - Missing or invalid Authorization header
+- `401 Unauthorized` - Invalid JWT token format
+- `401 Unauthorized` - Invalid JWT token signature
+- `401 Unauthorized` - JWT token expired
+
+### Security Best Practices
+
+1. Use a strong, randomly generated secret key (at least 32 characters)
+2. Keep the secret key secure and never commit it to version control
+3. Rotate secret keys regularly
+4. Use HTTPS in production
+5. Set appropriate token expiration times
+6. Validate token claims in your application logic
+
+### Example with curl
+
+```bash
+# List all machines
+curl -H "Authorization: Bearer <your-jwt-token>" \
+     http://localhost:8080/machines
+
+# Get specific machine
+curl -H "Authorization: Bearer <your-jwt-token>" \
+     http://localhost:8080/machines/MACHINE123
+
+# Create a new machine
+curl -X POST \
+     -H "Authorization: Bearer <your-jwt-token>" \
+     -H "Content-Type: application/json" \
+     -d '{"serial_number":"MACHINE123","customer":"ACME Corp"}' \
+     http://localhost:8080/machines
+```
+
+### Generating JWT Tokens
+
+You can generate JWT tokens using various tools or libraries. Here's an example using the `jwt-cli` tool:
+
+```bash
+# Install jwt-cli
+go install github.com/golang-jwt/jwt/v5/cmd/jwt@latest
+
+# Generate a token
+jwt encode --secret "your-jwt-secret-key" --claim "sub=test-user" --claim "exp=$(date -d '+1 hour' +%s)"
+```
 
 ## Production Deployment
 
@@ -132,19 +233,18 @@ For production deployment, the application automatically detects the environment
    HTTP_IDLE_TIMEOUT=120s
    ```
 
+5. **Set a secure JWT secret**
+   ```env
+   JWT_SECRET=your-production-jwt-secret-key
+   ```
+
 ## API Endpoints
 
-All endpoints require Basic Authentication. The credentials are specified in the `CREDENTIALS` environment variable.
-
-### Authentication
-
-Include the Authorization header with base64-encoded credentials:
-```
-Authorization: Basic <base64-encoded-username:password>
-```
+All endpoints require Bearer Token authentication. The token is specified in the `JWT_SECRET` environment variable.
 
 ### Machine Endpoints
 
+- `GET /machines` - List all machines
 - `GET /machines/{serial_number}` - Get a machine by serial number
 - `POST /machines` - Create a new machine
 - `PUT /machines` - Update an existing machine

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"ralts-cms/internal/deps"
 	"ralts-cms/internal/machine"
+	"strconv"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -42,6 +43,46 @@ func (h *MachineHandler) GetMachine(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(machine)
+}
+
+// ListMachines handles GET /machines
+func (h *MachineHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
+	// Parse query parameters for pagination
+	limitStr := r.URL.Query().Get("limit")
+	pageToken := r.URL.Query().Get("page_token")
+
+	// Use configurable default limit
+	limit := h.deps.Config.DefaultMachineLimit
+	if limitStr != "" {
+		if parsedLimit, err := strconv.ParseInt(limitStr, 10, 32); err == nil && parsedLimit > 0 && parsedLimit <= 100 {
+			limit = int32(parsedLimit)
+		} else {
+			http.Error(w, "Invalid limit parameter. Must be between 1 and 100", http.StatusBadRequest)
+			return
+		}
+	}
+
+	// Get machines from repository
+	machines, nextPageToken, err := h.deps.MachineRepository.List(r.Context(), limit, pageToken)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to list machines: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Build response
+	response := map[string]interface{}{
+		"machines": machines,
+		"count":    len(machines),
+		"limit":    limit,
+	}
+
+	// Add next page token if there are more results
+	if nextPageToken != "" {
+		response["next_page_token"] = nextPageToken
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
 // CreateMachine handles POST /machines

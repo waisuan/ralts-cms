@@ -1,14 +1,17 @@
 package handler
 
 import (
-	"encoding/base64"
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
-// BasicAuthMiddleware creates middleware for Basic Authentication
-func BasicAuthMiddleware(credentials string) func(http.Handler) http.Handler {
+// AuthMiddleware creates middleware for JWT Token Authentication
+func AuthMiddleware(jwtSecret string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			auth := r.Header.Get("Authorization")
@@ -17,26 +20,54 @@ func BasicAuthMiddleware(credentials string) func(http.Handler) http.Handler {
 				return
 			}
 
-			if !strings.HasPrefix(auth, "Basic ") {
-				http.Error(w, "Invalid authorization header format", http.StatusUnauthorized)
+			if !strings.HasPrefix(auth, "Bearer ") {
+				http.Error(w, "Invalid authorization header format. Expected 'Bearer <token>'", http.StatusUnauthorized)
 				return
 			}
 
-			// Decode the base64 credentials
-			encodedCredentials := strings.TrimPrefix(auth, "Basic ")
-			decodedBytes, err := base64.StdEncoding.DecodeString(encodedCredentials)
+			tokenString := strings.TrimPrefix(auth, "Bearer ")
+			if tokenString == "" {
+				http.Error(w, "Bearer token is required", http.StatusUnauthorized)
+				return
+			}
+
+			// Parse and validate JWT token
+			token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+				// Validate the signing method
+				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+					return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+				}
+				return []byte(jwtSecret), nil
+			})
+
 			if err != nil {
-				http.Error(w, "Invalid credentials format", http.StatusUnauthorized)
+				http.Error(w, "Invalid token", http.StatusUnauthorized)
 				return
 			}
 
-			decodedCredentials := string(decodedBytes)
-			if decodedCredentials != credentials {
-				http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+			if !token.Valid {
+				http.Error(w, "Invalid token", http.StatusUnauthorized)
 				return
 			}
 
-			next.ServeHTTP(w, r)
+			// Extract claims
+			claims, ok := token.Claims.(jwt.MapClaims)
+			if !ok {
+				http.Error(w, "Invalid token claims", http.StatusUnauthorized)
+				return
+			}
+
+			// Check if token is expired
+			if exp, ok := claims["exp"].(float64); ok {
+				if time.Unix(int64(exp), 0).Before(time.Now()) {
+					http.Error(w, "Token expired", http.StatusUnauthorized)
+					return
+				}
+			}
+
+			// Add user information to request context
+			ctx := context.WithValue(r.Context(), "user", claims)
+			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }
