@@ -1,8 +1,10 @@
-package machine
+package machine_test
 
 import (
 	"testing"
 	"time"
+
+	"ralts-cms/internal/machine"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -33,7 +35,7 @@ func TestMachine_GetPartitionKey(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			machine := &Machine{
+			machine := &machine.Machine{
 				SerialNumber: tt.serialNumber,
 			}
 			result := machine.GetPartitionKey()
@@ -43,14 +45,14 @@ func TestMachine_GetPartitionKey(t *testing.T) {
 }
 
 func TestMachine_GetSortKey(t *testing.T) {
-	machine := &Machine{}
+	machine := &machine.Machine{}
 	result := machine.GetSortKey()
 	assert.Equal(t, "#", result)
 }
 
 func TestMachine_SetTimestamps(t *testing.T) {
 	t.Run("new machine", func(t *testing.T) {
-		machine := &Machine{
+		machine := &machine.Machine{
 			SerialNumber: "TEST123",
 		}
 
@@ -70,7 +72,7 @@ func TestMachine_SetTimestamps(t *testing.T) {
 
 	t.Run("existing machine", func(t *testing.T) {
 		originalCreatedAt := "2023-01-01T00:00:00Z"
-		machine := &Machine{
+		machine := &machine.Machine{
 			SerialNumber: "TEST123",
 			CreatedAt:    originalCreatedAt,
 			UpdatedAt:    "2023-01-01T01:00:00Z",
@@ -89,7 +91,7 @@ func TestMachine_SetTimestamps(t *testing.T) {
 }
 
 func TestMachine_Complete(t *testing.T) {
-	machine := &Machine{
+	machine := &machine.Machine{
 		SerialNumber:    "MACHINE123",
 		Customer:        "Test Customer",
 		State:           "Active",

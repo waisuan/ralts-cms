@@ -1,8 +1,9 @@
-package handler
+package handler_test
 
 import (
 	"net/http"
 	"net/http/httptest"
+	"ralts-cms/internal/handler"
 	"testing"
 	"time"
 
@@ -42,7 +43,7 @@ func TestCORSMiddleware(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a simple handler
-			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			handlerFunc := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
 			})
 
@@ -51,7 +52,7 @@ func TestCORSMiddleware(t *testing.T) {
 			rr := httptest.NewRecorder()
 
 			// Apply middleware
-			CORSMiddleware(handler).ServeHTTP(rr, req)
+			handler.CORSMiddleware(handlerFunc).ServeHTTP(rr, req)
 
 			// Check status code
 			assert.Equal(t, tt.expectedStatus, rr.Code)
@@ -66,7 +67,7 @@ func TestCORSMiddleware(t *testing.T) {
 
 func TestLoggingMiddleware(t *testing.T) {
 	// Create a simple handler
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handlerFunc := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 
@@ -76,7 +77,7 @@ func TestLoggingMiddleware(t *testing.T) {
 	rr := httptest.NewRecorder()
 
 	// Apply middleware
-	LoggingMiddleware(handler).ServeHTTP(rr, req)
+	handler.LoggingMiddleware(handlerFunc).ServeHTTP(rr, req)
 
 	// Check that the request was processed
 	assert.Equal(t, http.StatusOK, rr.Code)
@@ -132,10 +133,10 @@ func TestAuthMiddleware(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create middleware
-			middleware := AuthMiddleware(tt.jwtSecret)
+			middleware := handler.AuthMiddleware(tt.jwtSecret)
 
 			// Create a simple handler that returns 200 OK
-			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			handlerFunc := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
 			})
 
@@ -149,7 +150,7 @@ func TestAuthMiddleware(t *testing.T) {
 			rr := httptest.NewRecorder()
 
 			// Apply middleware
-			middleware(handler).ServeHTTP(rr, req)
+			middleware(handlerFunc).ServeHTTP(rr, req)
 
 			// Check status code
 			if rr.Code != tt.expectedStatus {
@@ -162,10 +163,10 @@ func TestAuthMiddleware(t *testing.T) {
 func TestAuthMiddlewareIntegration(t *testing.T) {
 	// Test that middleware allows request to proceed with valid JWT
 	jwtSecret := "integration-test-secret"
-	middleware := AuthMiddleware(jwtSecret)
+	middleware := handler.AuthMiddleware(jwtSecret)
 
 	// Create a handler that sets a custom header to verify it was called
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handlerFunc := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Test-Header", "success")
 		w.WriteHeader(http.StatusOK)
 	})
@@ -178,7 +179,7 @@ func TestAuthMiddlewareIntegration(t *testing.T) {
 	rr := httptest.NewRecorder()
 
 	// Apply middleware
-	middleware(handler).ServeHTTP(rr, req)
+	middleware(handlerFunc).ServeHTTP(rr, req)
 
 	// Check that request was allowed to proceed
 	if rr.Code != http.StatusOK {
@@ -192,10 +193,10 @@ func TestAuthMiddlewareIntegration(t *testing.T) {
 
 func TestAuthMiddlewareWithUserContext(t *testing.T) {
 	jwtSecret := "context-test-secret"
-	middleware := AuthMiddleware(jwtSecret)
+	middleware := handler.AuthMiddleware(jwtSecret)
 
 	// Create a handler that checks for user context
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handlerFunc := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user := r.Context().Value("user")
 		if user == nil {
 			http.Error(w, "User context not found", http.StatusInternalServerError)
@@ -213,7 +214,7 @@ func TestAuthMiddlewareWithUserContext(t *testing.T) {
 	rr := httptest.NewRecorder()
 
 	// Apply middleware
-	middleware(handler).ServeHTTP(rr, req)
+	middleware(handlerFunc).ServeHTTP(rr, req)
 
 	// Check that user context was added
 	if rr.Code != http.StatusOK {

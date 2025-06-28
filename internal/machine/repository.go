@@ -2,8 +2,6 @@ package machine
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 
 	pkgdynamodb "ralts-cms/pkg/dynamodb"
@@ -17,7 +15,7 @@ import (
 //go:generate mockgen -destination=../machine/mock_machines_repository.go -package=machine -source=repository.go
 type Repository interface {
 	GetBySerialNumber(ctx context.Context, serialNumber string) (*Machine, error)
-	List(ctx context.Context, limit int32, pageToken string) ([]*Machine, string, error)
+	List(ctx context.Context, limit int32) ([]*Machine, error)
 	Create(ctx context.Context, machine *Machine) error
 	Update(ctx context.Context, machine *Machine) error
 	Delete(ctx context.Context, serialNumber string) error
@@ -71,12 +69,7 @@ func (r *db) GetBySerialNumber(ctx context.Context, serialNumber string) (*Machi
 	return &retrievedMachine, nil
 }
 
-func (r *db) List(ctx context.Context, limit int32, pageToken string) ([]*Machine, string, error) {
-	lastEvaluatedKey, err := decodePageToken(pageToken)
-	if err != nil {
-		return nil, "", fmt.Errorf("invalid page token: %w", err)
-	}
-
+func (r *db) List(ctx context.Context, limit int32) ([]*Machine, error) {
 	// Build scan input
 	scanInput := &dynamodb.ScanInput{
 		TableName: aws.String(r.table),
@@ -92,14 +85,9 @@ func (r *db) List(ctx context.Context, limit int32, pageToken string) ([]*Machin
 		":pkPrefix": &types.AttributeValueMemberS{Value: "Machine#"},
 	}
 
-	// Add last evaluated key for pagination
-	if lastEvaluatedKey != nil {
-		scanInput.ExclusiveStartKey = lastEvaluatedKey
-	}
-
 	result, err := r.client.Scan(ctx, scanInput)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to scan machines: %w", err)
+		return nil, fmt.Errorf("failed to scan machines: %w", err)
 	}
 
 	var machines []*Machine
@@ -107,17 +95,12 @@ func (r *db) List(ctx context.Context, limit int32, pageToken string) ([]*Machin
 		var machine Machine
 		err := attributevalue.UnmarshalMap(item, &machine)
 		if err != nil {
-			return nil, "", fmt.Errorf("failed to unmarshal machine: %w", err)
+			return nil, fmt.Errorf("failed to unmarshal machine: %w", err)
 		}
 		machines = append(machines, &machine)
 	}
 
-	nextPageToken, err := encodePageToken(result.LastEvaluatedKey)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to encode next page token: %w", err)
-	}
-
-	return machines, nextPageToken, nil
+	return machines, nil
 }
 
 func (r *db) Create(ctx context.Context, machine *Machine) error {
@@ -182,30 +165,4 @@ func (r *db) Delete(ctx context.Context, serialNumber string) error {
 	}
 
 	return nil
-}
-
-func encodePageToken(key map[string]types.AttributeValue) (string, error) {
-	if len(key) == 0 {
-		return "", nil
-	}
-	jsonBytes, err := json.Marshal(key)
-	if err != nil {
-		return "", err
-	}
-	return base64.URLEncoding.EncodeToString(jsonBytes), nil
-}
-
-func decodePageToken(token string) (map[string]types.AttributeValue, error) {
-	if token == "" {
-		return nil, nil
-	}
-	jsonBytes, err := base64.URLEncoding.DecodeString(token)
-	if err != nil {
-		return nil, err
-	}
-	var key map[string]types.AttributeValue
-	if err := json.Unmarshal(jsonBytes, &key); err != nil {
-		return nil, err
-	}
-	return key, nil
 }

@@ -1,4 +1,4 @@
-package handler
+package handler_test
 
 import (
 	"bytes"
@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"ralts-cms/internal/deps"
+	"ralts-cms/internal/handler"
 	"ralts-cms/internal/machine"
-	mockmachine "ralts-cms/internal/machine"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -18,16 +18,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupTestHandler(t *testing.T) (*MachineHandler, *mockmachine.MockRepository) {
+func setupTestHandler(t *testing.T) (*handler.MachineHandler, *machine.MockRepository) {
 	ctrl := gomock.NewController(t)
-	mockRepo := mockmachine.NewMockRepository(ctrl)
+	mockRepo := machine.NewMockRepository(ctrl)
 	deps := &deps.Dependencies{
 		MachineRepository: mockRepo,
 		Config: &deps.Config{
 			DefaultMachineLimit: 50,
 		},
 	}
-	handler := NewMachineHandler(deps)
+	handler := handler.NewMachineHandler(deps)
 	return handler, mockRepo
 }
 
@@ -352,7 +352,7 @@ func TestMachineHandler_ListMachines(t *testing.T) {
 			{SerialNumber: "MACHINE002", Customer: "Customer 2", Status: "Maintenance"},
 		}
 
-		mockRepo.EXPECT().List(gomock.Any(), int32(50), "").Return(expectedMachines, "", nil)
+		mockRepo.EXPECT().List(gomock.Any(), int32(50)).Return(expectedMachines, nil)
 
 		req := httptest.NewRequest("GET", "/machines", nil)
 		w := httptest.NewRecorder()
@@ -368,33 +368,9 @@ func TestMachineHandler_ListMachines(t *testing.T) {
 
 		assert.Equal(t, float64(2), response["count"])
 		assert.Equal(t, float64(50), response["limit"])
-		assert.Nil(t, response["next_page_token"])
 
 		machines := response["machines"].([]interface{})
 		assert.Len(t, machines, 2)
-	})
-
-	t.Run("should handle pagination with next page token", func(t *testing.T) {
-		expectedMachines := []*machine.Machine{
-			{SerialNumber: "MACHINE003", Customer: "Customer 3", Status: "Operational"},
-		}
-		nextPageToken := "eyJQSyI6eyJ2YWx1ZSI6Ik1BQ0hJTkUwMDMifSwiU0siOnsidmFsdWUiOiIjIn19"
-
-		mockRepo.EXPECT().List(gomock.Any(), int32(50), "").Return(expectedMachines, nextPageToken, nil)
-
-		req := httptest.NewRequest("GET", "/machines", nil)
-		w := httptest.NewRecorder()
-
-		handler.ListMachines(w, req)
-
-		assert.Equal(t, http.StatusOK, w.Code)
-
-		var response map[string]interface{}
-		err := json.Unmarshal(w.Body.Bytes(), &response)
-		require.NoError(t, err)
-
-		assert.Equal(t, nextPageToken, response["next_page_token"])
-		assert.Equal(t, float64(1), response["count"])
 	})
 
 	t.Run("should use custom limit when provided", func(t *testing.T) {
@@ -402,7 +378,7 @@ func TestMachineHandler_ListMachines(t *testing.T) {
 			{SerialNumber: "MACHINE001", Customer: "Customer 1", Status: "Operational"},
 		}
 
-		mockRepo.EXPECT().List(gomock.Any(), int32(25), "").Return(expectedMachines, "", nil)
+		mockRepo.EXPECT().List(gomock.Any(), int32(25)).Return(expectedMachines, nil)
 
 		req := httptest.NewRequest("GET", "/machines?limit=25", nil)
 		w := httptest.NewRecorder()
@@ -417,29 +393,6 @@ func TestMachineHandler_ListMachines(t *testing.T) {
 
 		assert.Equal(t, float64(25), response["limit"])
 		assert.Equal(t, float64(1), response["count"])
-	})
-
-	t.Run("should handle page token parameter", func(t *testing.T) {
-		expectedMachines := []*machine.Machine{
-			{SerialNumber: "MACHINE002", Customer: "Customer 2", Status: "Maintenance"},
-		}
-		pageToken := "eyJQSyI6eyJ2YWx1ZSI6Ik1BQ0hJTkUwMDEifSwiU0siOnsidmFsdWUiOiIjIn19"
-
-		mockRepo.EXPECT().List(gomock.Any(), int32(50), pageToken).Return(expectedMachines, "", nil)
-
-		req := httptest.NewRequest("GET", "/machines?page_token="+pageToken, nil)
-		w := httptest.NewRecorder()
-
-		handler.ListMachines(w, req)
-
-		assert.Equal(t, http.StatusOK, w.Code)
-
-		var response map[string]interface{}
-		err := json.Unmarshal(w.Body.Bytes(), &response)
-		require.NoError(t, err)
-
-		assert.Equal(t, float64(1), response["count"])
-		assert.Nil(t, response["next_page_token"])
 	})
 
 	t.Run("should return 400 for invalid limit parameter", func(t *testing.T) {
@@ -473,7 +426,7 @@ func TestMachineHandler_ListMachines(t *testing.T) {
 	})
 
 	t.Run("should return 500 on repository error", func(t *testing.T) {
-		mockRepo.EXPECT().List(gomock.Any(), int32(50), "").Return(nil, "", fmt.Errorf("database error"))
+		mockRepo.EXPECT().List(gomock.Any(), int32(50)).Return(nil, fmt.Errorf("database error"))
 
 		req := httptest.NewRequest("GET", "/machines", nil)
 		w := httptest.NewRecorder()
@@ -485,7 +438,7 @@ func TestMachineHandler_ListMachines(t *testing.T) {
 	})
 
 	t.Run("should handle empty result set", func(t *testing.T) {
-		mockRepo.EXPECT().List(gomock.Any(), int32(50), "").Return([]*machine.Machine{}, "", nil)
+		mockRepo.EXPECT().List(gomock.Any(), int32(50)).Return([]*machine.Machine{}, nil)
 
 		req := httptest.NewRequest("GET", "/machines", nil)
 		w := httptest.NewRecorder()
@@ -500,34 +453,8 @@ func TestMachineHandler_ListMachines(t *testing.T) {
 
 		assert.Equal(t, float64(0), response["count"])
 		assert.Equal(t, float64(50), response["limit"])
-		assert.Nil(t, response["next_page_token"])
 
 		machines := response["machines"].([]interface{})
 		assert.Len(t, machines, 0)
-	})
-
-	t.Run("should handle pagination with both limit and page token", func(t *testing.T) {
-		expectedMachines := []*machine.Machine{
-			{SerialNumber: "MACHINE004", Customer: "Customer 4", Status: "Operational"},
-		}
-		pageToken := "eyJQSyI6eyJ2YWx1ZSI6Ik1BQ0hJTkUwMDMifSwiU0siOnsidmFsdWUiOiIjIn19"
-		nextPageToken := "eyJQSyI6eyJ2YWx1ZSI6Ik1BQ0hJTkUwMDQifSwiU0siOnsidmFsdWUiOiIjIn19"
-
-		mockRepo.EXPECT().List(gomock.Any(), int32(10), pageToken).Return(expectedMachines, nextPageToken, nil)
-
-		req := httptest.NewRequest("GET", "/machines?limit=10&page_token="+pageToken, nil)
-		w := httptest.NewRecorder()
-
-		handler.ListMachines(w, req)
-
-		assert.Equal(t, http.StatusOK, w.Code)
-
-		var response map[string]interface{}
-		err := json.Unmarshal(w.Body.Bytes(), &response)
-		require.NoError(t, err)
-
-		assert.Equal(t, float64(10), response["limit"])
-		assert.Equal(t, float64(1), response["count"])
-		assert.Equal(t, nextPageToken, response["next_page_token"])
 	})
 }

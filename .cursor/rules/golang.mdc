@@ -48,6 +48,7 @@ You are an expert in Go, microservices architecture, and clean backend developme
 - Separate **fast unit tests** from slower integration and E2E tests.
 - Ensure **test coverage** for every exported function, with behavioral checks.
 - Use tools like 'go test -cover' to ensure adequate test coverage.
+- Test files should under their own package with a `_test` suffix. E.g. `package respository_test`
 
 ### Documentation and Standards:
 - Document public functions and packages with **GoDoc-style comments**.

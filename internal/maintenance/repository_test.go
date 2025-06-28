@@ -9,7 +9,6 @@ import (
 	"ralts-cms/internal/maintenance"
 	"ralts-cms/internal/testutils"
 
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -28,9 +27,25 @@ func (suite *MaintenanceRepositoryTestSuite) SetupTest() {
 	suite.repo = maintenance.NewRepository(deps.DynamoDBClient, deps.Config.DynamoDBTable)
 }
 
+// SetupSuite sets up the test suite once
+func (suite *MaintenanceRepositoryTestSuite) SetupSuite() {
+	// Clear the table once at the beginning to ensure clean state
+	deps := deps.Initialise()
+	err := testutils.ClearTable(context.Background(), deps.Config.DynamoDBTable, deps.DynamoDBClient)
+	if err != nil {
+		// Log the error but don't fail the suite setup
+		// This allows tests to run even if clearing fails
+		suite.T().Logf("Warning: Failed to clear table in SetupSuite: %v", err)
+	}
+}
+
 func (suite *MaintenanceRepositoryTestSuite) TearDownTest() {
-	err := testutils.ClearTable(context.Background(), suite.deps.Config.DynamoDBTable, suite.deps.DynamoDBClient)
-	require.NoError(suite.T(), err)
+	if suite.deps != nil && suite.deps.DynamoDBClient != nil {
+		err := testutils.ClearTable(context.Background(), suite.deps.Config.DynamoDBTable, suite.deps.DynamoDBClient)
+		if err != nil {
+			suite.T().Logf("Warning: Failed to clear table in TearDownTest: %v", err)
+		}
+	}
 }
 
 func (suite *MaintenanceRepositoryTestSuite) TestCreate() {

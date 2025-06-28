@@ -1,4 +1,4 @@
-package handler
+package handler_test
 
 import (
 	"bytes"
@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"ralts-cms/internal/deps"
+	"ralts-cms/internal/handler"
 	"ralts-cms/internal/maintenance"
 	mockmaintenance "ralts-cms/internal/maintenance"
 	"testing"
@@ -18,13 +19,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func setupMaintenanceTestHandler(t *testing.T) (*MaintenanceHandler, *mockmaintenance.MockRepository) {
+func setupMaintenanceTestHandler(t *testing.T) (*handler.MaintenanceHandler, *mockmaintenance.MockRepository) {
 	ctrl := gomock.NewController(t)
 	mockRepo := mockmaintenance.NewMockRepository(ctrl)
 	deps := &deps.Dependencies{
 		MaintenanceRepository: mockRepo,
 	}
-	handler := NewMaintenanceHandler(deps)
+	handler := handler.NewMaintenanceHandler(deps)
 	return handler, mockRepo
 }
 

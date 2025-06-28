@@ -49,7 +49,6 @@ func (h *MachineHandler) GetMachine(w http.ResponseWriter, r *http.Request) {
 func (h *MachineHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 	// Parse query parameters for pagination
 	limitStr := r.URL.Query().Get("limit")
-	pageToken := r.URL.Query().Get("page_token")
 
 	// Use configurable default limit
 	limit := h.deps.Config.DefaultMachineLimit
@@ -63,7 +62,7 @@ func (h *MachineHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get machines from repository
-	machines, nextPageToken, err := h.deps.MachineRepository.List(r.Context(), limit, pageToken)
+	machines, err := h.deps.MachineRepository.List(r.Context(), limit)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to list machines: %v", err), http.StatusInternalServerError)
 		return
@@ -74,11 +73,6 @@ func (h *MachineHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 		"machines": machines,
 		"count":    len(machines),
 		"limit":    limit,
-	}
-
-	// Add next page token if there are more results
-	if nextPageToken != "" {
-		response["next_page_token"] = nextPageToken
 	}
 
 	w.Header().Set("Content-Type", "application/json")
