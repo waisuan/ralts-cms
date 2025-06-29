@@ -10,17 +10,20 @@ interface OverdueAlertProps {
   isDueDismissed?: boolean;
 }
 
-export default function OverdueAlert({ 
-  stats, 
-  onShowOverdue, 
+export default function OverdueAlert({
+  stats,
+  onShowOverdue,
   onShowDue,
   onDismissOverdue,
   onDismissDue,
   isOverdueDismissed = false,
-  isDueDismissed = false
+  isDueDismissed = false,
 }: OverdueAlertProps) {
   // If both are dismissed or there are no alerts to show, don't render anything
-  if ((stats.overdueCount === 0 || isOverdueDismissed) && (stats.dueCount === 0 || isDueDismissed)) {
+  if (
+    (stats.overdueCount === 0 || isOverdueDismissed) &&
+    (stats.dueCount === 0 || isDueDismissed)
+  ) {
     return null;
   }
 

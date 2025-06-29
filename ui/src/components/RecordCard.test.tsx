@@ -36,9 +36,17 @@ describe('RecordCard', () => {
       <RecordCard machine={baseMachine} onView={() => {}} onEdit={() => {}} onDelete={() => {}} />
     );
     const subtitle = screen.getByText((content, element) => {
-      return element?.textContent === 'TestBrand · TestDistrict, CA · Premium';
+      return element?.textContent === 'TestBrand · TestDistrict, CA';
     });
     expect(subtitle).toBeInTheDocument();
+  });
+
+  it('displays account type in dedicated row', () => {
+    render(
+      <RecordCard machine={baseMachine} onView={() => {}} onEdit={() => {}} onDelete={() => {}} />
+    );
+    expect(screen.getByText('Account Type:')).toBeInTheDocument();
+    expect(screen.getByText('Premium')).toBeInTheDocument();
   });
 
   it('displays reported_by in the dates section', () => {
@@ -168,6 +176,20 @@ describe('RecordCard', () => {
       />
     );
     expect(screen.getByText('Status:')).toBeInTheDocument();
+    expect(screen.getByText('Not specified')).toBeInTheDocument();
+  });
+
+  it('shows "Not specified" for empty account type field', () => {
+    const machineWithoutAccountType = { ...baseMachine, account_type: '' };
+    render(
+      <RecordCard
+        machine={machineWithoutAccountType}
+        onView={() => {}}
+        onEdit={() => {}}
+        onDelete={() => {}}
+      />
+    );
+    expect(screen.getByText('Account Type:')).toBeInTheDocument();
     expect(screen.getByText('Not specified')).toBeInTheDocument();
   });
 

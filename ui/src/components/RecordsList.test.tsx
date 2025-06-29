@@ -354,8 +354,8 @@ describe('RecordsList', () => {
   it('displays sort dropdown when onSortChange is provided', () => {
     const mockSortChange = jest.fn();
     render(
-      <RecordsList 
-        searchOptions={defaultSearchOptions} 
+      <RecordsList
+        searchOptions={defaultSearchOptions}
         sortBy="newest"
         onSortChange={mockSortChange}
       />
@@ -368,10 +368,10 @@ describe('RecordsList', () => {
   it('calls onSortChange when sort selection changes', async () => {
     const user = userEvent.setup();
     const mockSortChange = jest.fn();
-    
+
     render(
-      <RecordsList 
-        searchOptions={defaultSearchOptions} 
+      <RecordsList
+        searchOptions={defaultSearchOptions}
         sortBy="newest"
         onSortChange={mockSortChange}
       />
@@ -392,7 +392,7 @@ describe('RecordsList', () => {
 
     // With newest first, SN-003 (2024-03-01) should come first, then SN-002 (2024-02-01), then SN-001 (2024-01-01)
     expect(machineCards[0]).toHaveTextContent('SN-003');
-    expect(machineCards[1]).toHaveTextContent('SN-002'); 
+    expect(machineCards[1]).toHaveTextContent('SN-002');
     expect(machineCards[2]).toHaveTextContent('SN-001');
   });
 

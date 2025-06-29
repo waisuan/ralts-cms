@@ -52,8 +52,7 @@ export default function RecordCard({ machine, onView, onEdit, onDelete }: Record
                 <span className="text-xs text-gray-500">({machine.model})</span>
               </h3>
               <div className="text-xs text-gray-500 mt-1">
-                {machine.brand} &middot; {machine.district}, {machine.state} &middot;{' '}
-                {machine.account_type}
+                {machine.brand} &middot; {machine.district}, {machine.state}
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -108,6 +107,10 @@ export default function RecordCard({ machine, onView, onEdit, onDelete }: Record
             </div>
             <div className="text-sm text-gray-700 font-medium">
               Status: <span className="font-normal">{machine.status || 'Not specified'}</span>
+            </div>
+            <div className="text-sm text-gray-700 font-medium">
+              Account Type:{' '}
+              <span className="font-normal">{machine.account_type || 'Not specified'}</span>
             </div>
             <div className="text-sm text-gray-700 font-medium">
               Person In Charge: <span className="font-normal">{machine.person_in_charge}</span>

@@ -2,11 +2,13 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import RecordCard from './RecordCard';
+import AddMachineModal from './AddMachineModal';
 import { mockMachines } from '../data/mockMachines';
 import { SearchOptions } from './SearchBar';
 import { isDateProperty } from '@/utils/constants';
 import { getPPMStatusLabel } from '@/utils/ppmUtils';
 import { useOverdueStats } from '../hooks/useOverdueStats';
+import { Machine } from '../types/machine';
 
 type FilterType = 'all' | 'overdue' | 'due';
 export type SortType = 'newest' | 'oldest';
@@ -30,6 +32,7 @@ export default function RecordsList({
 }: RecordsListProps) {
   const [machines, setMachines] = useState(mockMachines);
   const [displayedCount, setDisplayedCount] = useState(ITEMS_PER_PAGE);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // Calculate overdue statistics
   const overdueStats = useOverdueStats(machines);
@@ -80,12 +83,19 @@ export default function RecordsList({
     const sorted = [...filtered].sort((a, b) => {
       const dateA = new Date(a.created_at).getTime();
       const dateB = new Date(b.created_at).getTime();
-      
+
       return sortBy === 'newest' ? dateB - dateA : dateA - dateB;
     });
 
     return sorted;
-  }, [machines, searchOptions, filterType, sortBy, overdueStats.overdueMachines, overdueStats.dueMachines]);
+  }, [
+    machines,
+    searchOptions,
+    filterType,
+    sortBy,
+    overdueStats.overdueMachines,
+    overdueStats.dueMachines,
+  ]);
 
   // Get machines to display (limited by displayedCount)
   const displayedMachines = filteredMachines.slice(0, displayedCount);
@@ -110,6 +120,23 @@ export default function RecordsList({
 
   const handleDelete = (serial_number: string) => {
     setMachines(machines.filter((machine) => machine.serial_number !== serial_number));
+  };
+
+  const handleAddMachine = (newMachine: Omit<Machine, 'created_at' | 'updated_at'>) => {
+    const machine: Machine = {
+      ...newMachine,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    setMachines([machine, ...machines]);
+  };
+
+  const handleOpenAddModal = () => {
+    setIsAddModalOpen(true);
+  };
+
+  const handleCloseAddModal = () => {
+    setIsAddModalOpen(false);
   };
 
   const getFilterStatusText = () => {
@@ -230,7 +257,10 @@ export default function RecordsList({
             </button>
           )}
 
-          <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+          <button
+            onClick={handleOpenAddModal}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+          >
             Add New Machine
           </button>
         </div>
@@ -267,6 +297,13 @@ export default function RecordsList({
           <p className="text-gray-500">{emptyState.subtitle}</p>
         </div>
       )}
+
+      {/* Add Machine Modal */}
+      <AddMachineModal
+        isOpen={isAddModalOpen}
+        onClose={handleCloseAddModal}
+        onAdd={handleAddMachine}
+      />
     </div>
   );
 }

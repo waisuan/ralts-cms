@@ -63,16 +63,19 @@ jest.mock('../components/SearchBar', () => {
 });
 
 jest.mock('../components/OverdueAlert', () => {
-  return function MockOverdueAlert({ 
-    stats, 
-    onShowOverdue, 
-    onShowDue, 
+  return function MockOverdueAlert({
+    stats,
+    onShowOverdue,
+    onShowDue,
     onDismissOverdue,
     onDismissDue,
     isOverdueDismissed = false,
-    isDueDismissed = false
+    isDueDismissed = false,
   }: MockOverdueAlertProps) {
-    if ((stats.overdueCount === 0 || isOverdueDismissed) && (stats.dueCount === 0 || isDueDismissed)) {
+    if (
+      (stats.overdueCount === 0 || isOverdueDismissed) &&
+      (stats.dueCount === 0 || isDueDismissed)
+    ) {
       return null;
     }
 
@@ -85,9 +88,7 @@ jest.mock('../components/OverdueAlert', () => {
               PPM maintenance
             </div>
             <button onClick={onShowOverdue}>View Overdue</button>
-            {onDismissOverdue && (
-              <button onClick={onDismissOverdue}>Dismiss Overdue</button>
-            )}
+            {onDismissOverdue && <button onClick={onDismissOverdue}>Dismiss Overdue</button>}
           </div>
         )}
         {stats.dueCount > 0 && !isDueDismissed && (
@@ -97,9 +98,7 @@ jest.mock('../components/OverdueAlert', () => {
               maintenance today
             </div>
             <button onClick={onShowDue}>View Due</button>
-            {onDismissDue && (
-              <button onClick={onDismissDue}>Dismiss Due</button>
-            )}
+            {onDismissDue && <button onClick={onDismissDue}>Dismiss Due</button>}
           </div>
         )}
       </div>
@@ -188,7 +187,9 @@ describe('Home Page', () => {
     await user.click(dismissDueButton);
 
     // Should dismiss the due alert
-    expect(screen.queryByText('1 machine is due for PPM maintenance today')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('1 machine is due for PPM maintenance today')
+    ).not.toBeInTheDocument();
   });
 
   it('handles search functionality', async () => {

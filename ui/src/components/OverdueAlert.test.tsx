@@ -31,9 +31,7 @@ describe('OverdueAlert', () => {
       dueMachines: [],
     };
 
-    const { container } = render(
-      <OverdueAlert stats={stats} {...defaultProps} />
-    );
+    const { container } = render(<OverdueAlert stats={stats} {...defaultProps} />);
 
     expect(container.firstChild).toBeNull();
   });
@@ -48,9 +46,7 @@ describe('OverdueAlert', () => {
       dueMachines: [],
     };
 
-    render(
-      <OverdueAlert stats={stats} {...defaultProps} />
-    );
+    render(<OverdueAlert stats={stats} {...defaultProps} />);
 
     expect(screen.getByText('3 machines are overdue for PPM maintenance')).toBeInTheDocument();
     expect(
@@ -69,9 +65,7 @@ describe('OverdueAlert', () => {
       dueMachines: [],
     };
 
-    render(
-      <OverdueAlert stats={stats} {...defaultProps} />
-    );
+    render(<OverdueAlert stats={stats} {...defaultProps} />);
 
     expect(screen.getByText('1 machine is overdue for PPM maintenance')).toBeInTheDocument();
   });
@@ -86,9 +80,7 @@ describe('OverdueAlert', () => {
       dueMachines: [],
     };
 
-    render(
-      <OverdueAlert stats={stats} {...defaultProps} />
-    );
+    render(<OverdueAlert stats={stats} {...defaultProps} />);
 
     expect(screen.getByText('2 machines are due for PPM maintenance today')).toBeInTheDocument();
     expect(screen.getByText('Schedule maintenance to avoid becoming overdue')).toBeInTheDocument();
@@ -105,9 +97,7 @@ describe('OverdueAlert', () => {
       dueMachines: [],
     };
 
-    render(
-      <OverdueAlert stats={stats} {...defaultProps} />
-    );
+    render(<OverdueAlert stats={stats} {...defaultProps} />);
 
     expect(screen.getByText('1 machine is due for PPM maintenance today')).toBeInTheDocument();
   });
@@ -122,9 +112,7 @@ describe('OverdueAlert', () => {
       dueMachines: [],
     };
 
-    render(
-      <OverdueAlert stats={stats} {...defaultProps} />
-    );
+    render(<OverdueAlert stats={stats} {...defaultProps} />);
 
     // Should show both alerts
     expect(screen.getByText('2 machines are overdue for PPM maintenance')).toBeInTheDocument();
@@ -143,9 +131,7 @@ describe('OverdueAlert', () => {
       dueMachines: [],
     };
 
-    render(
-      <OverdueAlert stats={stats} {...defaultProps} />
-    );
+    render(<OverdueAlert stats={stats} {...defaultProps} />);
 
     const viewOverdueButton = screen.getByText('View Overdue');
     fireEvent.click(viewOverdueButton);
@@ -164,9 +150,7 @@ describe('OverdueAlert', () => {
       dueMachines: [],
     };
 
-    render(
-      <OverdueAlert stats={stats} {...defaultProps} />
-    );
+    render(<OverdueAlert stats={stats} {...defaultProps} />);
 
     const viewDueButton = screen.getByText('View Due');
     fireEvent.click(viewDueButton);
@@ -185,9 +169,7 @@ describe('OverdueAlert', () => {
       dueMachines: [],
     };
 
-    render(
-      <OverdueAlert stats={stats} {...defaultProps} />
-    );
+    render(<OverdueAlert stats={stats} {...defaultProps} />);
 
     const dismissButton = screen.getByTitle('Dismiss alert');
     expect(dismissButton).toBeInTheDocument();
@@ -203,9 +185,7 @@ describe('OverdueAlert', () => {
       dueMachines: [],
     };
 
-    render(
-      <OverdueAlert stats={stats} {...defaultProps} />
-    );
+    render(<OverdueAlert stats={stats} {...defaultProps} />);
 
     const dismissButton = screen.getByTitle('Dismiss alert');
     expect(dismissButton).toBeInTheDocument();
@@ -221,9 +201,7 @@ describe('OverdueAlert', () => {
       dueMachines: [],
     };
 
-    render(
-      <OverdueAlert stats={stats} {...defaultProps} />
-    );
+    render(<OverdueAlert stats={stats} {...defaultProps} />);
 
     const dismissButton = screen.getByTitle('Dismiss alert');
     fireEvent.click(dismissButton);
@@ -242,9 +220,7 @@ describe('OverdueAlert', () => {
       dueMachines: [],
     };
 
-    render(
-      <OverdueAlert stats={stats} {...defaultProps} />
-    );
+    render(<OverdueAlert stats={stats} {...defaultProps} />);
 
     const dismissButton = screen.getByTitle('Dismiss alert');
     fireEvent.click(dismissButton);
@@ -263,9 +239,7 @@ describe('OverdueAlert', () => {
       dueMachines: [],
     };
 
-    render(
-      <OverdueAlert stats={stats} {...defaultProps} isOverdueDismissed={true} />
-    );
+    render(<OverdueAlert stats={stats} {...defaultProps} isOverdueDismissed={true} />);
 
     expect(screen.queryByText('1 machine is overdue for PPM maintenance')).not.toBeInTheDocument();
   });
@@ -280,11 +254,11 @@ describe('OverdueAlert', () => {
       dueMachines: [],
     };
 
-    render(
-      <OverdueAlert stats={stats} {...defaultProps} isDueDismissed={true} />
-    );
+    render(<OverdueAlert stats={stats} {...defaultProps} isDueDismissed={true} />);
 
-    expect(screen.queryByText('1 machine is due for PPM maintenance today')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('1 machine is due for PPM maintenance today')
+    ).not.toBeInTheDocument();
   });
 
   it('renders nothing when both alerts are dismissed', () => {
@@ -298,7 +272,12 @@ describe('OverdueAlert', () => {
     };
 
     const { container } = render(
-      <OverdueAlert stats={stats} {...defaultProps} isOverdueDismissed={true} isDueDismissed={true} />
+      <OverdueAlert
+        stats={stats}
+        {...defaultProps}
+        isOverdueDismissed={true}
+        isDueDismissed={true}
+      />
     );
 
     expect(container.firstChild).toBeNull();
@@ -314,9 +293,7 @@ describe('OverdueAlert', () => {
       dueMachines: [],
     };
 
-    const { container } = render(
-      <OverdueAlert stats={stats} {...defaultProps} />
-    );
+    const { container } = render(<OverdueAlert stats={stats} {...defaultProps} />);
 
     // Find the red alert container
     const overdueAlert = container.querySelector('.bg-red-50.border-red-400');
@@ -334,9 +311,7 @@ describe('OverdueAlert', () => {
       dueMachines: [],
     };
 
-    const { container } = render(
-      <OverdueAlert stats={stats} {...defaultProps} />
-    );
+    const { container } = render(<OverdueAlert stats={stats} {...defaultProps} />);
 
     // Find the orange alert container
     const dueAlert = container.querySelector('.bg-orange-50.border-orange-400');
@@ -355,11 +330,7 @@ describe('OverdueAlert', () => {
     };
 
     render(
-      <OverdueAlert 
-        stats={stats} 
-        onShowOverdue={mockOnShowOverdue} 
-        onShowDue={mockOnShowDue} 
-      />
+      <OverdueAlert stats={stats} onShowOverdue={mockOnShowOverdue} onShowDue={mockOnShowDue} />
     );
 
     // Should render alerts but no dismiss buttons
