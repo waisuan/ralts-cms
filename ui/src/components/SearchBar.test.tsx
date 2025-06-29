@@ -51,6 +51,9 @@ describe('SearchBar', () => {
     expect(screen.getByText('District')).toBeInTheDocument();
     expect(screen.getByText('Person in Charge')).toBeInTheDocument();
     expect(screen.getByText('Reported By')).toBeInTheDocument();
+    expect(screen.getByText('Status')).toBeInTheDocument();
+    expect(screen.getByText('TNC Date')).toBeInTheDocument();
+    expect(screen.getByText('PPM Date')).toBeInTheDocument();
 
     // Verify Serial Number appears twice (button + dropdown)
     expect(screen.getAllByText('Serial Number')).toHaveLength(2);
@@ -72,6 +75,27 @@ describe('SearchBar', () => {
     });
   });
 
+  it('clears query when switching to a different property', async () => {
+    const user = userEvent.setup();
+    const searchOptions: SearchOptions = {
+      query: 'some search',
+      property: 'customer',
+    };
+    render(<SearchBar searchOptions={searchOptions} onSearch={mockOnSearch} />);
+
+    const dropdownButton = screen.getByRole('button');
+    await user.click(dropdownButton);
+
+    const modelOption = screen.getByText('Model');
+    await user.click(modelOption);
+
+    // Should clear the query when switching properties
+    expect(mockOnSearch).toHaveBeenCalledWith({
+      query: '',
+      property: 'model',
+    });
+  });
+
   it('updates placeholder text based on selected property', () => {
     const searchOptions: SearchOptions = {
       query: '',
@@ -84,7 +108,58 @@ describe('SearchBar', () => {
     expect(screen.getByRole('button')).toHaveTextContent('Customer');
   });
 
-  it('shows search info when query is present', () => {
+  it('shows text input for text properties', () => {
+    const searchOptions: SearchOptions = {
+      query: '',
+      property: 'customer',
+    };
+    render(<SearchBar searchOptions={searchOptions} onSearch={mockOnSearch} />);
+
+    expect(screen.getByDisplayValue('')).toHaveAttribute('type', 'text');
+    expect(screen.getByPlaceholderText('Search by customer...')).toBeInTheDocument();
+  });
+
+  it('shows date input for date properties', () => {
+    const searchOptions: SearchOptions = {
+      query: '',
+      property: 'tnc_date',
+    };
+    render(<SearchBar searchOptions={searchOptions} onSearch={mockOnSearch} />);
+
+    expect(screen.getByDisplayValue('')).toHaveAttribute('type', 'date');
+    expect(screen.queryByPlaceholderText(/search by/i)).not.toBeInTheDocument();
+  });
+
+  it('shows calendar icon for date properties', () => {
+    const searchOptions: SearchOptions = {
+      query: '',
+      property: 'ppm_date',
+    };
+    render(<SearchBar searchOptions={searchOptions} onSearch={mockOnSearch} />);
+
+    // Check for calendar icon path
+    const calendarIcon = document.querySelector(
+      'path[d*="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"]'
+    );
+    expect(calendarIcon).toBeInTheDocument();
+  });
+
+  it('shows different search info for date properties', () => {
+    const searchOptions: SearchOptions = {
+      query: '2024-01-15',
+      property: 'tnc_date',
+    };
+    render(<SearchBar searchOptions={searchOptions} onSearch={mockOnSearch} />);
+
+    // Verify the date input shows the correct value
+    expect(screen.getByDisplayValue('2024-01-15')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('2024-01-15')).toHaveAttribute('type', 'date');
+
+    // Verify TNC Date label is shown in the dropdown button
+    expect(screen.getByRole('button')).toHaveTextContent('TNC Date');
+  });
+
+  it('shows search info when query is present for text properties', () => {
     const searchOptions: SearchOptions = {
       query: 'test search',
       property: 'model',

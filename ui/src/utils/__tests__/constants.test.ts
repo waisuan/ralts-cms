@@ -1,4 +1,4 @@
-import { DEFAULT_SEARCH_PROPERTY, SEARCH_PROPERTIES } from '../constants';
+import { DEFAULT_SEARCH_PROPERTY, SEARCH_PROPERTIES, DATE_PROPERTIES } from '../constants';
 
 describe('Constants', () => {
   describe('DEFAULT_SEARCH_PROPERTY', () => {
@@ -24,6 +24,9 @@ describe('Constants', () => {
         'district',
         'person_in_charge',
         'reported_by',
+        'status',
+        'tnc_date',
+        'ppm_date',
       ];
 
       const actualProperties = SEARCH_PROPERTIES.map((prop) => prop.value);
@@ -41,6 +44,9 @@ describe('Constants', () => {
         'District',
         'Person in Charge',
         'Reported By',
+        'Status',
+        'TNC Date',
+        'PPM Date',
       ];
 
       const actualLabels = SEARCH_PROPERTIES.map((prop) => prop.label);
@@ -57,6 +63,20 @@ describe('Constants', () => {
       const labels = SEARCH_PROPERTIES.map((prop) => prop.label);
       const uniqueLabels = [...new Set(labels)];
       expect(labels).toHaveLength(uniqueLabels.length);
+    });
+  });
+
+  describe('DATE_PROPERTIES', () => {
+    it('should contain the expected date properties', () => {
+      const expectedDateProperties = ['tnc_date', 'ppm_date'];
+      expect(DATE_PROPERTIES).toEqual(expectedDateProperties);
+    });
+
+    it('should only contain properties that exist in SEARCH_PROPERTIES', () => {
+      const searchPropertyValues = SEARCH_PROPERTIES.map((prop) => prop.value);
+      DATE_PROPERTIES.forEach((dateProperty) => {
+        expect(searchPropertyValues).toContain(dateProperty);
+      });
     });
   });
 });

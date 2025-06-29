@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import RecordCard from './RecordCard';
 import { mockMachines } from '../data/mockMachines';
 import { SearchOptions } from './SearchBar';
+import { isDateProperty } from '@/utils/constants';
 
 interface RecordsListProps {
   searchOptions: SearchOptions;
@@ -25,9 +26,21 @@ export default function RecordsList({ searchOptions }: RecordsListProps) {
     const { property } = searchOptions;
 
     return machines.filter((machine) => {
-      // Search in specific property
-      const fieldValue = machine[property as keyof typeof machine];
-      return fieldValue && fieldValue.toString().toLowerCase().includes(query);
+      // Handle date properties differently
+      if (isDateProperty(property)) {
+        const fieldValue = machine[property as keyof typeof machine];
+        if (!fieldValue) return false;
+
+        // Convert both dates to YYYY-MM-DD format for comparison
+        const machineDate = fieldValue.toString().split('T')[0]; // Extract date part from ISO string
+        const searchDate = searchOptions.query; // Already in YYYY-MM-DD format from date input
+
+        return machineDate === searchDate;
+      } else {
+        // Search in specific text property
+        const fieldValue = machine[property as keyof typeof machine];
+        return fieldValue && fieldValue.toString().toLowerCase().includes(query);
+      }
     });
   }, [machines, searchOptions]);
 

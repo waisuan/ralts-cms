@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { SEARCH_PROPERTIES } from '@/utils/constants';
+import { SEARCH_PROPERTIES, isDateProperty } from '@/utils/constants';
 
 export interface SearchOptions {
   query: string;
@@ -21,11 +21,13 @@ export default function SearchBar({ onSearch, searchOptions }: SearchBarProps) {
   };
 
   const handlePropertyChange = (property: string) => {
-    onSearch({ ...searchOptions, property });
+    // Clear the query when switching to a different property type
+    onSearch({ query: '', property });
     setIsDropdownOpen(false);
   };
 
   const currentProperty = SEARCH_PROPERTIES.find((prop) => prop.value === searchOptions.property);
+  const isDatePropertyValue = isDateProperty(searchOptions.property);
 
   return (
     <div className="flex justify-center mb-6">
@@ -84,27 +86,56 @@ export default function SearchBar({ onSearch, searchOptions }: SearchBarProps) {
 
           {/* Search Input */}
           <div className="flex-1 relative">
-            <input
-              type="text"
-              placeholder={`Search by ${currentProperty?.label.toLowerCase()}...`}
-              value={searchOptions.query}
-              onChange={(e) => handleQueryChange(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border-0 rounded-r-lg focus:outline-none placeholder-gray-400 text-gray-900"
-            />
+            {isDatePropertyValue ? (
+              /* Date Picker Input */
+              <input
+                type="date"
+                value={searchOptions.query}
+                onChange={(e) => handleQueryChange(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border-0 rounded-r-lg focus:outline-none text-gray-900"
+              />
+            ) : (
+              /* Text Input */
+              <input
+                type="text"
+                placeholder={`Search by ${currentProperty?.label.toLowerCase()}...`}
+                value={searchOptions.query}
+                onChange={(e) => handleQueryChange(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border-0 rounded-r-lg focus:outline-none placeholder-gray-400 text-gray-900"
+              />
+            )}
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg
-                className="h-5 w-5 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
+              {isDatePropertyValue ? (
+                /* Calendar Icon for Date Properties */
+                <svg
+                  className="h-5 w-5 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+              ) : (
+                /* Search Icon for Text Properties */
+                <svg
+                  className="h-5 w-5 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+              )}
             </div>
           </div>
         </div>
@@ -112,8 +143,17 @@ export default function SearchBar({ onSearch, searchOptions }: SearchBarProps) {
         {/* Search Info */}
         {searchOptions.query && (
           <div className="mt-2 text-sm text-gray-500 text-center">
-            Searching for &ldquo;{searchOptions.query}&rdquo; in{' '}
-            <span className="font-medium">{currentProperty?.label}</span>
+            {isDatePropertyValue ? (
+              <>
+                Filtering by <span className="font-medium">{currentProperty?.label}</span> on{' '}
+                <span className="font-medium">{searchOptions.query}</span>
+              </>
+            ) : (
+              <>
+                Searching for &ldquo;{searchOptions.query}&rdquo; in{' '}
+                <span className="font-medium">{currentProperty?.label}</span>
+              </>
+            )}
           </div>
         )}
       </div>

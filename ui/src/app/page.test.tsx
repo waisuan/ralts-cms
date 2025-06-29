@@ -86,6 +86,9 @@ describe('Home Page', () => {
     expect(screen.getByText('Customer')).toBeInTheDocument();
     expect(screen.getByText('Model')).toBeInTheDocument();
     expect(screen.getByText('Brand')).toBeInTheDocument();
+    expect(screen.getByText('Status')).toBeInTheDocument();
+    expect(screen.getByText('TNC Date')).toBeInTheDocument();
+    expect(screen.getByText('PPM Date')).toBeInTheDocument();
 
     // Verify Serial Number appears twice (button + dropdown)
     expect(screen.getAllByText('Serial Number')).toHaveLength(2);
@@ -103,6 +106,21 @@ describe('Home Page', () => {
 
     expect(screen.getByText('Search Property: customer')).toBeInTheDocument();
     expect(screen.getByPlaceholderText('Search by customer...')).toBeInTheDocument();
+  });
+
+  it('shows date picker when selecting date properties', async () => {
+    const user = userEvent.setup();
+    render(<Home />);
+
+    const dropdownButton = screen.getByRole('button');
+    await user.click(dropdownButton);
+
+    const tncDateOption = screen.getByText('TNC Date');
+    await user.click(tncDateOption);
+
+    expect(screen.getByText('Search Property: tnc_date')).toBeInTheDocument();
+    // Should show date input instead of text input
+    expect(screen.getByDisplayValue('')).toHaveAttribute('type', 'date');
   });
 
   it('has proper page structure with main container', () => {
