@@ -6,27 +6,49 @@ import { mockMachines } from '../data/mockMachines';
 import { SearchOptions } from './SearchBar';
 import { isDateProperty } from '@/utils/constants';
 import { getPPMStatusLabel } from '@/utils/ppmUtils';
+import { useOverdueStats } from '../hooks/useOverdueStats';
+
+type FilterType = 'all' | 'overdue' | 'due';
 
 interface RecordsListProps {
   searchOptions: SearchOptions;
+  filterType?: FilterType;
+  onToggleOverdueFilter?: () => void;
 }
 
 const ITEMS_PER_PAGE = 3; // Show 3 machines initially, then load more
 
-export default function RecordsList({ searchOptions }: RecordsListProps) {
+export default function RecordsList({ 
+  searchOptions, 
+  filterType = 'all',
+  onToggleOverdueFilter 
+}: RecordsListProps) {
   const [machines, setMachines] = useState(mockMachines);
   const [displayedCount, setDisplayedCount] = useState(ITEMS_PER_PAGE);
 
-  // Filter machines based on search options
+  // Calculate overdue statistics
+  const overdueStats = useOverdueStats(machines);
+
+  // Filter machines based on search options and filter type
   const filteredMachines = useMemo(() => {
+    let filtered = machines;
+
+    // Apply filter type first if enabled
+    if (filterType === 'overdue') {
+      filtered = overdueStats.overdueMachines;
+    } else if (filterType === 'due') {
+      filtered = overdueStats.dueMachines;
+    }
+
+    // Then apply search filter
     if (!searchOptions.query.trim()) {
-      return machines;
+      return filtered;
     }
 
     const query = searchOptions.query.toLowerCase();
     const { property } = searchOptions;
 
-    return machines.filter((machine) => {
+    return filtered.filter((machine) => {
       // Handle date properties differently
       if (isDateProperty(property)) {
         const fieldValue = machine[property as keyof typeof machine];
@@ -50,7 +72,7 @@ export default function RecordsList({ searchOptions }: RecordsListProps) {
         return fieldValue && fieldValue.toString().toLowerCase().includes(query);
       }
     });
-  }, [machines, searchOptions]);
+  }, [machines, searchOptions, filterType, overdueStats.overdueMachines, overdueStats.dueMachines]);
 
   // Get machines to display (limited by displayedCount)
   const displayedMachines = filteredMachines.slice(0, displayedCount);
@@ -59,7 +81,7 @@ export default function RecordsList({ searchOptions }: RecordsListProps) {
   // Reset displayed count when search changes
   useEffect(() => {
     setDisplayedCount(ITEMS_PER_PAGE);
-  }, [searchOptions]);
+  }, [searchOptions, filterType]);
 
   const handleLoadMore = () => {
     setDisplayedCount((prev) => Math.min(prev + ITEMS_PER_PAGE, filteredMachines.length));
@@ -77,22 +99,102 @@ export default function RecordsList({ searchOptions }: RecordsListProps) {
     setMachines(machines.filter((machine) => machine.serial_number !== serial_number));
   };
 
+  const getFilterStatusText = () => {
+    if (filterType === 'overdue') return ' (overdue only)';
+    if (filterType === 'due') return ' (due today only)';
+    if (searchOptions.query && filteredMachines.length !== machines.length) {
+      return ` (filtered from ${machines.length} total)`;
+    }
+    return '';
+  };
+
+  const getEmptyStateMessage = () => {
+    if (filterType === 'overdue') {
+      return {
+        title: 'No overdue machines found',
+        subtitle: 'Great! All machines are up to date with their PPM maintenance.'
+      };
+    }
+    if (filterType === 'due') {
+      return {
+        title: 'No machines due today',
+        subtitle: 'No machines require PPM maintenance today.'
+      };
+    }
+    if (searchOptions.query) {
+      return {
+        title: 'No machines found',
+        subtitle: `No machines match "${searchOptions.query}". Try a different search term.`
+      };
+    }
+    return {
+      title: 'No machines found',
+      subtitle: 'Get started by creating your first machine.'
+    };
+  };
+
+  const emptyState = getEmptyStateMessage();
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900">All Machines</h2>
-          <p className="text-sm text-gray-500 mt-1">
-            Showing {displayedMachines.length} of {filteredMachines.length} machine
-            {filteredMachines.length !== 1 ? 's' : ''}
-            {searchOptions.query && filteredMachines.length !== machines.length && (
-              <span className="ml-1">(filtered from {machines.length} total)</span>
+        <div className="flex-1">
+          <div className="flex items-center gap-4">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">All Machines</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Showing {displayedMachines.length} of {filteredMachines.length} machine
+                {filteredMachines.length !== 1 ? 's' : ''}
+                {getFilterStatusText()}
+              </p>
+            </div>
+            
+            {/* Overdue Statistics Badge */}
+            {overdueStats.totalCriticalCount > 0 && (
+              <div className="flex items-center gap-2">
+                {overdueStats.overdueCount > 0 && (
+                  <div className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1">
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                    {overdueStats.overdueCount} Overdue
+                  </div>
+                )}
+                {overdueStats.dueCount > 0 && (
+                  <div className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1">
+                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    {overdueStats.dueCount} Due Today
+                  </div>
+                )}
+              </div>
             )}
-          </p>
+          </div>
         </div>
-        <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
-          Add New Machine
-        </button>
+        
+        <div className="flex items-center gap-3">
+          {/* Quick Overdue Filter Toggle */}
+          {overdueStats.overdueCount > 0 && onToggleOverdueFilter && (
+            <button
+              onClick={onToggleOverdueFilter}
+              className={`px-3 py-2 rounded-lg font-medium transition-colors text-sm flex items-center gap-2 ${
+                filterType === 'overdue'
+                  ? 'bg-red-600 text-white hover:bg-red-700'
+                  : 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200'
+              }`}
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+              {filterType === 'overdue' ? 'Show All' : 'Show Overdue Only'}
+            </button>
+          )}
+          
+          <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+            Add New Machine
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -123,12 +225,10 @@ export default function RecordsList({ searchOptions }: RecordsListProps) {
         <div className="text-center py-12">
           <div className="text-gray-400 text-6xl mb-4">📄</div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">
-            {searchOptions.query ? 'No machines found' : 'No machines found'}
+            {emptyState.title}
           </h3>
           <p className="text-gray-500">
-            {searchOptions.query
-              ? `No machines match "${searchOptions.query}". Try a different search term.`
-              : 'Get started by creating your first machine.'}
+            {emptyState.subtitle}
           </p>
         </div>
       )}
