@@ -226,7 +226,7 @@ describe('RecordsList', () => {
     const viewButtons = screen.getAllByText('View');
     await user.click(viewButtons[0]);
 
-    expect(consoleSpy).toHaveBeenCalledWith('View machine:', 'SN-001');
+    expect(consoleSpy).toHaveBeenCalledWith('View machine:', 'SN-003');
 
     consoleSpy.mockRestore();
   });
@@ -240,7 +240,7 @@ describe('RecordsList', () => {
     const editButtons = screen.getAllByText('Edit');
     await user.click(editButtons[0]);
 
-    expect(consoleSpy).toHaveBeenCalledWith('Edit machine:', 'SN-001');
+    expect(consoleSpy).toHaveBeenCalledWith('Edit machine:', 'SN-003');
 
     consoleSpy.mockRestore();
   });
