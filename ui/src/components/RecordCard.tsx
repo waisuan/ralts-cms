@@ -52,7 +52,8 @@ export default function RecordCard({ machine, onView, onEdit, onDelete }: Record
                 <span className="text-xs text-gray-500">({machine.model})</span>
               </h3>
               <div className="text-xs text-gray-500 mt-1">
-                {machine.brand} &middot; {machine.district}, {machine.state} &middot; {machine.account_type}
+                {machine.brand} &middot; {machine.district}, {machine.state} &middot;{' '}
+                {machine.account_type}
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -73,7 +74,7 @@ export default function RecordCard({ machine, onView, onEdit, onDelete }: Record
                   </svg>
                 </button>
               )}
-              
+
               {/* Notes Modal Button */}
               {machine.additional_notes && (
                 <button
@@ -100,7 +101,7 @@ export default function RecordCard({ machine, onView, onEdit, onDelete }: Record
               )}
             </div>
           </div>
-          
+
           <div className="mb-4 space-y-2">
             <div className="text-sm text-gray-700 font-medium">
               Customer: <span className="font-normal">{machine.customer}</span>
@@ -112,7 +113,7 @@ export default function RecordCard({ machine, onView, onEdit, onDelete }: Record
               Person In Charge: <span className="font-normal">{machine.person_in_charge}</span>
             </div>
           </div>
-          
+
           <div className="text-xs text-gray-500 mb-4 space-y-1">
             <div>TNC Date: {formatDate(machine.tnc_date)}</div>
             <div>PPM Date: {formatDate(machine.ppm_date)}</div>
@@ -120,7 +121,7 @@ export default function RecordCard({ machine, onView, onEdit, onDelete }: Record
             <div>Created: {formatDate(machine.created_at)}</div>
             <div>Updated: {formatDate(machine.updated_at)}</div>
           </div>
-          
+
           <div className="flex gap-2">
             <button
               onClick={() => onView(machine.serial_number)}
@@ -146,15 +147,13 @@ export default function RecordCard({ machine, onView, onEdit, onDelete }: Record
 
       {/* Notes Modal */}
       {showNotesModal && (
-        <div 
+        <div
           className="fixed inset-0 backdrop-blur-md flex items-center justify-center z-50"
           onClick={handleBackdropClick}
         >
           <div className="bg-white rounded-lg border-2 border-gray-800 p-6 max-w-md w-full mx-4 max-h-96 overflow-y-auto">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">
-                Additional Notes
-              </h3>
+              <h3 className="text-lg font-semibold text-gray-900">Additional Notes</h3>
               <button
                 onClick={handleCloseNotes}
                 className="text-gray-400 hover:text-gray-600 transition-colors"

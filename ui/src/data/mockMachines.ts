@@ -40,7 +40,8 @@ export const mockMachines: Machine[] = [
     district: 'North',
     person_in_charge: 'Alice Johnson',
     reported_by: 'Bob Smith',
-    additional_notes: 'Needs inspection after last maintenance check. Unit has been running well but requires quarterly review.',
+    additional_notes:
+      'Needs inspection after last maintenance check. Unit has been running well but requires quarterly review.',
     attachment: 'inspection_report_SN001.pdf',
     ppm_status: '',
     tnc_date: '2024-07-01',
@@ -134,7 +135,7 @@ export const mockMachines: Machine[] = [
     brand: 'BrandF',
     district: 'Mountain',
     person_in_charge: 'Kate Martinez',
-    reported_by: 'Liam O\'Connor',
+    reported_by: "Liam O'Connor",
     additional_notes: '', // Empty notes
     attachment: '',
     ppm_status: '',

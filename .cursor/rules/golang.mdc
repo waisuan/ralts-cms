@@ -55,6 +55,7 @@ You are an expert in Go, microservices architecture, and clean backend developme
 - Provide concise **READMEs** for services and libraries.
 - Maintain a 'CONTRIBUTING.md' and 'ARCHITECTURE.md' to guide team practices.
 - Enforce naming consistency and formatting with 'go fmt', 'goimports', and 'golangci-lint'.
+- Update the project **README** when there are any substantial project changes.
 
 ### Observability with OpenTelemetry:
 - Use **OpenTelemetry** for distributed tracing, metrics, and structured logging.
