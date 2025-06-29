@@ -18,10 +18,10 @@ interface RecordsListProps {
 
 const ITEMS_PER_PAGE = 3; // Show 3 machines initially, then load more
 
-export default function RecordsList({ 
-  searchOptions, 
+export default function RecordsList({
+  searchOptions,
   filterType = 'all',
-  onToggleOverdueFilter 
+  onToggleOverdueFilter,
 }: RecordsListProps) {
   const [machines, setMachines] = useState(mockMachines);
   const [displayedCount, setDisplayedCount] = useState(ITEMS_PER_PAGE);
@@ -112,24 +112,24 @@ export default function RecordsList({
     if (filterType === 'overdue') {
       return {
         title: 'No overdue machines found',
-        subtitle: 'Great! All machines are up to date with their PPM maintenance.'
+        subtitle: 'Great! All machines are up to date with their PPM maintenance.',
       };
     }
     if (filterType === 'due') {
       return {
         title: 'No machines due today',
-        subtitle: 'No machines require PPM maintenance today.'
+        subtitle: 'No machines require PPM maintenance today.',
       };
     }
     if (searchOptions.query) {
       return {
         title: 'No machines found',
-        subtitle: `No machines match "${searchOptions.query}". Try a different search term.`
+        subtitle: `No machines match "${searchOptions.query}". Try a different search term.`,
       };
     }
     return {
       title: 'No machines found',
-      subtitle: 'Get started by creating your first machine.'
+      subtitle: 'Get started by creating your first machine.',
     };
   };
 
@@ -148,14 +148,19 @@ export default function RecordsList({
                 {getFilterStatusText()}
               </p>
             </div>
-            
+
             {/* Overdue Statistics Badge */}
             {overdueStats.totalCriticalCount > 0 && (
               <div className="flex items-center gap-2">
                 {overdueStats.overdueCount > 0 && (
                   <div className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1">
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
+                      />
                     </svg>
                     {overdueStats.overdueCount} Overdue
                   </div>
@@ -163,7 +168,12 @@ export default function RecordsList({
                 {overdueStats.dueCount > 0 && (
                   <div className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1">
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
                     </svg>
                     {overdueStats.dueCount} Due Today
                   </div>
@@ -172,7 +182,7 @@ export default function RecordsList({
             )}
           </div>
         </div>
-        
+
         <div className="flex items-center gap-3">
           {/* Quick Overdue Filter Toggle */}
           {overdueStats.overdueCount > 0 && onToggleOverdueFilter && (
@@ -185,12 +195,17 @@ export default function RecordsList({
               }`}
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
+                />
               </svg>
               {filterType === 'overdue' ? 'Show All' : 'Show Overdue Only'}
             </button>
           )}
-          
+
           <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors">
             Add New Machine
           </button>
@@ -224,12 +239,8 @@ export default function RecordsList({
       {filteredMachines.length === 0 && (
         <div className="text-center py-12">
           <div className="text-gray-400 text-6xl mb-4">📄</div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
-            {emptyState.title}
-          </h3>
-          <p className="text-gray-500">
-            {emptyState.subtitle}
-          </p>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">{emptyState.title}</h3>
+          <p className="text-gray-500">{emptyState.subtitle}</p>
         </div>
       )}
     </div>

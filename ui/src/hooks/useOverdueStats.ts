@@ -48,4 +48,4 @@ export function useOverdueStats(machines: Machine[]): OverdueStats {
       dueMachines,
     };
   }, [machines]);
-} 
+}

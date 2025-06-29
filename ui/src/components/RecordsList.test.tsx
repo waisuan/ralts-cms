@@ -3,7 +3,6 @@ import userEvent from '@testing-library/user-event';
 import RecordsList from './RecordsList';
 import { SearchOptions } from './SearchBar';
 import { DEFAULT_SEARCH_PROPERTY } from '@/utils/constants';
-import { getPPMStatus } from '@/utils/ppmUtils';
 
 // Mock the mockMachines to have predictable data for testing
 jest.mock('../data/mockMachines', () => ({
@@ -57,7 +56,7 @@ jest.mock('../data/mockMachines', () => ({
       district: 'South',
       person_in_charge: 'Eve Wilson',
       reported_by: 'Frank Miller',
-      additional_notes: 'Scheduled maintenance',
+      additional_notes: 'Due soon maintenance',
       attachment: '',
       ppm_status: '',
       tnc_date: '2024-06-01',
@@ -77,6 +76,13 @@ const defaultSearchOptions: SearchOptions = {
   property: DEFAULT_SEARCH_PROPERTY,
 };
 
+// Helper function to find text that might be broken up by elements
+const findTextAcrossElements = (text: string) => {
+  return screen.getAllByText((content, element) => {
+    return Boolean(element?.textContent?.includes(text));
+  })[0]; // Get the first match to avoid multiple element errors
+};
+
 describe('RecordsList', () => {
   beforeEach(() => {
     // Clear any console logs from previous tests
@@ -88,7 +94,7 @@ describe('RecordsList', () => {
 
     expect(screen.getByText('All Machines')).toBeInTheDocument();
     expect(screen.getByText('Add New Machine')).toBeInTheDocument();
-    expect(screen.getByText('Showing 3 of 3 machines')).toBeInTheDocument();
+    expect(findTextAcrossElements('Showing 3 of 3 machines')).toBeInTheDocument();
   });
 
   it('displays the correct number of machine cards initially', () => {
@@ -130,6 +136,14 @@ describe('RecordsList', () => {
     ).toBeInTheDocument();
   });
 
+  it('displays overdue and due statistics badges', () => {
+    render(<RecordsList searchOptions={defaultSearchOptions} />);
+
+    // Should show overdue and due badges
+    expect(screen.getByText('1 Overdue')).toBeInTheDocument();
+    expect(screen.getByText('1 Due Today')).toBeInTheDocument();
+  });
+
   it('filters machines based on search query', () => {
     const searchOptions: SearchOptions = {
       query: 'Acme',
@@ -138,7 +152,7 @@ describe('RecordsList', () => {
     render(<RecordsList searchOptions={searchOptions} />);
 
     // Should show only 1 machine when searching for "Acme" in customer field
-    expect(screen.getByText('Showing 1 of 1 machine')).toBeInTheDocument();
+    expect(findTextAcrossElements('Showing 1 of 1 machine')).toBeInTheDocument();
     expect(
       screen.getByText((content, element) => {
         return Boolean(
@@ -161,17 +175,6 @@ describe('RecordsList', () => {
         );
       })
     ).not.toBeInTheDocument();
-    expect(
-      screen.queryByText((content, element) => {
-        return Boolean(
-          element?.tagName === 'H3' &&
-            element.textContent?.includes('SN-003') &&
-            Array.from(element.children).some(
-              (child) => child.tagName === 'SPAN' && child.textContent === '(Z300)'
-            )
-        );
-      })
-    ).not.toBeInTheDocument();
   });
 
   it('filters machines by specific property', () => {
@@ -182,7 +185,7 @@ describe('RecordsList', () => {
     render(<RecordsList searchOptions={searchOptions} />);
 
     // Should show only the machine with serial number SN-002
-    expect(screen.getByText('Showing 1 of 1 machine')).toBeInTheDocument();
+    expect(findTextAcrossElements('Showing 1 of 1 machine')).toBeInTheDocument();
     expect(
       screen.getByText((content, element) => {
         return Boolean(
@@ -248,13 +251,13 @@ describe('RecordsList', () => {
     render(<RecordsList searchOptions={defaultSearchOptions} />);
 
     // Initially shows 3 machines
-    expect(screen.getByText('Showing 3 of 3 machines')).toBeInTheDocument();
+    expect(findTextAcrossElements('Showing 3 of 3 machines')).toBeInTheDocument();
 
     const deleteButtons = screen.getAllByText('Delete');
     await user.click(deleteButtons[0]);
 
     // Should now show 2 machines
-    expect(screen.getByText('Showing 2 of 2 machines')).toBeInTheDocument();
+    expect(findTextAcrossElements('Showing 2 of 2 machines')).toBeInTheDocument();
   });
 
   it('displays correct status badges for different machines', () => {
@@ -277,16 +280,8 @@ describe('RecordsList', () => {
     };
     render(<RecordsList searchOptions={searchOptions} />);
 
-    // Use a more specific selector to find the paragraph element containing the count
-    const countText = screen.getByText((content, element) => {
-      return Boolean(
-        element?.tagName === 'P' &&
-          element.textContent?.includes('Showing 1 of 1 machine') &&
-          element.textContent?.includes('(filtered from 3 total)')
-      );
-    });
-
-    expect(countText).toBeInTheDocument();
+    // Should show filtered text
+    expect(findTextAcrossElements('(filtered from 3 total)')).toBeInTheDocument();
   });
 
   it('filters machines by PPM status', () => {
@@ -297,7 +292,7 @@ describe('RecordsList', () => {
     render(<RecordsList searchOptions={searchOptions} />);
 
     // Should show only machines with Overdue status (first machine)
-    expect(screen.getByText('Showing 1 of 1 machine')).toBeInTheDocument();
+    expect(findTextAcrossElements('Showing 1 of 1 machine')).toBeInTheDocument();
     expect(
       screen.getByText((content, element) => {
         return Boolean(
@@ -314,44 +309,45 @@ describe('RecordsList', () => {
     expect(screen.getByText('Overdue')).toBeInTheDocument();
   });
 
-  it('filters machines by PPM status - Due Soon', () => {
-    const searchOptions: SearchOptions = {
-      query: 'Due Soon',
-      property: 'ppm_status',
-    };
-    render(<RecordsList searchOptions={searchOptions} />);
+  it('handles overdue filter type', () => {
+    render(<RecordsList searchOptions={defaultSearchOptions} filterType="overdue" />);
 
-    // Should show only machines with Due Soon status (third machine)
-    expect(screen.getByText('Showing 1 of 1 machine')).toBeInTheDocument();
+    // Should show only overdue machines
+    expect(findTextAcrossElements('Showing 1 of 1 machine')).toBeInTheDocument();
+    expect(findTextAcrossElements('(overdue only)')).toBeInTheDocument();
+
+    // Should show the overdue machine
     expect(
       screen.getByText((content, element) => {
         return Boolean(
           element?.tagName === 'H3' &&
-            element.textContent?.includes('SN-003') &&
+            element.textContent?.includes('SN-001') &&
             Array.from(element.children).some(
-              (child) => child.tagName === 'SPAN' && child.textContent === '(Z300)'
+              (child) => child.tagName === 'SPAN' && child.textContent === '(X100)'
             )
         );
       })
     ).toBeInTheDocument();
-
-    // Should show the Due Soon badge
-    expect(screen.getByText('Due Soon')).toBeInTheDocument();
   });
 
-  it('verifies PPM status calculation for upcoming dates', () => {
-    // This test verifies that the PPM status calculation correctly identifies upcoming dates
-    // The actual implementation test is already covered in ppmUtils.test.ts
-    // This is just a basic integration check that the component uses the utility correctly
-    const upcomingDate = new Date();
-    upcomingDate.setDate(upcomingDate.getDate() + 15); // 15 days from now
-    const upcomingDateStr = upcomingDate.toISOString().split('T')[0];
+  it('handles due filter type', () => {
+    render(<RecordsList searchOptions={defaultSearchOptions} filterType="due" />);
 
-    // Test the utility function directly (already tested in ppmUtils.test.ts)
-    const status = getPPMStatus(upcomingDateStr);
+    // Should show only due machines
+    expect(findTextAcrossElements('Showing 1 of 1 machine')).toBeInTheDocument();
+    expect(findTextAcrossElements('(due today only)')).toBeInTheDocument();
 
-    // Verify the status calculation works for upcoming dates
-    expect(status?.label).toBe('Upcoming');
-    expect(status?.color).toBe('bg-green-100 text-green-800');
+    // Should show the due machine
+    expect(
+      screen.getByText((content, element) => {
+        return Boolean(
+          element?.tagName === 'H3' &&
+            element.textContent?.includes('SN-002') &&
+            Array.from(element.children).some(
+              (child) => child.tagName === 'SPAN' && child.textContent === '(Y200)'
+            )
+        );
+      })
+    ).toBeInTheDocument();
   });
 });

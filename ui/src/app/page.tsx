@@ -50,8 +50,8 @@ export default function Home() {
           <p className="text-gray-600 mb-6">Content Management System</p>
 
           {/* Overdue Alert Banner */}
-          <OverdueAlert 
-            stats={overdueStats} 
+          <OverdueAlert
+            stats={overdueStats}
             onShowOverdue={handleShowOverdue}
             onShowDue={handleShowDue}
           />
@@ -60,8 +60,8 @@ export default function Home() {
           <SearchBar searchOptions={searchOptions} onSearch={setSearchOptions} />
         </div>
 
-        <RecordsList 
-          searchOptions={searchOptions} 
+        <RecordsList
+          searchOptions={searchOptions}
           filterType={filterType}
           onToggleOverdueFilter={handleToggleOverdueFilter}
         />

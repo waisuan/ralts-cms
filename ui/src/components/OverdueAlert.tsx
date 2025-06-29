@@ -35,7 +35,10 @@ export default function OverdueAlert({ stats, onShowOverdue, onShowDue }: Overdu
               </div>
               <div className="ml-3">
                 <p className="text-sm font-semibold text-red-800">
-                  {stats.overdueCount === 1 ? '1 machine is overdue' : `${stats.overdueCount} machines are overdue`} for PPM maintenance
+                  {stats.overdueCount === 1
+                    ? '1 machine is overdue'
+                    : `${stats.overdueCount} machines are overdue`}{' '}
+                  for PPM maintenance
                 </p>
                 <p className="text-xs text-red-700 mt-1">
                   Immediate attention required to avoid compliance issues
@@ -74,7 +77,8 @@ export default function OverdueAlert({ stats, onShowOverdue, onShowDue }: Overdu
               </div>
               <div className="ml-3">
                 <p className="text-sm font-semibold text-orange-800">
-                  {stats.dueCount === 1 ? '1 machine is due' : `${stats.dueCount} machines are due`} for PPM maintenance today
+                  {stats.dueCount === 1 ? '1 machine is due' : `${stats.dueCount} machines are due`}{' '}
+                  for PPM maintenance today
                 </p>
                 <p className="text-xs text-orange-700 mt-1">
                   Schedule maintenance to avoid becoming overdue
@@ -92,4 +96,4 @@ export default function OverdueAlert({ stats, onShowOverdue, onShowDue }: Overdu
       )}
     </div>
   );
-} 
+}
