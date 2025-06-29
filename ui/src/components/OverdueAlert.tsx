@@ -4,20 +4,33 @@ interface OverdueAlertProps {
   stats: OverdueStats;
   onShowOverdue: () => void;
   onShowDue: () => void;
+  onDismissOverdue?: () => void;
+  onDismissDue?: () => void;
+  isOverdueDismissed?: boolean;
+  isDueDismissed?: boolean;
 }
 
-export default function OverdueAlert({ stats, onShowOverdue, onShowDue }: OverdueAlertProps) {
-  if (stats.overdueCount === 0 && stats.dueCount === 0) {
+export default function OverdueAlert({ 
+  stats, 
+  onShowOverdue, 
+  onShowDue,
+  onDismissOverdue,
+  onDismissDue,
+  isOverdueDismissed = false,
+  isDueDismissed = false
+}: OverdueAlertProps) {
+  // If both are dismissed or there are no alerts to show, don't render anything
+  if ((stats.overdueCount === 0 || isOverdueDismissed) && (stats.dueCount === 0 || isDueDismissed)) {
     return null;
   }
 
   return (
     <div className="mb-6">
       {/* Critical Alert for Overdue Machines */}
-      {stats.overdueCount > 0 && (
+      {stats.overdueCount > 0 && !isOverdueDismissed && (
         <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-3 rounded-r-md">
           <div className="flex items-center justify-between">
-            <div className="flex items-center">
+            <div className="flex items-center flex-1">
               <div className="flex-shrink-0">
                 <svg
                   className="h-5 w-5 text-red-400"
@@ -33,7 +46,7 @@ export default function OverdueAlert({ stats, onShowOverdue, onShowDue }: Overdu
                   />
                 </svg>
               </div>
-              <div className="ml-3">
+              <div className="ml-3 flex-1">
                 <p className="text-sm font-semibold text-red-800">
                   {stats.overdueCount === 1
                     ? '1 machine is overdue'
@@ -45,21 +58,39 @@ export default function OverdueAlert({ stats, onShowOverdue, onShowDue }: Overdu
                 </p>
               </div>
             </div>
-            <button
-              onClick={onShowOverdue}
-              className="bg-red-100 hover:bg-red-200 text-red-800 px-3 py-1 rounded-md text-sm font-medium transition-colors"
-            >
-              View Overdue
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={onShowOverdue}
+                className="bg-red-100 hover:bg-red-200 text-red-800 px-3 py-1 rounded-md text-sm font-medium transition-colors"
+              >
+                View Overdue
+              </button>
+              {onDismissOverdue && (
+                <button
+                  onClick={onDismissOverdue}
+                  className="text-red-400 hover:text-red-600 transition-colors p-1"
+                  title="Dismiss alert"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
 
       {/* Warning Alert for Due Today */}
-      {stats.dueCount > 0 && (
+      {stats.dueCount > 0 && !isDueDismissed && (
         <div className="bg-orange-50 border-l-4 border-orange-400 p-4 rounded-r-md">
           <div className="flex items-center justify-between">
-            <div className="flex items-center">
+            <div className="flex items-center flex-1">
               <div className="flex-shrink-0">
                 <svg
                   className="h-5 w-5 text-orange-400"
@@ -75,7 +106,7 @@ export default function OverdueAlert({ stats, onShowOverdue, onShowDue }: Overdu
                   />
                 </svg>
               </div>
-              <div className="ml-3">
+              <div className="ml-3 flex-1">
                 <p className="text-sm font-semibold text-orange-800">
                   {stats.dueCount === 1 ? '1 machine is due' : `${stats.dueCount} machines are due`}{' '}
                   for PPM maintenance today
@@ -85,12 +116,30 @@ export default function OverdueAlert({ stats, onShowOverdue, onShowDue }: Overdu
                 </p>
               </div>
             </div>
-            <button
-              onClick={onShowDue}
-              className="bg-orange-100 hover:bg-orange-200 text-orange-800 px-3 py-1 rounded-md text-sm font-medium transition-colors"
-            >
-              View Due
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={onShowDue}
+                className="bg-orange-100 hover:bg-orange-200 text-orange-800 px-3 py-1 rounded-md text-sm font-medium transition-colors"
+              >
+                View Due
+              </button>
+              {onDismissDue && (
+                <button
+                  onClick={onDismissDue}
+                  className="text-orange-400 hover:text-orange-600 transition-colors p-1"
+                  title="Dismiss alert"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

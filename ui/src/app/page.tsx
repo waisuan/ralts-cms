@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import RecordsList from '@/components/RecordsList';
+import RecordsList, { SortType } from '@/components/RecordsList';
 import SearchBar, { SearchOptions } from '@/components/SearchBar';
 import OverdueAlert from '@/components/OverdueAlert';
 import { DEFAULT_SEARCH_PROPERTY } from '@/utils/constants';
@@ -16,6 +16,9 @@ export default function Home() {
     property: DEFAULT_SEARCH_PROPERTY,
   });
   const [filterType, setFilterType] = useState<FilterType>('all');
+  const [sortBy, setSortBy] = useState<SortType>('newest');
+  const [isOverdueDismissed, setIsOverdueDismissed] = useState(false);
+  const [isDueDismissed, setIsDueDismissed] = useState(false);
 
   // Calculate overdue statistics for the alert banner
   const overdueStats = useOverdueStats(mockMachines);
@@ -42,6 +45,18 @@ export default function Home() {
     setFilterType('all');
   };
 
+  const handleSortChange = (newSortBy: SortType) => {
+    setSortBy(newSortBy);
+  };
+
+  const handleDismissOverdue = () => {
+    setIsOverdueDismissed(true);
+  };
+
+  const handleDismissDue = () => {
+    setIsDueDismissed(true);
+  };
+
   return (
     <main className="min-h-screen bg-gray-50 py-8">
       <div className="container mx-auto px-4">
@@ -54,6 +69,10 @@ export default function Home() {
             stats={overdueStats}
             onShowOverdue={handleShowOverdue}
             onShowDue={handleShowDue}
+            onDismissOverdue={handleDismissOverdue}
+            onDismissDue={handleDismissDue}
+            isOverdueDismissed={isOverdueDismissed}
+            isDueDismissed={isDueDismissed}
           />
 
           {/* Enhanced Search Bar with Dropdown */}
@@ -63,7 +82,9 @@ export default function Home() {
         <RecordsList
           searchOptions={searchOptions}
           filterType={filterType}
+          sortBy={sortBy}
           onShowAll={handleShowAll}
+          onSortChange={handleSortChange}
         />
       </div>
     </main>

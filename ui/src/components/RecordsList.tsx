@@ -9,11 +9,14 @@ import { getPPMStatusLabel } from '@/utils/ppmUtils';
 import { useOverdueStats } from '../hooks/useOverdueStats';
 
 type FilterType = 'all' | 'overdue' | 'due';
+export type SortType = 'newest' | 'oldest';
 
 interface RecordsListProps {
   searchOptions: SearchOptions;
   filterType?: FilterType;
+  sortBy?: SortType;
   onShowAll?: () => void;
+  onSortChange?: (sortBy: SortType) => void;
 }
 
 const ITEMS_PER_PAGE = 3; // Show 3 machines initially, then load more
@@ -21,7 +24,9 @@ const ITEMS_PER_PAGE = 3; // Show 3 machines initially, then load more
 export default function RecordsList({
   searchOptions,
   filterType = 'all',
+  sortBy = 'newest',
   onShowAll,
+  onSortChange,
 }: RecordsListProps) {
   const [machines, setMachines] = useState(mockMachines);
   const [displayedCount, setDisplayedCount] = useState(ITEMS_PER_PAGE);
@@ -29,7 +34,7 @@ export default function RecordsList({
   // Calculate overdue statistics
   const overdueStats = useOverdueStats(machines);
 
-  // Filter machines based on search options and filter type
+  // Filter and sort machines based on search options, filter type, and sort order
   const filteredMachines = useMemo(() => {
     let filtered = machines;
 
@@ -41,38 +46,46 @@ export default function RecordsList({
     }
 
     // Then apply search filter
-    if (!searchOptions.query.trim()) {
-      return filtered;
+    if (searchOptions.query.trim()) {
+      const query = searchOptions.query.toLowerCase();
+      const { property } = searchOptions;
+
+      filtered = filtered.filter((machine) => {
+        // Handle date properties differently
+        if (isDateProperty(property)) {
+          const fieldValue = machine[property as keyof typeof machine];
+          if (!fieldValue) return false;
+
+          // Convert both dates to YYYY-MM-DD format for comparison
+          const machineDate = fieldValue.toString().split('T')[0]; // Extract date part from ISO string
+          const searchDate = searchOptions.query; // Already in YYYY-MM-DD format from date input
+
+          return machineDate === searchDate;
+        } else if (property === 'ppm_status') {
+          // Handle PPM status search by calculating status from ppm_date
+          const calculatedStatus = getPPMStatusLabel(machine.ppm_date);
+          if (!calculatedStatus) return false;
+
+          // Use exact matching for PPM status since user selects from dropdown
+          return calculatedStatus === searchOptions.query;
+        } else {
+          // Search in specific text property
+          const fieldValue = machine[property as keyof typeof machine];
+          return fieldValue && fieldValue.toString().toLowerCase().includes(query);
+        }
+      });
     }
 
-    const query = searchOptions.query.toLowerCase();
-    const { property } = searchOptions;
-
-    return filtered.filter((machine) => {
-      // Handle date properties differently
-      if (isDateProperty(property)) {
-        const fieldValue = machine[property as keyof typeof machine];
-        if (!fieldValue) return false;
-
-        // Convert both dates to YYYY-MM-DD format for comparison
-        const machineDate = fieldValue.toString().split('T')[0]; // Extract date part from ISO string
-        const searchDate = searchOptions.query; // Already in YYYY-MM-DD format from date input
-
-        return machineDate === searchDate;
-      } else if (property === 'ppm_status') {
-        // Handle PPM status search by calculating status from ppm_date
-        const calculatedStatus = getPPMStatusLabel(machine.ppm_date);
-        if (!calculatedStatus) return false;
-
-        // Use exact matching for PPM status since user selects from dropdown
-        return calculatedStatus === searchOptions.query;
-      } else {
-        // Search in specific text property
-        const fieldValue = machine[property as keyof typeof machine];
-        return fieldValue && fieldValue.toString().toLowerCase().includes(query);
-      }
+    // Apply sorting
+    const sorted = [...filtered].sort((a, b) => {
+      const dateA = new Date(a.created_at).getTime();
+      const dateB = new Date(b.created_at).getTime();
+      
+      return sortBy === 'newest' ? dateB - dateA : dateA - dateB;
     });
-  }, [machines, searchOptions, filterType, overdueStats.overdueMachines, overdueStats.dueMachines]);
+
+    return sorted;
+  }, [machines, searchOptions, filterType, sortBy, overdueStats.overdueMachines, overdueStats.dueMachines]);
 
   // Get machines to display (limited by displayedCount)
   const displayedMachines = filteredMachines.slice(0, displayedCount);
@@ -184,6 +197,21 @@ export default function RecordsList({
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Sort By Dropdown */}
+          {onSortChange && (
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">Sort By:</label>
+              <select
+                value={sortBy}
+                onChange={(e) => onSortChange(e.target.value as SortType)}
+                className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+              >
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+              </select>
+            </div>
+          )}
+
           {/* Show All button when filtering */}
           {(filterType === 'overdue' || filterType === 'due') && onShowAll && (
             <button

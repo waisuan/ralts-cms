@@ -350,4 +350,62 @@ describe('RecordsList', () => {
       })
     ).toBeInTheDocument();
   });
+
+  it('displays sort dropdown when onSortChange is provided', () => {
+    const mockSortChange = jest.fn();
+    render(
+      <RecordsList 
+        searchOptions={defaultSearchOptions} 
+        sortBy="newest"
+        onSortChange={mockSortChange}
+      />
+    );
+
+    expect(screen.getByText('Sort By:')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Newest First')).toBeInTheDocument();
+  });
+
+  it('calls onSortChange when sort selection changes', async () => {
+    const user = userEvent.setup();
+    const mockSortChange = jest.fn();
+    
+    render(
+      <RecordsList 
+        searchOptions={defaultSearchOptions} 
+        sortBy="newest"
+        onSortChange={mockSortChange}
+      />
+    );
+
+    const sortDropdown = screen.getByDisplayValue('Newest First');
+    await user.selectOptions(sortDropdown, 'oldest');
+
+    expect(mockSortChange).toHaveBeenCalledWith('oldest');
+  });
+
+  it('sorts machines by newest first by default', () => {
+    render(<RecordsList searchOptions={defaultSearchOptions} sortBy="newest" />);
+
+    const machineCards = screen.getAllByText((content, element) => {
+      return Boolean(element?.tagName === 'H3' && element.textContent?.includes('SN-'));
+    });
+
+    // With newest first, SN-003 (2024-03-01) should come first, then SN-002 (2024-02-01), then SN-001 (2024-01-01)
+    expect(machineCards[0]).toHaveTextContent('SN-003');
+    expect(machineCards[1]).toHaveTextContent('SN-002'); 
+    expect(machineCards[2]).toHaveTextContent('SN-001');
+  });
+
+  it('sorts machines by oldest first when selected', () => {
+    render(<RecordsList searchOptions={defaultSearchOptions} sortBy="oldest" />);
+
+    const machineCards = screen.getAllByText((content, element) => {
+      return Boolean(element?.tagName === 'H3' && element.textContent?.includes('SN-'));
+    });
+
+    // With oldest first, SN-001 (2024-01-01) should come first, then SN-002 (2024-02-01), then SN-003 (2024-03-01)
+    expect(machineCards[0]).toHaveTextContent('SN-001');
+    expect(machineCards[1]).toHaveTextContent('SN-002');
+    expect(machineCards[2]).toHaveTextContent('SN-003');
+  });
 });

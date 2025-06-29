@@ -5,7 +5,9 @@ import Home from './page';
 interface MockRecordsListProps {
   searchOptions?: { query: string; property: string };
   filterType?: string;
+  sortBy?: string;
   onShowAll?: () => void;
+  onSortChange?: (sortBy: string) => void;
 }
 
 interface MockSearchBarProps {
@@ -23,17 +25,22 @@ interface MockOverdueAlertProps {
   };
   onShowOverdue: () => void;
   onShowDue: () => void;
+  onDismissOverdue?: () => void;
+  onDismissDue?: () => void;
+  isOverdueDismissed?: boolean;
+  isDueDismissed?: boolean;
 }
 
 // Mock the components since we're testing the page integration
 jest.mock('../components/RecordsList', () => {
-  return function MockRecordsList({ searchOptions, filterType }: MockRecordsListProps) {
+  return function MockRecordsList({ searchOptions, filterType, sortBy }: MockRecordsListProps) {
     return (
       <div data-testid="records-list">
         <div>Mock Records List</div>
         <div>Search Query: {searchOptions?.query || ''}</div>
         <div>Search Property: {searchOptions?.property || ''}</div>
         <div>Filter Type: {filterType || 'all'}</div>
+        <div>Sort By: {sortBy || 'newest'}</div>
       </div>
     );
   };
@@ -56,27 +63,43 @@ jest.mock('../components/SearchBar', () => {
 });
 
 jest.mock('../components/OverdueAlert', () => {
-  return function MockOverdueAlert({ stats, onShowOverdue, onShowDue }: MockOverdueAlertProps) {
-    if (stats.totalCriticalCount === 0) return null;
+  return function MockOverdueAlert({ 
+    stats, 
+    onShowOverdue, 
+    onShowDue, 
+    onDismissOverdue,
+    onDismissDue,
+    isOverdueDismissed = false,
+    isDueDismissed = false
+  }: MockOverdueAlertProps) {
+    if ((stats.overdueCount === 0 || isOverdueDismissed) && (stats.dueCount === 0 || isDueDismissed)) {
+      return null;
+    }
 
     return (
       <div data-testid="overdue-alert">
-        {stats.overdueCount > 0 && (
+        {stats.overdueCount > 0 && !isOverdueDismissed && (
           <div>
             <div>
               {stats.overdueCount} machine{stats.overdueCount !== 1 ? 's are' : ' is'} overdue for
               PPM maintenance
             </div>
             <button onClick={onShowOverdue}>View Overdue</button>
+            {onDismissOverdue && (
+              <button onClick={onDismissOverdue}>Dismiss Overdue</button>
+            )}
           </div>
         )}
-        {stats.dueCount > 0 && (
+        {stats.dueCount > 0 && !isDueDismissed && (
           <div>
             <div>
               {stats.dueCount} machine{stats.dueCount !== 1 ? 's are' : ' is'} due for PPM
               maintenance today
             </div>
             <button onClick={onShowDue}>View Due</button>
+            {onDismissDue && (
+              <button onClick={onDismissDue}>Dismiss Due</button>
+            )}
           </div>
         )}
       </div>
@@ -144,6 +167,28 @@ describe('Home Page', () => {
 
     // Should update filter type in RecordsList
     expect(screen.getByText('Filter Type: due')).toBeInTheDocument();
+  });
+
+  it('handles dismiss overdue button click', async () => {
+    const user = userEvent.setup();
+    render(<Home />);
+
+    const dismissOverdueButton = screen.getByText('Dismiss Overdue');
+    await user.click(dismissOverdueButton);
+
+    // Should dismiss the overdue alert
+    expect(screen.queryByText('1 machine is overdue for PPM maintenance')).not.toBeInTheDocument();
+  });
+
+  it('handles dismiss due button click', async () => {
+    const user = userEvent.setup();
+    render(<Home />);
+
+    const dismissDueButton = screen.getByText('Dismiss Due');
+    await user.click(dismissDueButton);
+
+    // Should dismiss the due alert
+    expect(screen.queryByText('1 machine is due for PPM maintenance today')).not.toBeInTheDocument();
   });
 
   it('handles search functionality', async () => {
