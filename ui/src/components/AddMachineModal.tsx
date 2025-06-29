@@ -23,12 +23,17 @@ export default function AddMachineModal({ isOpen, onClose, onAdd }: AddMachineMo
     person_in_charge: '',
     reported_by: '',
     additional_notes: '',
+    attachment: '',
     ppm_status: '',
     tnc_date: '',
     ppm_date: '',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState<boolean>(false);
 
   // Get available districts based on selected state
   const availableDistricts = useMemo(() => {
@@ -88,11 +93,7 @@ export default function AddMachineModal({ isOpen, onClose, onAdd }: AddMachineMo
       return;
     }
 
-    const machineData = {
-      ...formData,
-      attachment: '', // Add empty attachment since it's required by Machine type
-    };
-    onAdd(machineData);
+    onAdd(formData);
 
     // Reset form
     setFormData({
@@ -107,11 +108,13 @@ export default function AddMachineModal({ isOpen, onClose, onAdd }: AddMachineMo
       person_in_charge: '',
       reported_by: '',
       additional_notes: '',
+      attachment: '',
       ppm_status: '',
       tnc_date: '',
       ppm_date: '',
     });
     setErrors({});
+    setSelectedFile(null);
     onClose();
   };
 
@@ -134,6 +137,74 @@ export default function AddMachineModal({ isOpen, onClose, onAdd }: AddMachineMo
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      setIsUploading(true);
+      setUploadProgress(0);
+
+      // Simulate upload progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev >= 100) {
+            clearInterval(progressInterval);
+            setIsUploading(false);
+            return 100;
+          }
+          // Ensure progress never exceeds 100%
+          const increment = Math.random() * 25 + 10; // Random increment between 10-35%
+          return Math.min(prev + increment, 100);
+        });
+      }, 150); // Update every 150ms for smooth progress
+
+      setFormData((prev) => ({
+        ...prev,
+        attachment: file.name,
+      }));
+    } else {
+      setSelectedFile(null);
+      setUploadProgress(0);
+      setIsUploading(false);
+      setFormData((prev) => ({
+        ...prev,
+        attachment: '',
+      }));
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setSelectedFile(null);
+    setUploadProgress(0);
+    setIsUploading(false);
+    setFormData((prev) => ({
+      ...prev,
+      attachment: '',
+    }));
+
+    // Clear the file input
+    const fileInput = document.getElementById('attachment') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.value = '';
+    }
+  };
+
+  const handleCancelClick = () => {
+    // Check if any form data has been entered
+    const hasFormData = Object.values(formData).some((value) => value !== '') || selectedFile;
+
+    if (hasFormData) {
+      setShowCancelConfirm(true);
+    } else {
+      handleClose();
+    }
+  };
+
+  const handleConfirmCancel = () => {
+    setShowCancelConfirm(false);
+    handleClose();
+  };
+
   const handleClose = () => {
     setFormData({
       serial_number: '',
@@ -147,11 +218,16 @@ export default function AddMachineModal({ isOpen, onClose, onAdd }: AddMachineMo
       person_in_charge: '',
       reported_by: '',
       additional_notes: '',
+      attachment: '',
       ppm_status: '',
       tnc_date: '',
       ppm_date: '',
     });
     setErrors({});
+    setSelectedFile(null);
+    setUploadProgress(0);
+    setIsUploading(false);
+    setShowCancelConfirm(false);
     onClose();
   };
 
@@ -162,7 +238,7 @@ export default function AddMachineModal({ isOpen, onClose, onAdd }: AddMachineMo
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
-        onClick={handleClose}
+        onClick={handleCancelClick}
       />
 
       {/* Modal */}
@@ -172,7 +248,7 @@ export default function AddMachineModal({ isOpen, onClose, onAdd }: AddMachineMo
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <h2 className="text-xl font-semibold text-gray-900">Add New Machine</h2>
             <button
-              onClick={handleClose}
+              onClick={handleCancelClick}
               aria-label="Close"
               className="text-gray-400 hover:text-gray-600 focus:outline-none focus:text-gray-600 transition-colors"
             >
@@ -422,6 +498,89 @@ export default function AddMachineModal({ isOpen, onClose, onAdd }: AddMachineMo
                 />
                 {errors.ppm_date && <p className="mt-1 text-sm text-red-600">{errors.ppm_date}</p>}
               </div>
+
+              {/* Attachment */}
+              <div>
+                <label
+                  htmlFor="attachment"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
+                  Attachment
+                </label>
+                <div className="space-y-3">
+                  <input
+                    id="attachment"
+                    type="file"
+                    onChange={handleFileChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.txt"
+                    disabled={isUploading}
+                  />
+
+                  {/* Upload Progress */}
+                  {isUploading && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm text-gray-600">
+                        <span>Uploading...</span>
+                        <span>{Math.round(uploadProgress)}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
+                          style={{ width: `${uploadProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* File Info */}
+                  {selectedFile && !isUploading && (
+                    <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-3">
+                      <div className="flex items-center space-x-2">
+                        <svg
+                          className="h-5 w-5 text-green-600"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                        <div>
+                          <p className="text-sm font-medium text-green-800">{selectedFile.name}</p>
+                          <p className="text-xs text-green-600">
+                            {(selectedFile.size / 1024).toFixed(1)} KB - Upload successful
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRemoveFile}
+                        className="text-red-500 hover:text-red-700 focus:outline-none focus:text-red-700 transition-colors"
+                        title="Remove file"
+                      >
+                        <svg
+                          className="h-5 w-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M6 18L18 6M6 6l12 12"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Additional Notes */}
@@ -446,7 +605,7 @@ export default function AddMachineModal({ isOpen, onClose, onAdd }: AddMachineMo
             <div className="flex justify-end gap-3 mt-8">
               <button
                 type="button"
-                onClick={handleClose}
+                onClick={handleCancelClick}
                 className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
               >
                 Cancel
@@ -461,6 +620,59 @@ export default function AddMachineModal({ isOpen, onClose, onAdd }: AddMachineMo
           </form>
         </div>
       </div>
+
+      {/* Cancel Confirmation Dialog */}
+      {showCancelConfirm && (
+        <div className="fixed inset-0 z-60 overflow-y-auto">
+          <div className="fixed inset-0 bg-black bg-opacity-50" />
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full">
+              <div className="p-6">
+                <div className="flex items-center mb-4">
+                  <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100">
+                    <svg
+                      className="h-6 w-6 text-red-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                      />
+                    </svg>
+                  </div>
+                </div>
+                <div className="text-center">
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Discard changes?</h3>
+                  <p className="text-sm text-gray-500 mb-6">
+                    You have unsaved changes. Are you sure you want to discard them and close the
+                    form?
+                  </p>
+                </div>
+                <div className="flex space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowCancelConfirm(false)}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+                  >
+                    Keep editing
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmCancel}
+                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
+                  >
+                    Discard changes
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

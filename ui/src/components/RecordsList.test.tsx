@@ -245,7 +245,7 @@ describe('RecordsList', () => {
     consoleSpy.mockRestore();
   });
 
-  it('removes machine when Delete button is clicked', async () => {
+  it('shows delete confirmation modal when Delete button is clicked', async () => {
     const user = userEvent.setup();
 
     render(<RecordsList searchOptions={defaultSearchOptions} />);
@@ -256,8 +256,90 @@ describe('RecordsList', () => {
     const deleteButtons = screen.getAllByText('Delete');
     await user.click(deleteButtons[0]);
 
+    // Should show confirmation modal
+    expect(screen.getByRole('heading', { name: 'Delete Machine' })).toBeInTheDocument();
+    expect(screen.getByText(/Are you sure you want to delete machine/)).toBeInTheDocument();
+    expect(screen.getByText(/This action cannot be undone/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /delete machine/i })).toBeInTheDocument();
+
+    // Check that the modal contains the correct machine serial number
+    const modalContent = screen.getByRole('heading', { name: 'Delete Machine' }).closest('div');
+    expect(modalContent).toHaveTextContent('SN-003');
+
+    // Machine count should not change until confirmed
+    expect(findTextAcrossElements('Showing 3 of 3 machines')).toBeInTheDocument();
+  });
+
+  it('cancels delete when Cancel button is clicked in confirmation modal', async () => {
+    const user = userEvent.setup();
+
+    render(<RecordsList searchOptions={defaultSearchOptions} />);
+
+    const deleteButtons = screen.getAllByText('Delete');
+    await user.click(deleteButtons[0]);
+
+    // Modal should be visible
+    expect(screen.getByRole('heading', { name: 'Delete Machine' })).toBeInTheDocument();
+
+    // Click cancel
+    const cancelButton = screen.getByRole('button', { name: /cancel/i });
+    await user.click(cancelButton);
+
+    // Modal should be gone
+    expect(screen.queryByRole('heading', { name: 'Delete Machine' })).not.toBeInTheDocument();
+
+    // Machine count should remain the same
+    expect(findTextAcrossElements('Showing 3 of 3 machines')).toBeInTheDocument();
+  });
+
+  it('removes machine when delete is confirmed', async () => {
+    const user = userEvent.setup();
+
+    render(<RecordsList searchOptions={defaultSearchOptions} />);
+
+    // Initially shows 3 machines
+    expect(findTextAcrossElements('Showing 3 of 3 machines')).toBeInTheDocument();
+
+    const deleteButtons = screen.getAllByText('Delete');
+    await user.click(deleteButtons[0]);
+
+    // Should show confirmation modal
+    expect(screen.getByRole('heading', { name: 'Delete Machine' })).toBeInTheDocument();
+
+    // Click confirm delete
+    const confirmButton = screen.getByRole('button', { name: /delete machine/i });
+    await user.click(confirmButton);
+
+    // Modal should be gone
+    expect(screen.queryByRole('heading', { name: 'Delete Machine' })).not.toBeInTheDocument();
+
     // Should now show 2 machines
     expect(findTextAcrossElements('Showing 2 of 2 machines')).toBeInTheDocument();
+  });
+
+  it('closes delete confirmation modal when clicking backdrop', async () => {
+    const user = userEvent.setup();
+
+    render(<RecordsList searchOptions={defaultSearchOptions} />);
+
+    const deleteButtons = screen.getAllByText('Delete');
+    await user.click(deleteButtons[0]);
+
+    // Modal should be visible
+    expect(screen.getByRole('heading', { name: 'Delete Machine' })).toBeInTheDocument();
+
+    // Click backdrop
+    const backdrop = document.querySelector('.fixed.inset-0.bg-black');
+    if (backdrop) {
+      await user.click(backdrop);
+    }
+
+    // Modal should be gone
+    expect(screen.queryByRole('heading', { name: 'Delete Machine' })).not.toBeInTheDocument();
+
+    // Machine count should remain the same
+    expect(findTextAcrossElements('Showing 3 of 3 machines')).toBeInTheDocument();
   });
 
   it('displays correct status badges for different machines', () => {
