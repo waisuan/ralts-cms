@@ -23,13 +23,14 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 ## Common npm Commands
 
 | Command                | Description                         |
-|------------------------|-------------------------------------|
+| ---------------------- | ----------------------------------- |
 | `npm run dev`          | Start the development server        |
 | `npm run build`        | Build the app for production        |
 | `npm start`            | Start the production server         |
 | `npm run lint`         | Run ESLint for code quality         |
 | `npm run format`       | Format code with Prettier           |
 | `npm run format:check` | Check code formatting with Prettier |
+| `npm test`             | Run unit tests with Jest            |
 
 ## Learn More
 

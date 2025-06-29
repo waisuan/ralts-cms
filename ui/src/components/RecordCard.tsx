@@ -39,8 +39,8 @@ export default function RecordCard({ machine, onView, onEdit, onDelete }: Record
         <div className="flex justify-between items-start mb-4">
           <div className="flex-1">
             <h3 className="text-lg font-semibold text-gray-900 truncate">
-              {machine.model}{' '}
-              <span className="text-xs text-gray-500">({machine.serial_number})</span>
+              {machine.serial_number}{' '}
+              <span className="text-xs text-gray-500">({machine.model})</span>
             </h3>
             <div className="text-xs text-gray-500 mt-1">
               {machine.brand} &middot; {machine.state}
