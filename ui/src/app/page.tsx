@@ -38,8 +38,8 @@ export default function Home() {
     setFilterType('due');
   };
 
-  const handleToggleOverdueFilter = () => {
-    setFilterType(filterType === 'overdue' ? 'all' : 'overdue');
+  const handleShowAll = () => {
+    setFilterType('all');
   };
 
   return (
@@ -63,7 +63,7 @@ export default function Home() {
         <RecordsList
           searchOptions={searchOptions}
           filterType={filterType}
-          onToggleOverdueFilter={handleToggleOverdueFilter}
+          onShowAll={handleShowAll}
         />
       </div>
     </main>

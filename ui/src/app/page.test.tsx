@@ -5,6 +5,7 @@ import Home from './page';
 interface MockRecordsListProps {
   searchOptions?: { query: string; property: string };
   filterType?: string;
+  onShowAll?: () => void;
 }
 
 interface MockSearchBarProps {
