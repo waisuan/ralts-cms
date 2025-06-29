@@ -1,0 +1,62 @@
+import { DEFAULT_SEARCH_PROPERTY, SEARCH_PROPERTIES } from '../constants';
+
+describe('Constants', () => {
+  describe('DEFAULT_SEARCH_PROPERTY', () => {
+    it('should be set to serial_number', () => {
+      expect(DEFAULT_SEARCH_PROPERTY).toBe('serial_number');
+    });
+
+    it('should exist in SEARCH_PROPERTIES', () => {
+      const propertyValues = SEARCH_PROPERTIES.map((prop) => prop.value);
+      expect(propertyValues).toContain(DEFAULT_SEARCH_PROPERTY);
+    });
+  });
+
+  describe('SEARCH_PROPERTIES', () => {
+    it('should contain all expected search properties', () => {
+      const expectedProperties = [
+        'serial_number',
+        'customer',
+        'state',
+        'account_type',
+        'model',
+        'brand',
+        'district',
+        'person_in_charge',
+        'reported_by',
+      ];
+
+      const actualProperties = SEARCH_PROPERTIES.map((prop) => prop.value);
+      expect(actualProperties).toEqual(expectedProperties);
+    });
+
+    it('should have proper labels for all properties', () => {
+      const expectedLabels = [
+        'Serial Number',
+        'Customer',
+        'State',
+        'Account Type',
+        'Model',
+        'Brand',
+        'District',
+        'Person in Charge',
+        'Reported By',
+      ];
+
+      const actualLabels = SEARCH_PROPERTIES.map((prop) => prop.label);
+      expect(actualLabels).toEqual(expectedLabels);
+    });
+
+    it('should have unique values', () => {
+      const values = SEARCH_PROPERTIES.map((prop) => prop.value);
+      const uniqueValues = [...new Set(values)];
+      expect(values).toHaveLength(uniqueValues.length);
+    });
+
+    it('should have unique labels', () => {
+      const labels = SEARCH_PROPERTIES.map((prop) => prop.label);
+      const uniqueLabels = [...new Set(labels)];
+      expect(labels).toHaveLength(uniqueLabels.length);
+    });
+  });
+});

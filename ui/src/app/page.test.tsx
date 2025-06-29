@@ -1,14 +1,20 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Home from './page';
+import { DEFAULT_SEARCH_PROPERTY } from '@/utils/constants';
 
-// Mock the RecordsList component to avoid complex dependencies
-jest.mock('../components/RecordsList', () => {
-  return function MockRecordsList({ searchQuery }: { searchQuery: string }) {
+// Mock the RecordsList component to avoid rendering complexity in page tests
+jest.mock('@/components/RecordsList', () => {
+  return function MockRecordsList({
+    searchOptions,
+  }: {
+    searchOptions: { query: string; property: string };
+  }) {
     return (
       <div data-testid="records-list">
         <div>Mock Records List</div>
-        <div>Search Query: {searchQuery}</div>
+        <div>Search Query: {searchOptions.query}</div>
+        <div>Search Property: {searchOptions.property}</div>
       </div>
     );
   };
@@ -20,46 +26,40 @@ describe('Home Page', () => {
 
     expect(screen.getByText('Ralts CMS')).toBeInTheDocument();
     expect(screen.getByText('Content Management System')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Search records...')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Search by serial number...')).toBeInTheDocument();
   });
 
   it('has a search input with proper attributes', () => {
     render(<Home />);
 
-    const searchInput = screen.getByPlaceholderText('Search records...');
+    const searchInput = screen.getByPlaceholderText('Search by serial number...');
     expect(searchInput).toHaveAttribute('type', 'text');
     expect(searchInput).toBeInTheDocument();
   });
 
-  it('has a search icon in the search bar', () => {
+  it('has initial search state', () => {
     render(<Home />);
 
-    // The search icon should be present (it's an SVG)
-    const searchIcon = document.querySelector('svg');
-    expect(searchIcon).toBeInTheDocument();
+    expect(screen.getByText('Search Query:')).toBeInTheDocument();
+    expect(screen.getByText(`Search Property: ${DEFAULT_SEARCH_PROPERTY}`)).toBeInTheDocument();
   });
 
-  it('renders the RecordsList component', () => {
+  it('renders RecordsList component', () => {
     render(<Home />);
 
     expect(screen.getByTestId('records-list')).toBeInTheDocument();
     expect(screen.getByText('Mock Records List')).toBeInTheDocument();
   });
 
-  it('passes empty search query to RecordsList initially', () => {
-    render(<Home />);
-
-    expect(screen.getByText('Search Query:')).toBeInTheDocument();
-  });
-
   it('updates search query when user types in search bar', async () => {
     const user = userEvent.setup();
     render(<Home />);
 
-    const searchInput = screen.getByPlaceholderText('Search records...');
+    const searchInput = screen.getByPlaceholderText('Search by serial number...');
     await user.type(searchInput, 'test search');
 
     expect(searchInput).toHaveValue('test search');
+    // Should show the search query in the mocked component
     expect(screen.getByText('Search Query: test search')).toBeInTheDocument();
   });
 
@@ -67,12 +67,42 @@ describe('Home Page', () => {
     const user = userEvent.setup();
     render(<Home />);
 
-    const searchInput = screen.getByPlaceholderText('Search records...');
+    const searchInput = screen.getByPlaceholderText('Search by serial number...');
     await user.type(searchInput, 'test search');
     await user.clear(searchInput);
 
     expect(searchInput).toHaveValue('');
     expect(screen.getByText('Search Query:')).toBeInTheDocument();
+  });
+
+  it('has dropdown functionality for search properties', async () => {
+    const user = userEvent.setup();
+    render(<Home />);
+
+    const dropdownButton = screen.getByRole('button');
+    await user.click(dropdownButton);
+
+    // Check for options that are not the currently selected one (Serial Number)
+    expect(screen.getByText('Customer')).toBeInTheDocument();
+    expect(screen.getByText('Model')).toBeInTheDocument();
+    expect(screen.getByText('Brand')).toBeInTheDocument();
+
+    // Verify Serial Number appears twice (button + dropdown)
+    expect(screen.getAllByText('Serial Number')).toHaveLength(2);
+  });
+
+  it('updates search property when dropdown option is selected', async () => {
+    const user = userEvent.setup();
+    render(<Home />);
+
+    const dropdownButton = screen.getByRole('button');
+    await user.click(dropdownButton);
+
+    const customerOption = screen.getByText('Customer');
+    await user.click(customerOption);
+
+    expect(screen.getByText('Search Property: customer')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Search by customer...')).toBeInTheDocument();
   });
 
   it('has proper page structure with main container', () => {

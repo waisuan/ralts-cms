@@ -1,6 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import RecordsList from './RecordsList';
+import { SearchOptions } from './SearchBar';
+import { DEFAULT_SEARCH_PROPERTY } from '@/utils/constants';
 
 // Mock the mockMachines to have predictable data for testing
 jest.mock('../data/mockMachines', () => ({
@@ -69,6 +71,11 @@ jest.mock('../data/mockMachines', () => ({
   ],
 }));
 
+const defaultSearchOptions: SearchOptions = {
+  query: '',
+  property: DEFAULT_SEARCH_PROPERTY,
+};
+
 describe('RecordsList', () => {
   beforeEach(() => {
     // Clear any console logs from previous tests
@@ -76,7 +83,7 @@ describe('RecordsList', () => {
   });
 
   it('renders the component with initial machines', () => {
-    render(<RecordsList searchQuery="" />);
+    render(<RecordsList searchOptions={defaultSearchOptions} />);
 
     expect(screen.getByText('All Machines')).toBeInTheDocument();
     expect(screen.getByText('Add New Machine')).toBeInTheDocument();
@@ -84,7 +91,7 @@ describe('RecordsList', () => {
   });
 
   it('displays the correct number of machine cards initially', () => {
-    render(<RecordsList searchQuery="" />);
+    render(<RecordsList searchOptions={defaultSearchOptions} />);
 
     // Should show 3 machines initially (ITEMS_PER_PAGE = 3)
     expect(
@@ -123,9 +130,13 @@ describe('RecordsList', () => {
   });
 
   it('filters machines based on search query', () => {
-    render(<RecordsList searchQuery="Acme" />);
+    const searchOptions: SearchOptions = {
+      query: 'Acme',
+      property: 'customer',
+    };
+    render(<RecordsList searchOptions={searchOptions} />);
 
-    // Should show only 1 machine when searching for "Acme"
+    // Should show only 1 machine when searching for "Acme" in customer field
     expect(screen.getByText('Showing 1 of 1 machine')).toBeInTheDocument();
     expect(
       screen.getByText((content, element) => {
@@ -162,15 +173,41 @@ describe('RecordsList', () => {
     ).not.toBeInTheDocument();
   });
 
+  it('filters machines by specific property', () => {
+    const searchOptions: SearchOptions = {
+      query: 'SN-002',
+      property: 'serial_number',
+    };
+    render(<RecordsList searchOptions={searchOptions} />);
+
+    // Should show only the machine with serial number SN-002
+    expect(screen.getByText('Showing 1 of 1 machine')).toBeInTheDocument();
+    expect(
+      screen.getByText((content, element) => {
+        return Boolean(
+          element?.tagName === 'H3' &&
+            element.textContent?.includes('SN-002') &&
+            Array.from(element.children).some(
+              (child) => child.tagName === 'SPAN' && child.textContent === '(Y200)'
+            )
+        );
+      })
+    ).toBeInTheDocument();
+  });
+
   it('shows "Load More" button when there are more machines to display', () => {
-    render(<RecordsList searchQuery="" />);
+    render(<RecordsList searchOptions={defaultSearchOptions} />);
 
     // With 3 machines and ITEMS_PER_PAGE = 3, there should be no "Load More" button
     expect(screen.queryByText(/Load More/)).not.toBeInTheDocument();
   });
 
   it('handles empty search results', () => {
-    render(<RecordsList searchQuery="NonExistentMachine" />);
+    const searchOptions: SearchOptions = {
+      query: 'NonExistentMachine',
+      property: 'serial_number',
+    };
+    render(<RecordsList searchOptions={searchOptions} />);
 
     expect(screen.getByText('No machines found')).toBeInTheDocument();
     expect(screen.getByText(/No machines match "NonExistentMachine"/)).toBeInTheDocument();
@@ -180,7 +217,7 @@ describe('RecordsList', () => {
     const user = userEvent.setup();
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
-    render(<RecordsList searchQuery="" />);
+    render(<RecordsList searchOptions={defaultSearchOptions} />);
 
     const viewButtons = screen.getAllByText('View');
     await user.click(viewButtons[0]);
@@ -194,7 +231,7 @@ describe('RecordsList', () => {
     const user = userEvent.setup();
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
-    render(<RecordsList searchQuery="" />);
+    render(<RecordsList searchOptions={defaultSearchOptions} />);
 
     const editButtons = screen.getAllByText('Edit');
     await user.click(editButtons[0]);
@@ -207,7 +244,7 @@ describe('RecordsList', () => {
   it('removes machine when Delete button is clicked', async () => {
     const user = userEvent.setup();
 
-    render(<RecordsList searchQuery="" />);
+    render(<RecordsList searchOptions={defaultSearchOptions} />);
 
     // Initially shows 3 machines
     expect(screen.getByText('Showing 3 of 3 machines')).toBeInTheDocument();
@@ -220,7 +257,7 @@ describe('RecordsList', () => {
   });
 
   it('displays correct status badges for different machines', () => {
-    render(<RecordsList searchQuery="" />);
+    render(<RecordsList searchOptions={defaultSearchOptions} />);
 
     // First machine should be Overdue (past date)
     expect(screen.getByText('Overdue')).toBeInTheDocument();
@@ -233,16 +270,21 @@ describe('RecordsList', () => {
   });
 
   it('shows filtered count when search is active', () => {
-    render(<RecordsList searchQuery="Acme" />);
+    const searchOptions: SearchOptions = {
+      query: 'Acme',
+      property: 'customer',
+    };
+    render(<RecordsList searchOptions={searchOptions} />);
 
     // Use a more specific selector to find the paragraph element containing the count
-    const countElement = screen.getByText((content, element) => {
+    const countText = screen.getByText((content, element) => {
       return Boolean(
         element?.tagName === 'P' &&
-          element?.textContent?.includes('Showing 1 of 1 machine') &&
-          element?.textContent?.includes('filtered from 3 total')
+          element.textContent?.includes('Showing 1 of 1 machine') &&
+          element.textContent?.includes('(filtered from 3 total)')
       );
     });
-    expect(countElement).toBeInTheDocument();
+
+    expect(countText).toBeInTheDocument();
   });
 });

@@ -3,35 +3,33 @@
 import { useState, useMemo, useEffect } from 'react';
 import RecordCard from './RecordCard';
 import { mockMachines } from '../data/mockMachines';
+import { SearchOptions } from './SearchBar';
 
 interface RecordsListProps {
-  searchQuery: string;
+  searchOptions: SearchOptions;
 }
 
 const ITEMS_PER_PAGE = 3; // Show 3 machines initially, then load more
 
-export default function RecordsList({ searchQuery }: RecordsListProps) {
+export default function RecordsList({ searchOptions }: RecordsListProps) {
   const [machines, setMachines] = useState(mockMachines);
   const [displayedCount, setDisplayedCount] = useState(ITEMS_PER_PAGE);
 
-  // Filter machines based on search query
+  // Filter machines based on search options
   const filteredMachines = useMemo(() => {
-    if (!searchQuery.trim()) {
+    if (!searchOptions.query.trim()) {
       return machines;
     }
-    const query = searchQuery.toLowerCase();
-    return machines.filter(
-      (machine) =>
-        machine.serial_number.toLowerCase().includes(query) ||
-        machine.customer.toLowerCase().includes(query) ||
-        machine.model.toLowerCase().includes(query) ||
-        machine.brand.toLowerCase().includes(query) ||
-        machine.state.toLowerCase().includes(query) ||
-        machine.person_in_charge.toLowerCase().includes(query) ||
-        machine.tnc_date.toLowerCase().includes(query) ||
-        machine.ppm_date.toLowerCase().includes(query)
-    );
-  }, [machines, searchQuery]);
+
+    const query = searchOptions.query.toLowerCase();
+    const { property } = searchOptions;
+
+    return machines.filter((machine) => {
+      // Search in specific property
+      const fieldValue = machine[property as keyof typeof machine];
+      return fieldValue && fieldValue.toString().toLowerCase().includes(query);
+    });
+  }, [machines, searchOptions]);
 
   // Get machines to display (limited by displayedCount)
   const displayedMachines = filteredMachines.slice(0, displayedCount);
@@ -40,7 +38,7 @@ export default function RecordsList({ searchQuery }: RecordsListProps) {
   // Reset displayed count when search changes
   useEffect(() => {
     setDisplayedCount(ITEMS_PER_PAGE);
-  }, [searchQuery]);
+  }, [searchOptions]);
 
   const handleLoadMore = () => {
     setDisplayedCount((prev) => Math.min(prev + ITEMS_PER_PAGE, filteredMachines.length));
@@ -66,7 +64,7 @@ export default function RecordsList({ searchQuery }: RecordsListProps) {
           <p className="text-sm text-gray-500 mt-1">
             Showing {displayedMachines.length} of {filteredMachines.length} machine
             {filteredMachines.length !== 1 ? 's' : ''}
-            {searchQuery && filteredMachines.length !== machines.length && (
+            {searchOptions.query && filteredMachines.length !== machines.length && (
               <span className="ml-1">(filtered from {machines.length} total)</span>
             )}
           </p>
@@ -104,11 +102,11 @@ export default function RecordsList({ searchQuery }: RecordsListProps) {
         <div className="text-center py-12">
           <div className="text-gray-400 text-6xl mb-4">📄</div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">
-            {searchQuery ? 'No machines found' : 'No machines found'}
+            {searchOptions.query ? 'No machines found' : 'No machines found'}
           </h3>
           <p className="text-gray-500">
-            {searchQuery
-              ? `No machines match "${searchQuery}". Try a different search term.`
+            {searchOptions.query
+              ? `No machines match "${searchOptions.query}". Try a different search term.`
               : 'Get started by creating your first machine.'}
           </p>
         </div>
