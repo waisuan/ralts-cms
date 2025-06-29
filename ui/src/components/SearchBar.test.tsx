@@ -52,6 +52,7 @@ describe('SearchBar', () => {
     expect(screen.getByText('Person in Charge')).toBeInTheDocument();
     expect(screen.getByText('Reported By')).toBeInTheDocument();
     expect(screen.getByText('Status')).toBeInTheDocument();
+    expect(screen.getByText('PPM Status')).toBeInTheDocument();
     expect(screen.getByText('TNC Date')).toBeInTheDocument();
     expect(screen.getByText('PPM Date')).toBeInTheDocument();
 

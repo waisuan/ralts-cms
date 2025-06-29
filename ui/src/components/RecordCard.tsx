@@ -1,4 +1,5 @@
 import { Machine } from '../types/machine';
+import { getPPMStatus } from '../utils/ppmUtils';
 
 interface RecordCardProps {
   machine: Machine;
@@ -7,26 +8,8 @@ interface RecordCardProps {
   onDelete: (serial_number: string) => void;
 }
 
-function getStatusFromPPMDate(ppm_date: string): { label: string; color: string } | null {
-  if (!ppm_date) return null;
-  const today = new Date();
-  const ppm = new Date(ppm_date);
-  // Remove time for accurate day comparison
-  today.setHours(0, 0, 0, 0);
-  ppm.setHours(0, 0, 0, 0);
-  const diffDays = Math.ceil((ppm.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-  if (diffDays < 0) {
-    return { label: 'Overdue', color: 'bg-red-100 text-red-800' };
-  } else if (diffDays === 0) {
-    return { label: 'Due', color: 'bg-orange-100 text-orange-800' };
-  } else if (diffDays > 0 && diffDays <= 7) {
-    return { label: 'Due Soon', color: 'bg-yellow-100 text-yellow-800' };
-  }
-  return null;
-}
-
 export default function RecordCard({ machine, onView, onEdit, onDelete }: RecordCardProps) {
-  const status = getStatusFromPPMDate(machine.ppm_date);
+  const status = getPPMStatus(machine.ppm_date);
 
   const formatDate = (dateString: string) => {
     if (!dateString) return '-';

@@ -287,4 +287,54 @@ describe('RecordsList', () => {
 
     expect(countText).toBeInTheDocument();
   });
+
+  it('filters machines by PPM status', () => {
+    const searchOptions: SearchOptions = {
+      query: 'overdue',
+      property: 'ppm_status',
+    };
+    render(<RecordsList searchOptions={searchOptions} />);
+
+    // Should show only machines with Overdue status (first machine)
+    expect(screen.getByText('Showing 1 of 1 machine')).toBeInTheDocument();
+    expect(
+      screen.getByText((content, element) => {
+        return Boolean(
+          element?.tagName === 'H3' &&
+            element.textContent?.includes('SN-001') &&
+            Array.from(element.children).some(
+              (child) => child.tagName === 'SPAN' && child.textContent === '(X100)'
+            )
+        );
+      })
+    ).toBeInTheDocument();
+
+    // Should show the Overdue badge
+    expect(screen.getByText('Overdue')).toBeInTheDocument();
+  });
+
+  it('filters machines by PPM status - Due Soon', () => {
+    const searchOptions: SearchOptions = {
+      query: 'due soon',
+      property: 'ppm_status',
+    };
+    render(<RecordsList searchOptions={searchOptions} />);
+
+    // Should show only machines with Due Soon status (third machine)
+    expect(screen.getByText('Showing 1 of 1 machine')).toBeInTheDocument();
+    expect(
+      screen.getByText((content, element) => {
+        return Boolean(
+          element?.tagName === 'H3' &&
+            element.textContent?.includes('SN-003') &&
+            Array.from(element.children).some(
+              (child) => child.tagName === 'SPAN' && child.textContent === '(Z300)'
+            )
+        );
+      })
+    ).toBeInTheDocument();
+
+    // Should show the Due Soon badge
+    expect(screen.getByText('Due Soon')).toBeInTheDocument();
+  });
 });

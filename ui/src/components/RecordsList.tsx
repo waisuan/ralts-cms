@@ -5,6 +5,7 @@ import RecordCard from './RecordCard';
 import { mockMachines } from '../data/mockMachines';
 import { SearchOptions } from './SearchBar';
 import { isDateProperty } from '@/utils/constants';
+import { getPPMStatusLabel } from '@/utils/ppmUtils';
 
 interface RecordsListProps {
   searchOptions: SearchOptions;
@@ -36,6 +37,12 @@ export default function RecordsList({ searchOptions }: RecordsListProps) {
         const searchDate = searchOptions.query; // Already in YYYY-MM-DD format from date input
 
         return machineDate === searchDate;
+      } else if (property === 'ppm_status') {
+        // Handle PPM status search by calculating status from ppm_date
+        const calculatedStatus = getPPMStatusLabel(machine.ppm_date);
+        if (!calculatedStatus) return false;
+
+        return calculatedStatus.toLowerCase().includes(query);
       } else {
         // Search in specific text property
         const fieldValue = machine[property as keyof typeof machine];

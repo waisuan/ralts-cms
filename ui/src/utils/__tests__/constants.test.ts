@@ -1,4 +1,10 @@
-import { DEFAULT_SEARCH_PROPERTY, SEARCH_PROPERTIES, DATE_PROPERTIES } from '../constants';
+import {
+  DEFAULT_SEARCH_PROPERTY,
+  SEARCH_PROPERTIES,
+  DATE_PROPERTIES,
+  PPM_STATUSES,
+  PPM_STATUS_COLORS,
+} from '../constants';
 
 describe('Constants', () => {
   describe('DEFAULT_SEARCH_PROPERTY', () => {
@@ -25,6 +31,7 @@ describe('Constants', () => {
         'person_in_charge',
         'reported_by',
         'status',
+        'ppm_status',
         'tnc_date',
         'ppm_date',
       ];
@@ -45,6 +52,7 @@ describe('Constants', () => {
         'Person in Charge',
         'Reported By',
         'Status',
+        'PPM Status',
         'TNC Date',
         'PPM Date',
       ];
@@ -76,6 +84,37 @@ describe('Constants', () => {
       const searchPropertyValues = SEARCH_PROPERTIES.map((prop) => prop.value);
       DATE_PROPERTIES.forEach((dateProperty) => {
         expect(searchPropertyValues).toContain(dateProperty);
+      });
+    });
+  });
+
+  describe('PPM_STATUSES', () => {
+    it('should contain all expected PPM status values', () => {
+      expect(PPM_STATUSES.OVERDUE).toBe('Overdue');
+      expect(PPM_STATUSES.DUE).toBe('Due');
+      expect(PPM_STATUSES.DUE_SOON).toBe('Due Soon');
+      expect(PPM_STATUSES.UPCOMING).toBe('Upcoming');
+    });
+
+    it('should have all statuses defined', () => {
+      const expectedStatuses = ['OVERDUE', 'DUE', 'DUE_SOON', 'UPCOMING'];
+      const actualStatuses = Object.keys(PPM_STATUSES);
+      expect(actualStatuses).toEqual(expectedStatuses);
+    });
+  });
+
+  describe('PPM_STATUS_COLORS', () => {
+    it('should have colors defined for all PPM statuses', () => {
+      expect(PPM_STATUS_COLORS[PPM_STATUSES.OVERDUE]).toBe('bg-red-100 text-red-800');
+      expect(PPM_STATUS_COLORS[PPM_STATUSES.DUE]).toBe('bg-orange-100 text-orange-800');
+      expect(PPM_STATUS_COLORS[PPM_STATUSES.DUE_SOON]).toBe('bg-yellow-100 text-yellow-800');
+      expect(PPM_STATUS_COLORS[PPM_STATUSES.UPCOMING]).toBe('bg-green-100 text-green-800');
+    });
+
+    it('should have colors for all PPM status values', () => {
+      Object.values(PPM_STATUSES).forEach((status) => {
+        expect(PPM_STATUS_COLORS[status]).toBeDefined();
+        expect(typeof PPM_STATUS_COLORS[status]).toBe('string');
       });
     });
   });

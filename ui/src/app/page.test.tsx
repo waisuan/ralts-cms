@@ -87,6 +87,7 @@ describe('Home Page', () => {
     expect(screen.getByText('Model')).toBeInTheDocument();
     expect(screen.getByText('Brand')).toBeInTheDocument();
     expect(screen.getByText('Status')).toBeInTheDocument();
+    expect(screen.getByText('PPM Status')).toBeInTheDocument();
     expect(screen.getByText('TNC Date')).toBeInTheDocument();
     expect(screen.getByText('PPM Date')).toBeInTheDocument();
 
