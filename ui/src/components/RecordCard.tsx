@@ -12,8 +12,8 @@ function getStatusFromPPMDate(ppm_date: string): { label: string; color: string 
   const today = new Date();
   const ppm = new Date(ppm_date);
   // Remove time for accurate day comparison
-  today.setHours(0,0,0,0);
-  ppm.setHours(0,0,0,0);
+  today.setHours(0, 0, 0, 0);
+  ppm.setHours(0, 0, 0, 0);
   const diffDays = Math.ceil((ppm.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   if (diffDays < 0) {
     return { label: 'Overdue', color: 'bg-red-100 text-red-800' };
@@ -39,9 +39,12 @@ export default function RecordCard({ machine, onView, onEdit, onDelete }: Record
         <div className="flex justify-between items-start mb-4">
           <div className="flex-1">
             <h3 className="text-lg font-semibold text-gray-900 truncate">
-              {machine.model} <span className="text-xs text-gray-500">({machine.serial_number})</span>
+              {machine.model}{' '}
+              <span className="text-xs text-gray-500">({machine.serial_number})</span>
             </h3>
-            <div className="text-xs text-gray-500 mt-1">{machine.brand} &middot; {machine.state}</div>
+            <div className="text-xs text-gray-500 mt-1">
+              {machine.brand} &middot; {machine.state}
+            </div>
           </div>
           {status && (
             <span className={`px-2 py-1 text-xs font-medium rounded-full ${status.color}`}>
@@ -50,9 +53,15 @@ export default function RecordCard({ machine, onView, onEdit, onDelete }: Record
           )}
         </div>
         <div className="mb-4">
-          <div className="text-sm text-gray-700 font-medium">Customer: <span className="font-normal">{machine.customer}</span></div>
-          <div className="text-sm text-gray-700 font-medium">Person In Charge: <span className="font-normal">{machine.person_in_charge}</span></div>
-          <div className="text-sm text-gray-700 font-medium">District: <span className="font-normal">{machine.district}</span></div>
+          <div className="text-sm text-gray-700 font-medium">
+            Customer: <span className="font-normal">{machine.customer}</span>
+          </div>
+          <div className="text-sm text-gray-700 font-medium">
+            Person In Charge: <span className="font-normal">{machine.person_in_charge}</span>
+          </div>
+          <div className="text-sm text-gray-700 font-medium">
+            District: <span className="font-normal">{machine.district}</span>
+          </div>
         </div>
         <div className="text-xs text-gray-500 mb-4 space-y-1">
           <div>TNC Date: {formatDate(machine.tnc_date)}</div>
@@ -83,4 +92,4 @@ export default function RecordCard({ machine, onView, onEdit, onDelete }: Record
       </div>
     </div>
   );
-} 
+}

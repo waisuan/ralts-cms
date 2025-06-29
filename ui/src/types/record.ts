@@ -5,4 +5,4 @@ export interface Record {
   status: 'active' | 'inactive' | 'pending';
   createdAt: string;
   updatedAt: string;
-} 
+}
