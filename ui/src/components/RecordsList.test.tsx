@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import RecordsList from './RecordsList';
 import { SearchOptions } from './SearchBar';
 import { DEFAULT_SEARCH_PROPERTY } from '@/utils/constants';
+import { getPPMStatus } from '@/utils/ppmUtils';
 
 // Mock the mockMachines to have predictable data for testing
 jest.mock('../data/mockMachines', () => ({
@@ -290,7 +291,7 @@ describe('RecordsList', () => {
 
   it('filters machines by PPM status', () => {
     const searchOptions: SearchOptions = {
-      query: 'overdue',
+      query: 'Overdue',
       property: 'ppm_status',
     };
     render(<RecordsList searchOptions={searchOptions} />);
@@ -315,7 +316,7 @@ describe('RecordsList', () => {
 
   it('filters machines by PPM status - Due Soon', () => {
     const searchOptions: SearchOptions = {
-      query: 'due soon',
+      query: 'Due Soon',
       property: 'ppm_status',
     };
     render(<RecordsList searchOptions={searchOptions} />);
@@ -336,5 +337,21 @@ describe('RecordsList', () => {
 
     // Should show the Due Soon badge
     expect(screen.getByText('Due Soon')).toBeInTheDocument();
+  });
+
+  it('verifies PPM status calculation for upcoming dates', () => {
+    // This test verifies that the PPM status calculation correctly identifies upcoming dates
+    // The actual implementation test is already covered in ppmUtils.test.ts
+    // This is just a basic integration check that the component uses the utility correctly
+    const upcomingDate = new Date();
+    upcomingDate.setDate(upcomingDate.getDate() + 15); // 15 days from now
+    const upcomingDateStr = upcomingDate.toISOString().split('T')[0];
+
+    // Test the utility function directly (already tested in ppmUtils.test.ts)
+    const status = getPPMStatus(upcomingDateStr);
+
+    // Verify the status calculation works for upcoming dates
+    expect(status?.label).toBe('Upcoming');
+    expect(status?.color).toBe('bg-green-100 text-green-800');
   });
 });

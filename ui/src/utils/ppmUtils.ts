@@ -36,9 +36,11 @@ export function getPPMStatus(ppm_date: string): PPMStatusInfo | null {
       color: PPM_STATUS_COLORS[PPM_STATUSES.DUE_SOON],
     };
   } else {
-    // More than 7 days in future - could show "Upcoming" or no status
-    // Keeping the original behavior of showing no status for far future dates
-    return null;
+    // More than 7 days in future - show "Upcoming" status
+    return {
+      label: PPM_STATUSES.UPCOMING,
+      color: PPM_STATUS_COLORS[PPM_STATUSES.UPCOMING],
+    };
   }
 }
 

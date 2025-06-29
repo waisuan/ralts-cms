@@ -48,11 +48,13 @@ describe('PPM Utils', () => {
       expect(result!.color).toBe('bg-yellow-100 text-yellow-800');
     });
 
-    it('should return null for dates more than 7 days in the future', () => {
+    it('should return Upcoming status for dates more than 7 days in the future', () => {
       const futureDate = '2024-07-30'; // More than 7 days from mock date
       const result = getPPMStatus(futureDate);
 
-      expect(result).toBeNull();
+      expect(result).not.toBeNull();
+      expect(result!.label).toBe(PPM_STATUSES.UPCOMING);
+      expect(result!.color).toBe('bg-green-100 text-green-800');
     });
 
     it('should handle edge case of exactly 7 days', () => {
@@ -67,7 +69,8 @@ describe('PPM Utils', () => {
       const eightDaysDate = '2024-07-07'; // Exactly 8 days from mock date
       const result = getPPMStatus(eightDaysDate);
 
-      expect(result).toBeNull();
+      expect(result).not.toBeNull();
+      expect(result!.label).toBe(PPM_STATUSES.UPCOMING);
     });
   });
 
@@ -97,11 +100,11 @@ describe('PPM Utils', () => {
       expect(label).toBe(PPM_STATUSES.DUE_SOON);
     });
 
-    it('should return null for dates more than 7 days in the future', () => {
+    it('should return Upcoming label for dates more than 7 days in the future', () => {
       const futureDate = '2024-07-30';
       const label = getPPMStatusLabel(futureDate);
 
-      expect(label).toBeNull();
+      expect(label).toBe(PPM_STATUSES.UPCOMING);
     });
   });
 });

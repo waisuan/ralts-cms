@@ -4,6 +4,8 @@ import {
   DATE_PROPERTIES,
   PPM_STATUSES,
   PPM_STATUS_COLORS,
+  SEARCHABLE_PPM_STATUSES,
+  isPPMStatusProperty,
 } from '../constants';
 
 describe('Constants', () => {
@@ -116,6 +118,38 @@ describe('Constants', () => {
         expect(PPM_STATUS_COLORS[status]).toBeDefined();
         expect(typeof PPM_STATUS_COLORS[status]).toBe('string');
       });
+    });
+  });
+
+  describe('SEARCHABLE_PPM_STATUSES', () => {
+    it('should contain all searchable PPM status options', () => {
+      expect(SEARCHABLE_PPM_STATUSES).toHaveLength(4);
+      expect(SEARCHABLE_PPM_STATUSES[0]).toEqual({ value: 'Overdue', label: 'Overdue' });
+      expect(SEARCHABLE_PPM_STATUSES[1]).toEqual({ value: 'Due', label: 'Due' });
+      expect(SEARCHABLE_PPM_STATUSES[2]).toEqual({ value: 'Due Soon', label: 'Due Soon' });
+      expect(SEARCHABLE_PPM_STATUSES[3]).toEqual({ value: 'Upcoming', label: 'Upcoming' });
+    });
+
+    it('should include all status options that appear in UI', () => {
+      const statusValues = SEARCHABLE_PPM_STATUSES.map((status) => status.value);
+      expect(statusValues).toContain('Overdue');
+      expect(statusValues).toContain('Due');
+      expect(statusValues).toContain('Due Soon');
+      expect(statusValues).toContain('Upcoming');
+    });
+  });
+
+  describe('isPPMStatusProperty', () => {
+    it('should return true for ppm_status property', () => {
+      expect(isPPMStatusProperty('ppm_status')).toBe(true);
+    });
+
+    it('should return false for other properties', () => {
+      expect(isPPMStatusProperty('serial_number')).toBe(false);
+      expect(isPPMStatusProperty('customer')).toBe(false);
+      expect(isPPMStatusProperty('tnc_date')).toBe(false);
+      expect(isPPMStatusProperty('ppm_date')).toBe(false);
+      expect(isPPMStatusProperty('random_property')).toBe(false);
     });
   });
 });

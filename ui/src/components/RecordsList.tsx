@@ -42,7 +42,8 @@ export default function RecordsList({ searchOptions }: RecordsListProps) {
         const calculatedStatus = getPPMStatusLabel(machine.ppm_date);
         if (!calculatedStatus) return false;
 
-        return calculatedStatus.toLowerCase().includes(query);
+        // Use exact matching for PPM status since user selects from dropdown
+        return calculatedStatus === searchOptions.query;
       } else {
         // Search in specific text property
         const fieldValue = machine[property as keyof typeof machine];

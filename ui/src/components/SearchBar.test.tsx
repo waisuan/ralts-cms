@@ -145,6 +145,47 @@ describe('SearchBar', () => {
     expect(calendarIcon).toBeInTheDocument();
   });
 
+  it('shows select dropdown for PPM status property', () => {
+    const searchOptions: SearchOptions = {
+      query: '',
+      property: 'ppm_status',
+    };
+    render(<SearchBar searchOptions={searchOptions} onSearch={mockOnSearch} />);
+
+    expect(screen.getByRole('combobox')).toBeInTheDocument();
+    expect(screen.getByText('Select PPM Status...')).toBeInTheDocument();
+    expect(screen.getByText('Overdue')).toBeInTheDocument();
+    expect(screen.getByText('Due')).toBeInTheDocument();
+    expect(screen.getByText('Due Soon')).toBeInTheDocument();
+    expect(screen.getByText('Upcoming')).toBeInTheDocument();
+  });
+
+  it('shows list icon for PPM status property', () => {
+    const searchOptions: SearchOptions = {
+      query: '',
+      property: 'ppm_status',
+    };
+    render(<SearchBar searchOptions={searchOptions} onSearch={mockOnSearch} />);
+
+    // Check for list icon path
+    const listIcon = document.querySelector(
+      'path[d*="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"]'
+    );
+    expect(listIcon).toBeInTheDocument();
+  });
+
+  it('shows filtering message for PPM status property', () => {
+    const searchOptions: SearchOptions = {
+      query: 'Overdue',
+      property: 'ppm_status',
+    };
+    render(<SearchBar searchOptions={searchOptions} onSearch={mockOnSearch} />);
+
+    // Check that filtering message exists by looking for the container with search info
+    const filteringInfo = document.querySelector('.text-gray-500.text-center');
+    expect(filteringInfo).toHaveTextContent('Filtering by PPM Status: Overdue');
+  });
+
   it('shows different search info for date properties', () => {
     const searchOptions: SearchOptions = {
       query: '2024-01-15',
