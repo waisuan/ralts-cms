@@ -1,16 +1,26 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Machine } from '../types/machine';
 import { MALAYSIAN_STATES, getDistrictsForState, MalaysianState } from '../utils/constants';
 
-interface AddMachineModalProps {
+type MachineModalMode = 'add' | 'edit';
+
+interface MachineModalProps {
   isOpen: boolean;
+  mode: MachineModalMode;
+  machine?: Machine | null; // Required for edit mode, optional for add mode
   onClose: () => void;
-  onAdd: (machine: Omit<Machine, 'created_at' | 'updated_at'>) => void;
+  onSubmit: (machine: Machine | Omit<Machine, 'created_at' | 'updated_at'>) => void;
 }
 
-export default function AddMachineModal({ isOpen, onClose, onAdd }: AddMachineModalProps) {
+export default function MachineModal({
+  isOpen,
+  mode,
+  machine,
+  onClose,
+  onSubmit,
+}: MachineModalProps) {
   const [formData, setFormData] = useState({
     serial_number: '',
     customer: '',
@@ -35,11 +45,72 @@ export default function AddMachineModal({ isOpen, onClose, onAdd }: AddMachineMo
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState<boolean>(false);
 
+  // Pre-populate form when in edit mode and machine data is available
+  useEffect(() => {
+    if (mode === 'edit' && machine && isOpen) {
+      setFormData({
+        serial_number: machine.serial_number,
+        customer: machine.customer,
+        state: machine.state,
+        account_type: machine.account_type,
+        model: machine.model,
+        status: machine.status,
+        brand: machine.brand,
+        district: machine.district,
+        person_in_charge: machine.person_in_charge,
+        reported_by: machine.reported_by,
+        additional_notes: machine.additional_notes,
+        attachment: machine.attachment,
+        ppm_status: machine.ppm_status,
+        tnc_date: machine.tnc_date,
+        ppm_date: machine.ppm_date,
+      });
+    } else if (mode === 'add' && isOpen) {
+      // Reset form for add mode
+      setFormData({
+        serial_number: '',
+        customer: '',
+        state: '',
+        account_type: '',
+        model: '',
+        status: '',
+        brand: '',
+        district: '',
+        person_in_charge: '',
+        reported_by: '',
+        additional_notes: '',
+        attachment: '',
+        ppm_status: '',
+        tnc_date: '',
+        ppm_date: '',
+      });
+    }
+  }, [mode, machine, isOpen]);
+
   // Get available districts based on selected state
   const availableDistricts = useMemo(() => {
     if (!formData.state) return [];
     return getDistrictsForState(formData.state as MalaysianState);
   }, [formData.state]);
+
+  // Modal configuration based on mode
+  const modalConfig = useMemo(() => {
+    if (mode === 'edit') {
+      return {
+        title: 'Edit Machine',
+        submitButtonText: 'Update Machine',
+        submitButtonClass:
+          'px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors',
+      };
+    } else {
+      return {
+        title: 'Add New Machine',
+        submitButtonText: 'Add Machine',
+        submitButtonClass:
+          'px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors',
+      };
+    }
+  }, [mode]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -93,29 +164,20 @@ export default function AddMachineModal({ isOpen, onClose, onAdd }: AddMachineMo
       return;
     }
 
-    onAdd(formData);
+    if (mode === 'edit' && machine) {
+      // Create updated machine with existing timestamps
+      const updatedMachine: Machine = {
+        ...formData,
+        created_at: machine.created_at,
+        updated_at: new Date().toISOString(),
+      };
+      onSubmit(updatedMachine);
+    } else {
+      // Create new machine (timestamps will be added by parent)
+      onSubmit(formData);
+    }
 
-    // Reset form
-    setFormData({
-      serial_number: '',
-      customer: '',
-      state: '',
-      account_type: '',
-      model: '',
-      status: '',
-      brand: '',
-      district: '',
-      person_in_charge: '',
-      reported_by: '',
-      additional_notes: '',
-      attachment: '',
-      ppm_status: '',
-      tnc_date: '',
-      ppm_date: '',
-    });
-    setErrors({});
-    setSelectedFile(null);
-    onClose();
+    handleClose();
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -190,10 +252,16 @@ export default function AddMachineModal({ isOpen, onClose, onAdd }: AddMachineMo
   };
 
   const handleCancelClick = () => {
-    // Check if any form data has been entered
-    const hasFormData = Object.values(formData).some((value) => value !== '') || selectedFile;
+    // Check if form data has been changed
+    const hasChanges =
+      mode === 'edit'
+        ? machine &&
+          Object.keys(formData).some((key) => {
+            return formData[key as keyof typeof formData] !== machine[key as keyof Machine];
+          })
+        : Object.values(formData).some((value) => value !== '') || selectedFile;
 
-    if (hasFormData) {
+    if (hasChanges) {
       setShowCancelConfirm(true);
     } else {
       handleClose();
@@ -231,7 +299,7 @@ export default function AddMachineModal({ isOpen, onClose, onAdd }: AddMachineMo
     onClose();
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || (mode === 'edit' && !machine)) return null;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -246,7 +314,7 @@ export default function AddMachineModal({ isOpen, onClose, onAdd }: AddMachineMo
         <div className="relative w-full max-w-4xl bg-white rounded-lg shadow-xl">
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">Add New Machine</h2>
+            <h2 className="text-xl font-semibold text-gray-900">{modalConfig.title}</h2>
             <button
               onClick={handleCancelClick}
               aria-label="Close"
@@ -579,6 +647,51 @@ export default function AddMachineModal({ isOpen, onClose, onAdd }: AddMachineMo
                       </button>
                     </div>
                   )}
+
+                  {/* Show existing attachment in edit mode if no new file */}
+                  {mode === 'edit' && !selectedFile && !isUploading && formData.attachment && (
+                    <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <div className="flex items-center space-x-2">
+                        <svg
+                          className="h-5 w-5 text-blue-600"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                          />
+                        </svg>
+                        <div>
+                          <p className="text-sm font-medium text-blue-800">{formData.attachment}</p>
+                          <p className="text-xs text-blue-600">Current attachment</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleInputChange('attachment', '')}
+                        className="text-red-500 hover:text-red-700 focus:outline-none focus:text-red-700 transition-colors"
+                        title="Remove attachment"
+                      >
+                        <svg
+                          className="h-5 w-5"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M6 18L18 6M6 6l12 12"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -610,11 +723,8 @@ export default function AddMachineModal({ isOpen, onClose, onAdd }: AddMachineMo
               >
                 Cancel
               </button>
-              <button
-                type="submit"
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-              >
-                Add Machine
+              <button type="submit" className={modalConfig.submitButtonClass}>
+                {modalConfig.submitButtonText}
               </button>
             </div>
           </form>

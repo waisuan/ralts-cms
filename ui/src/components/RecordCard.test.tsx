@@ -240,7 +240,7 @@ describe('RecordCard', () => {
     expect(screen.getByText('Due Soon')).toBeInTheDocument();
   });
 
-  it('shows Upcoming badge if pmp_date is more than 7 days in the future', () => {
+  it('shows Upcoming badge if ppm_date is more than 7 days in the future', () => {
     const futureMachine = { ...baseMachine, ppm_date: '2024-07-30' }; // 31 days from mock date
     render(
       <RecordCard machine={futureMachine} onView={() => {}} onEdit={() => {}} onDelete={() => {}} />

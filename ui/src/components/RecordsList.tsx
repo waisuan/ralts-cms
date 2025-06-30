@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import RecordCard from './RecordCard';
-import AddMachineModal from './AddMachineModal';
+import MachineModal from './MachineModal';
 import { mockMachines } from '../data/mockMachines';
 import { SearchOptions } from './SearchBar';
 import { isDateProperty } from '@/utils/constants';
@@ -32,9 +32,11 @@ export default function RecordsList({
 }: RecordsListProps) {
   const [machines, setMachines] = useState(mockMachines);
   const [displayedCount, setDisplayedCount] = useState(ITEMS_PER_PAGE);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isMachineModalOpen, setIsMachineModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [machineToDelete, setMachineToDelete] = useState<Machine | null>(null);
+  const [machineToEdit, setMachineToEdit] = useState<Machine | null>(null);
 
   // Calculate overdue statistics
   const overdueStats = useOverdueStats(machines);
@@ -117,7 +119,12 @@ export default function RecordsList({
   };
 
   const handleEdit = (serial_number: string) => {
-    console.log('Edit machine:', serial_number);
+    const machine = machines.find((m) => m.serial_number === serial_number);
+    if (machine) {
+      setMachineToEdit(machine);
+      setModalMode('edit');
+      setIsMachineModalOpen(true);
+    }
   };
 
   const handleDelete = (serial_number: string) => {
@@ -152,12 +159,33 @@ export default function RecordsList({
     setMachines([machine, ...machines]);
   };
 
-  const handleOpenAddModal = () => {
-    setIsAddModalOpen(true);
+  const handleEditMachine = (updatedMachine: Machine) => {
+    setMachines(
+      machines.map((machine) =>
+        machine.serial_number === updatedMachine.serial_number ? updatedMachine : machine
+      )
+    );
+    setMachineToEdit(null);
+    setIsMachineModalOpen(false);
   };
 
-  const handleCloseAddModal = () => {
-    setIsAddModalOpen(false);
+  const handleOpenAddModal = () => {
+    setModalMode('add');
+    setMachineToEdit(null);
+    setIsMachineModalOpen(true);
+  };
+
+  const handleCloseMachineModal = () => {
+    setMachineToEdit(null);
+    setIsMachineModalOpen(false);
+  };
+
+  const handleMachineSubmit = (machine: Machine | Omit<Machine, 'created_at' | 'updated_at'>) => {
+    if (modalMode === 'add') {
+      handleAddMachine(machine as Omit<Machine, 'created_at' | 'updated_at'>);
+    } else {
+      handleEditMachine(machine as Machine);
+    }
   };
 
   const getFilterStatusText = () => {
@@ -319,11 +347,13 @@ export default function RecordsList({
         </div>
       )}
 
-      {/* Add Machine Modal */}
-      <AddMachineModal
-        isOpen={isAddModalOpen}
-        onClose={handleCloseAddModal}
-        onAdd={handleAddMachine}
+      {/* Machine Modal (Add/Edit) */}
+      <MachineModal
+        isOpen={isMachineModalOpen}
+        mode={modalMode}
+        machine={machineToEdit}
+        onClose={handleCloseMachineModal}
+        onSubmit={handleMachineSubmit}
       />
 
       {/* Delete Confirmation Modal */}

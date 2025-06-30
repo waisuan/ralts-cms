@@ -269,9 +269,8 @@ describe('RecordsList', () => {
     consoleSpy.mockRestore();
   });
 
-  it('calls onEdit when Edit button is clicked', async () => {
+  it('opens edit modal when Edit button is clicked', async () => {
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
     render(<RecordsList searchOptions={defaultSearchOptions} />);
 
@@ -287,9 +286,46 @@ describe('RecordsList', () => {
     expect(editButton).toBeInTheDocument();
     await user.click(editButton!);
 
-    expect(consoleSpy).toHaveBeenCalledWith('Edit machine:', 'SN-003');
+    // Should show the edit modal
+    expect(screen.getByRole('heading', { name: 'Edit Machine' })).toBeInTheDocument();
 
-    consoleSpy.mockRestore();
+    // The form should be pre-populated with the machine data
+    expect(screen.getByDisplayValue('SN-003')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Gamma Inc')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('Z300')).toBeInTheDocument();
+  });
+
+  it('updates machine data when edit form is submitted', async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+
+    render(<RecordsList searchOptions={defaultSearchOptions} />);
+
+    // Find the machine card for SN-003 and click edit
+    const machineCard = findMachineCard('SN-003');
+    const editButton = Array.from(machineCard?.querySelectorAll('button') || []).find(
+      (btn) => btn.textContent === 'Edit'
+    );
+
+    await user.click(editButton!);
+
+    // Should show the edit modal
+    expect(screen.getByRole('heading', { name: 'Edit Machine' })).toBeInTheDocument();
+
+    // Update the customer field
+    const customerInput = screen.getByDisplayValue('Gamma Inc');
+    await user.clear(customerInput);
+    await user.type(customerInput, 'Updated Customer Name');
+
+    // Submit the form
+    const updateButton = screen.getByRole('button', { name: /update machine/i });
+    await user.click(updateButton);
+
+    // Modal should be closed
+    expect(screen.queryByRole('heading', { name: 'Edit Machine' })).not.toBeInTheDocument();
+
+    // Machine card should show updated data
+    expect(screen.getByText('Updated Customer Name')).toBeInTheDocument();
+    expect(screen.queryByText('Gamma Inc')).not.toBeInTheDocument();
   });
 
   it('shows delete confirmation modal when Delete button is clicked', async () => {
