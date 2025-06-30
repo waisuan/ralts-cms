@@ -2,6 +2,9 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import RecordCard from './RecordCard';
 import { Machine } from '../types/machine';
 
+// Mock the current date for consistent testing
+const MOCK_CURRENT_DATE = '2024-06-29T12:00:00.000Z';
+
 describe('RecordCard', () => {
   const baseMachine: Machine = {
     serial_number: 'SN-TEST',
@@ -22,6 +25,16 @@ describe('RecordCard', () => {
     created_at: '2024-01-01',
     updated_at: '2024-06-01',
   };
+
+  beforeEach(() => {
+    // Mock the current date for consistent testing
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date(MOCK_CURRENT_DATE));
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
 
   it('renders machine model and serial number', () => {
     render(
@@ -194,7 +207,7 @@ describe('RecordCard', () => {
   });
 
   it('shows Overdue badge if ppm_date is in the past', () => {
-    const overdueMachine = { ...baseMachine, ppm_date: '2000-01-01' };
+    const overdueMachine = { ...baseMachine, ppm_date: '2024-06-24' }; // 5 days ago from mock date
     render(
       <RecordCard
         machine={overdueMachine}
@@ -207,9 +220,7 @@ describe('RecordCard', () => {
   });
 
   it('shows Due badge if ppm_date is today', () => {
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
-    const dueMachine = { ...baseMachine, ppm_date: todayStr };
+    const dueMachine = { ...baseMachine, ppm_date: '2024-06-29' }; // Same as mock date
     render(
       <RecordCard machine={dueMachine} onView={() => {}} onEdit={() => {}} onDelete={() => {}} />
     );
@@ -217,10 +228,7 @@ describe('RecordCard', () => {
   });
 
   it('shows Due Soon badge if ppm_date is within 7 days', () => {
-    const soon = new Date();
-    soon.setDate(soon.getDate() + 3);
-    const soonStr = soon.toISOString().split('T')[0];
-    const dueSoonMachine = { ...baseMachine, ppm_date: soonStr };
+    const dueSoonMachine = { ...baseMachine, ppm_date: '2024-07-02' }; // 3 days from mock date
     render(
       <RecordCard
         machine={dueSoonMachine}
@@ -232,16 +240,11 @@ describe('RecordCard', () => {
     expect(screen.getByText('Due Soon')).toBeInTheDocument();
   });
 
-  it('shows no badge if ppm_date is more than 7 days in the future', () => {
-    const future = new Date();
-    future.setDate(future.getDate() + 30);
-    const futureStr = future.toISOString().split('T')[0];
-    const futureMachine = { ...baseMachine, ppm_date: futureStr };
+  it('shows Upcoming badge if pmp_date is more than 7 days in the future', () => {
+    const futureMachine = { ...baseMachine, ppm_date: '2024-07-30' }; // 31 days from mock date
     render(
       <RecordCard machine={futureMachine} onView={() => {}} onEdit={() => {}} onDelete={() => {}} />
     );
-    expect(screen.queryByText('Overdue')).not.toBeInTheDocument();
-    expect(screen.queryByText('Due')).not.toBeInTheDocument();
-    expect(screen.queryByText('Due Soon')).not.toBeInTheDocument();
+    expect(screen.getByText('Upcoming')).toBeInTheDocument();
   });
 });

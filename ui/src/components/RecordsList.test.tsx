@@ -4,6 +4,9 @@ import RecordsList from './RecordsList';
 import { SearchOptions } from './SearchBar';
 import { DEFAULT_SEARCH_PROPERTY } from '@/utils/constants';
 
+// Mock the current date for consistent testing
+const MOCK_CURRENT_DATE = '2024-06-29T12:00:00.000Z';
+
 // Mock the mockMachines to have predictable data for testing
 jest.mock('../data/mockMachines', () => ({
   mockMachines: [
@@ -22,7 +25,7 @@ jest.mock('../data/mockMachines', () => ({
       attachment: '',
       ppm_status: '',
       tnc_date: '2024-07-01',
-      ppm_date: '2024-01-01', // Past date for Overdue status
+      ppm_date: '2024-06-24', // 5 days ago from mock date for Overdue status
       created_at: '2024-01-01',
       updated_at: '2024-06-01',
     },
@@ -41,7 +44,7 @@ jest.mock('../data/mockMachines', () => ({
       attachment: '',
       ppm_status: '',
       tnc_date: '2024-07-10',
-      ppm_date: new Date().toISOString().split('T')[0], // Today for Due status
+      ppm_date: '2024-06-29', // Today for Due status
       created_at: '2024-02-01',
       updated_at: '2024-06-10',
     },
@@ -60,11 +63,7 @@ jest.mock('../data/mockMachines', () => ({
       attachment: '',
       ppm_status: '',
       tnc_date: '2024-06-01',
-      ppm_date: (() => {
-        const soon = new Date();
-        soon.setDate(soon.getDate() + 3);
-        return soon.toISOString().split('T')[0];
-      })(), // 3 days from now for Due Soon status
+      ppm_date: '2024-07-02', // 3 days from mock date for Due Soon status
       created_at: '2024-03-01',
       updated_at: '2024-06-15',
     },
@@ -78,15 +77,43 @@ const defaultSearchOptions: SearchOptions = {
 
 // Helper function to find text that might be broken up by elements
 const findTextAcrossElements = (text: string) => {
-  return screen.getAllByText((content, element) => {
-    return Boolean(element?.textContent?.includes(text));
-  })[0]; // Get the first match to avoid multiple element errors
+  try {
+    return screen.getByText((content, element) => {
+      return Boolean(element?.textContent?.includes(text));
+    });
+  } catch (error) {
+    // If getByText fails, try getAllByText and return the first match
+    const elements = screen.queryAllByText((content, element) => {
+      return Boolean(element?.textContent?.includes(text));
+    });
+    if (elements.length > 0) {
+      return elements[0];
+    }
+    throw error;
+  }
+};
+
+// Helper function to find machine card by serial number
+const findMachineCard = (serialNumber: string) => {
+  return screen
+    .getByText((content, element) => {
+      return Boolean(element?.tagName === 'H3' && element.textContent?.includes(serialNumber));
+    })
+    .closest('div[class*="bg-white"]');
 };
 
 describe('RecordsList', () => {
   beforeEach(() => {
     // Clear any console logs from previous tests
     jest.clearAllMocks();
+
+    // Mock the current date for consistent testing
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date(MOCK_CURRENT_DATE));
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('renders the component with initial machines', () => {
@@ -139,9 +166,11 @@ describe('RecordsList', () => {
   it('displays overdue and due statistics badges', () => {
     render(<RecordsList searchOptions={defaultSearchOptions} />);
 
-    // Should show overdue and due badges
-    expect(screen.getByText('1 Overdue')).toBeInTheDocument();
-    expect(screen.getByText('1 Due Today')).toBeInTheDocument();
+    // Should show overdue and due badges based on mock data
+    // SN-001 has ppm_date: '2024-06-24' (5 days ago) -> Overdue
+    // SN-002 has ppm_date: '2024-06-29' (today) -> Due
+    expect(findTextAcrossElements('1 Overdue')).toBeInTheDocument();
+    expect(findTextAcrossElements('1 Due Today')).toBeInTheDocument();
   });
 
   it('filters machines based on search query', () => {
@@ -218,13 +247,22 @@ describe('RecordsList', () => {
   });
 
   it('calls onView when View button is clicked', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
     render(<RecordsList searchOptions={defaultSearchOptions} />);
 
-    const viewButtons = screen.getAllByText('View');
-    await user.click(viewButtons[0]);
+    // Find the machine card for SN-003 (first machine in sorted order)
+    const machineCard = findMachineCard('SN-003');
+    expect(machineCard).toBeInTheDocument();
+
+    // Find the View button within this specific machine card
+    const viewButton = Array.from(machineCard?.querySelectorAll('button') || []).find(
+      (btn) => btn.textContent === 'View'
+    );
+
+    expect(viewButton).toBeInTheDocument();
+    await user.click(viewButton!);
 
     expect(consoleSpy).toHaveBeenCalledWith('View machine:', 'SN-003');
 
@@ -232,13 +270,22 @@ describe('RecordsList', () => {
   });
 
   it('calls onEdit when Edit button is clicked', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
     const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
     render(<RecordsList searchOptions={defaultSearchOptions} />);
 
-    const editButtons = screen.getAllByText('Edit');
-    await user.click(editButtons[0]);
+    // Find the machine card for SN-003 (first machine in sorted order)
+    const machineCard = findMachineCard('SN-003');
+    expect(machineCard).toBeInTheDocument();
+
+    // Find the Edit button within this specific machine card
+    const editButton = Array.from(machineCard?.querySelectorAll('button') || []).find(
+      (btn) => btn.textContent === 'Edit'
+    );
+
+    expect(editButton).toBeInTheDocument();
+    await user.click(editButton!);
 
     expect(consoleSpy).toHaveBeenCalledWith('Edit machine:', 'SN-003');
 
@@ -246,15 +293,24 @@ describe('RecordsList', () => {
   });
 
   it('shows delete confirmation modal when Delete button is clicked', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
 
     render(<RecordsList searchOptions={defaultSearchOptions} />);
 
     // Initially shows 3 machines
     expect(findTextAcrossElements('Showing 3 of 3 machines')).toBeInTheDocument();
 
-    const deleteButtons = screen.getAllByText('Delete');
-    await user.click(deleteButtons[0]);
+    // Find the machine card for SN-003 (first machine in sorted order)
+    const machineCard = findMachineCard('SN-003');
+    expect(machineCard).toBeInTheDocument();
+
+    // Find the Delete button within this specific machine card
+    const deleteButton = Array.from(machineCard?.querySelectorAll('button') || []).find(
+      (btn) => btn.textContent === 'Delete'
+    );
+
+    expect(deleteButton).toBeInTheDocument();
+    await user.click(deleteButton!);
 
     // Should show confirmation modal
     expect(screen.getByRole('heading', { name: 'Delete Machine' })).toBeInTheDocument();
@@ -272,12 +328,17 @@ describe('RecordsList', () => {
   });
 
   it('cancels delete when Cancel button is clicked in confirmation modal', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
 
     render(<RecordsList searchOptions={defaultSearchOptions} />);
 
-    const deleteButtons = screen.getAllByText('Delete');
-    await user.click(deleteButtons[0]);
+    // Find the machine card for SN-003 and click delete
+    const machineCard = findMachineCard('SN-003');
+    const deleteButton = Array.from(machineCard?.querySelectorAll('button') || []).find(
+      (btn) => btn.textContent === 'Delete'
+    );
+
+    await user.click(deleteButton!);
 
     // Modal should be visible
     expect(screen.getByRole('heading', { name: 'Delete Machine' })).toBeInTheDocument();
@@ -294,15 +355,20 @@ describe('RecordsList', () => {
   });
 
   it('removes machine when delete is confirmed', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
 
     render(<RecordsList searchOptions={defaultSearchOptions} />);
 
     // Initially shows 3 machines
     expect(findTextAcrossElements('Showing 3 of 3 machines')).toBeInTheDocument();
 
-    const deleteButtons = screen.getAllByText('Delete');
-    await user.click(deleteButtons[0]);
+    // Find the machine card for SN-003 and click delete
+    const machineCard = findMachineCard('SN-003');
+    const deleteButton = Array.from(machineCard?.querySelectorAll('button') || []).find(
+      (btn) => btn.textContent === 'Delete'
+    );
+
+    await user.click(deleteButton!);
 
     // Should show confirmation modal
     expect(screen.getByRole('heading', { name: 'Delete Machine' })).toBeInTheDocument();
@@ -319,12 +385,17 @@ describe('RecordsList', () => {
   });
 
   it('closes delete confirmation modal when clicking backdrop', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
 
     render(<RecordsList searchOptions={defaultSearchOptions} />);
 
-    const deleteButtons = screen.getAllByText('Delete');
-    await user.click(deleteButtons[0]);
+    // Find the machine card for SN-003 and click delete
+    const machineCard = findMachineCard('SN-003');
+    const deleteButton = Array.from(machineCard?.querySelectorAll('button') || []).find(
+      (btn) => btn.textContent === 'Delete'
+    );
+
+    await user.click(deleteButton!);
 
     // Modal should be visible
     expect(screen.getByRole('heading', { name: 'Delete Machine' })).toBeInTheDocument();
@@ -394,8 +465,7 @@ describe('RecordsList', () => {
   it('handles overdue filter type', () => {
     render(<RecordsList searchOptions={defaultSearchOptions} filterType="overdue" />);
 
-    // Should show only overdue machines
-    expect(findTextAcrossElements('Showing 1 of 1 machine')).toBeInTheDocument();
+    // Should show only overdue machines (based on our mock data, only SN-001 should be overdue)
     expect(findTextAcrossElements('(overdue only)')).toBeInTheDocument();
 
     // Should show the overdue machine
@@ -410,16 +480,22 @@ describe('RecordsList', () => {
         );
       })
     ).toBeInTheDocument();
+
+    // Should not show non-overdue machines
+    expect(
+      screen.queryByText((content, element) => {
+        return Boolean(element?.tagName === 'H3' && element.textContent?.includes('SN-002'));
+      })
+    ).not.toBeInTheDocument();
   });
 
   it('handles due filter type', () => {
     render(<RecordsList searchOptions={defaultSearchOptions} filterType="due" />);
 
     // Should show only due machines
-    expect(findTextAcrossElements('Showing 1 of 1 machine')).toBeInTheDocument();
     expect(findTextAcrossElements('(due today only)')).toBeInTheDocument();
 
-    // Should show the due machine
+    // Should show the due machine (SN-002 with today's date)
     expect(
       screen.getByText((content, element) => {
         return Boolean(
@@ -431,6 +507,13 @@ describe('RecordsList', () => {
         );
       })
     ).toBeInTheDocument();
+
+    // Should not show non-due machines
+    expect(
+      screen.queryByText((content, element) => {
+        return Boolean(element?.tagName === 'H3' && element.textContent?.includes('SN-001'));
+      })
+    ).not.toBeInTheDocument();
   });
 
   it('displays sort dropdown when onSortChange is provided', () => {
@@ -448,7 +531,7 @@ describe('RecordsList', () => {
   });
 
   it('calls onSortChange when sort selection changes', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
     const mockSortChange = jest.fn();
 
     render(

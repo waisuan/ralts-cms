@@ -2,6 +2,9 @@ import { renderHook } from '@testing-library/react';
 import { useOverdueStats } from '../useOverdueStats';
 import { Machine } from '../../types/machine';
 
+// Mock the current date for consistent testing
+const MOCK_CURRENT_DATE = '2024-06-29T12:00:00.000Z';
+
 describe('useOverdueStats', () => {
   const createMachine = (serial: string, ppmDate: string): Machine => ({
     serial_number: serial,
@@ -23,6 +26,16 @@ describe('useOverdueStats', () => {
     updated_at: '2024-06-01',
   });
 
+  beforeEach(() => {
+    // Mock the current date for consistent testing
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date(MOCK_CURRENT_DATE));
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it('returns zero counts for empty machine list', () => {
     const { result } = renderHook(() => useOverdueStats([]));
 
@@ -37,12 +50,9 @@ describe('useOverdueStats', () => {
   });
 
   it('calculates overdue machines correctly', () => {
-    const overdueDate = new Date();
-    overdueDate.setDate(overdueDate.getDate() - 5); // 5 days ago
-
     const machines = [
-      createMachine('SN-001', overdueDate.toISOString().split('T')[0]),
-      createMachine('SN-002', overdueDate.toISOString().split('T')[0]),
+      createMachine('SN-001', '2024-06-24'), // 5 days ago from mock date
+      createMachine('SN-002', '2024-06-20'), // 9 days ago from mock date
     ];
 
     const { result } = renderHook(() => useOverdueStats(machines));
@@ -55,9 +65,10 @@ describe('useOverdueStats', () => {
   });
 
   it('calculates due machines correctly', () => {
-    const today = new Date().toISOString().split('T')[0];
-
-    const machines = [createMachine('SN-001', today), createMachine('SN-002', today)];
+    const machines = [
+      createMachine('SN-001', '2024-06-29'), // Same as mock date
+      createMachine('SN-002', '2024-06-29'), // Same as mock date
+    ];
 
     const { result } = renderHook(() => useOverdueStats(machines));
 
@@ -69,10 +80,7 @@ describe('useOverdueStats', () => {
   });
 
   it('calculates due soon machines correctly', () => {
-    const dueSoonDate = new Date();
-    dueSoonDate.setDate(dueSoonDate.getDate() + 3); // 3 days from now
-
-    const machines = [createMachine('SN-001', dueSoonDate.toISOString().split('T')[0])];
+    const machines = [createMachine('SN-001', '2024-07-02')]; // 3 days from mock date
 
     const { result } = renderHook(() => useOverdueStats(machines));
 
@@ -81,22 +89,11 @@ describe('useOverdueStats', () => {
   });
 
   it('handles mixed machine statuses correctly', () => {
-    const overdueDate = new Date();
-    overdueDate.setDate(overdueDate.getDate() - 5);
-
-    const dueDate = new Date().toISOString().split('T')[0];
-
-    const dueSoonDate = new Date();
-    dueSoonDate.setDate(dueSoonDate.getDate() + 3);
-
-    const futureDate = new Date();
-    futureDate.setDate(futureDate.getDate() + 30);
-
     const machines = [
-      createMachine('SN-OVERDUE', overdueDate.toISOString().split('T')[0]),
-      createMachine('SN-DUE', dueDate),
-      createMachine('SN-DUE-SOON', dueSoonDate.toISOString().split('T')[0]),
-      createMachine('SN-FUTURE', futureDate.toISOString().split('T')[0]),
+      createMachine('SN-OVERDUE', '2024-06-24'), // 5 days ago from mock date
+      createMachine('SN-DUE', '2024-06-29'), // Same as mock date
+      createMachine('SN-DUE-SOON', '2024-07-02'), // 3 days from mock date
+      createMachine('SN-FUTURE', '2024-07-30'), // 31 days from mock date
     ];
 
     const { result } = renderHook(() => useOverdueStats(machines));
