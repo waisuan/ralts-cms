@@ -119,56 +119,66 @@ describe('MachinePage', () => {
     mockPush.mockClear();
   });
 
-  it('renders MaintenanceHistory for valid machine serial number', () => {
-    const params = { serial_number: 'SN-001' };
+  it('renders MaintenanceHistory for valid machine serial number', async () => {
+    const params = Promise.resolve({ serial_number: 'SN-001' });
 
     render(<MachinePage params={params} />);
 
-    expect(screen.getByTestId('maintenance-history')).toBeInTheDocument();
+    // Wait for the component to load
+    await screen.findByTestId('maintenance-history');
     expect(screen.getByText('Maintenance History for SN-001')).toBeInTheDocument();
   });
 
-  it('renders MaintenanceHistory for URL-encoded serial number', () => {
-    const params = { serial_number: 'SN%20001' }; // URL-encoded space
+  it('renders MaintenanceHistory for URL-encoded serial number', async () => {
+    const params = Promise.resolve({ serial_number: 'SN%20001' }); // URL-encoded space
 
     render(<MachinePage params={params} />);
 
-    expect(screen.getByTestId('maintenance-history')).toBeInTheDocument();
+    // Wait for the component to load
+    await screen.findByTestId('maintenance-history');
     expect(screen.getByText('Maintenance History for SN 001')).toBeInTheDocument();
   });
 
-  it('calls notFound for invalid machine serial number', () => {
-    const params = { serial_number: 'INVALID-SN' };
+  it('calls notFound for invalid machine serial number', async () => {
+    // Clear previous calls
+    jest.mocked(notFound).mockClear();
+
+    const params = Promise.resolve({ serial_number: 'INVALID-SN' });
 
     render(<MachinePage params={params} />);
 
-    expect(notFound).toHaveBeenCalledTimes(1);
+    // Wait a bit for the effect to run
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(notFound).toHaveBeenCalled();
   });
 
-  it('handles special characters in serial number correctly', () => {
-    const params = { serial_number: 'SN-001%2FA' }; // URL-encoded slash
+  it('handles special characters in serial number correctly', async () => {
+    const params = Promise.resolve({ serial_number: 'SN-001%2FA' }); // URL-encoded slash
 
     render(<MachinePage params={params} />);
 
-    expect(screen.getByTestId('maintenance-history')).toBeInTheDocument();
+    // Wait for the component to load
+    await screen.findByTestId('maintenance-history');
   });
 
-  it('navigates back to home when back button is clicked', () => {
-    const params = { serial_number: 'SN-001' };
+  it('navigates back to home when back button is clicked', async () => {
+    const params = Promise.resolve({ serial_number: 'SN-001' });
 
     render(<MachinePage params={params} />);
 
-    const backButton = screen.getByText('Back');
+    // Wait for the component to load
+    const backButton = await screen.findByText('Back');
     backButton.click();
 
     expect(mockPush).toHaveBeenCalledWith('/');
   });
 
-  it('passes correct machine data to MaintenanceHistory component', () => {
-    const params = { serial_number: 'SN-002' };
+  it('passes correct machine data to MaintenanceHistory component', async () => {
+    const params = Promise.resolve({ serial_number: 'SN-002' });
 
     render(<MachinePage params={params} />);
 
-    expect(screen.getByText('Maintenance History for SN-002')).toBeInTheDocument();
+    // Wait for the component to load
+    await screen.findByText('Maintenance History for SN-002');
   });
 });

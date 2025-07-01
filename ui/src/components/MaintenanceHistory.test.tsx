@@ -144,18 +144,38 @@ describe('MaintenanceHistory', () => {
     expect(downloadButtons).toHaveLength(1); // Only WO-001 has attachment
   });
 
-  it('shows View Details button for long action descriptions', () => {
+  it('makes long action descriptions clickable', () => {
     render(<MaintenanceHistory machine={mockMachine} onBack={() => {}} />);
 
-    const viewDetailsButton = screen.getByText('View Details');
-    expect(viewDetailsButton).toBeInTheDocument();
+    // Check for the truncated action text which should be clickable
+    const truncatedAction = screen.getByText((content, element) => {
+      return (
+        content.includes('This is a very long action description') &&
+        content.includes('...') &&
+        element?.tagName.toLowerCase() === 'div'
+      );
+    });
+    expect(truncatedAction).toBeInTheDocument();
+    // Verify it's inside a button (clickable)
+    expect(truncatedAction.closest('button')).toBeInTheDocument();
   });
 
-  it('opens action details modal when View Details is clicked', async () => {
+  it('opens action details modal when truncated action is clicked', async () => {
     render(<MaintenanceHistory machine={mockMachine} onBack={() => {}} />);
 
-    const viewDetailsButton = screen.getByText('View Details');
-    fireEvent.click(viewDetailsButton);
+    // Find and click the truncated action text
+    const truncatedActionButton = screen
+      .getByText((content, element) => {
+        return (
+          content.includes('This is a very long action description') &&
+          content.includes('...') &&
+          element?.closest('button') !== null
+        );
+      })
+      .closest('button');
+
+    expect(truncatedActionButton).toBeInTheDocument();
+    fireEvent.click(truncatedActionButton!);
 
     await waitFor(() => {
       expect(screen.getByText('Action Details - WO-002')).toBeInTheDocument();
@@ -168,9 +188,18 @@ describe('MaintenanceHistory', () => {
   it('closes action details modal when close button is clicked', async () => {
     render(<MaintenanceHistory machine={mockMachine} onBack={() => {}} />);
 
-    // Open modal
-    const viewDetailsButton = screen.getByText('View Details');
-    fireEvent.click(viewDetailsButton);
+    // Open modal by clicking truncated action
+    const truncatedActionButton = screen
+      .getByText((content, element) => {
+        return (
+          content.includes('This is a very long action description') &&
+          content.includes('...') &&
+          element?.closest('button') !== null
+        );
+      })
+      .closest('button');
+
+    fireEvent.click(truncatedActionButton!);
 
     await waitFor(() => {
       expect(screen.getByText('Action Details - WO-002')).toBeInTheDocument();

@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { mockMaintenanceRecords } from '../data/mockMaintenance';
 import { Machine } from '../types/machine';
+import { Maintenance, MaintenanceOrderType } from '../types/maintenance';
 
 interface MaintenanceHistoryProps {
   machine: Machine;
@@ -95,12 +96,30 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
     action: string;
   } | null>(null);
 
-  // Filter maintenance records for this specific machine
-  const maintenanceRecords = useMemo(() => {
-    return mockMaintenanceRecords.filter(
+  // Local state for maintenance records
+  const [localMaintenanceRecords, setLocalMaintenanceRecords] = useState<Maintenance[]>(() =>
+    mockMaintenanceRecords.filter(
       (record) => record.machine_serial_number === machine.serial_number
-    );
-  }, [machine.serial_number]);
+    )
+  );
+
+  // New record form state
+  const [isAddRecordModalOpen, setIsAddRecordModalOpen] = useState(false);
+  const [newRecordForm, setNewRecordForm] = useState({
+    work_order_number: '',
+    work_order_date: '',
+    action_taken: '',
+    reported_by: '',
+    worker_order_type: 'Preventive' as MaintenanceOrderType,
+    attachment: '',
+  });
+  const [newRecordErrors, setNewRecordErrors] = useState<Record<string, string>>({});
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+
+  // Use local maintenance records
+  const maintenanceRecords = localMaintenanceRecords;
 
   // Sort maintenance records
   const sortedRecords = useMemo(() => {
@@ -177,6 +196,128 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
       console.log('Downloading attachment:', attachment);
       alert(`Downloading attachment: ${attachment}`);
     }
+  };
+
+  // New record form handlers
+  const openAddRecordModal = () => {
+    setIsAddRecordModalOpen(true);
+    setNewRecordForm({
+      work_order_number: '',
+      work_order_date: '',
+      action_taken: '',
+      reported_by: '',
+      worker_order_type: 'Preventive',
+      attachment: '',
+    });
+    setNewRecordErrors({});
+    setSelectedFile(null);
+    setUploadProgress(0);
+    setIsUploading(false);
+  };
+
+  const closeAddRecordModal = () => {
+    setIsAddRecordModalOpen(false);
+    setNewRecordForm({
+      work_order_number: '',
+      work_order_date: '',
+      action_taken: '',
+      reported_by: '',
+      worker_order_type: 'Preventive',
+      attachment: '',
+    });
+    setNewRecordErrors({});
+    setSelectedFile(null);
+    setUploadProgress(0);
+    setIsUploading(false);
+  };
+
+  const handleNewRecordInputChange = (field: string, value: string) => {
+    setNewRecordForm((prev) => ({ ...prev, [field]: value }));
+    // Clear error when user starts typing
+    if (newRecordErrors[field]) {
+      setNewRecordErrors((prev) => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  const handleNewRecordFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      setIsUploading(true);
+      setUploadProgress(0);
+
+      // Simulate upload progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev >= 100) {
+            clearInterval(progressInterval);
+            setIsUploading(false);
+            return 100;
+          }
+          const increment = Math.random() * 25 + 10;
+          return Math.min(prev + increment, 100);
+        });
+      }, 150);
+
+      setNewRecordForm((prev) => ({ ...prev, attachment: file.name }));
+    } else {
+      setSelectedFile(null);
+      setUploadProgress(0);
+      setIsUploading(false);
+      setNewRecordForm((prev) => ({ ...prev, attachment: '' }));
+    }
+  };
+
+  const validateNewRecordForm = () => {
+    const errors: Record<string, string> = {};
+
+    if (!newRecordForm.work_order_number.trim()) {
+      errors.work_order_number = 'Work order number is required';
+    }
+    if (!newRecordForm.work_order_date) {
+      errors.work_order_date = 'Work order date is required';
+    }
+    if (!newRecordForm.action_taken.trim()) {
+      errors.action_taken = 'Action taken is required';
+    }
+    if (!newRecordForm.reported_by.trim()) {
+      errors.reported_by = 'Reported by is required';
+    }
+
+    // Check if work order number already exists
+    const existingRecord = localMaintenanceRecords.find(
+      (record) => record.work_order_number === newRecordForm.work_order_number.trim()
+    );
+    if (existingRecord) {
+      errors.work_order_number = 'Work order number already exists';
+    }
+
+    setNewRecordErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleAddNewRecord = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validateNewRecordForm()) {
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const newRecord: Maintenance = {
+      machine_serial_number: machine.serial_number,
+      work_order_number: newRecordForm.work_order_number.trim(),
+      work_order_date: newRecordForm.work_order_date,
+      action_taken: newRecordForm.action_taken.trim(),
+      reported_by: newRecordForm.reported_by.trim(),
+      worker_order_type: newRecordForm.worker_order_type,
+      attachment: newRecordForm.attachment,
+      created_at: now,
+      updated_at: now,
+    };
+
+    setLocalMaintenanceRecords((prev) => [newRecord, ...prev]);
+    closeAddRecordModal();
   };
 
   const getSortIcon = (field: SortField) => {
@@ -396,7 +537,7 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
           </div>
 
           {/* Summary Statistics */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
             <div className="bg-white rounded-lg shadow-sm border p-4">
               <div className="text-2xl font-bold text-gray-900">{maintenanceRecords.length}</div>
               <div className="text-sm text-gray-600">Total Records</div>
@@ -419,6 +560,31 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
               </div>
               <div className="text-sm text-gray-600">Corrective</div>
             </div>
+            <div className="bg-white rounded-lg shadow-sm border p-4">
+              <div className="text-2xl font-bold text-purple-600">
+                {maintenanceRecords.filter((r) => r.worker_order_type === 'Inspection').length}
+              </div>
+              <div className="text-sm text-gray-600">Inspection</div>
+            </div>
+          </div>
+
+          {/* Add New Record Button */}
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-semibold text-gray-900">Maintenance History</h2>
+            <button
+              onClick={openAddRecordModal}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              Add New Record
+            </button>
           </div>
         </div>
 
@@ -477,9 +643,6 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Attachment
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -488,6 +651,7 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
                       record.action_taken.length > 100
                         ? record.action_taken.substring(0, 100) + '...'
                         : record.action_taken;
+                    const isActionTruncated = record.action_taken.length > 100;
 
                     return (
                       <React.Fragment key={record.work_order_number}>
@@ -513,7 +677,19 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
                             </span>
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-900 max-w-md">
-                            <div className="line-clamp-2">{actionSummary}</div>
+                            {isActionTruncated ? (
+                              <button
+                                onClick={() =>
+                                  openActionModal(record.work_order_number, record.action_taken)
+                                }
+                                className="text-left hover:text-blue-600 cursor-pointer transition-colors"
+                                title="Click to view full details"
+                              >
+                                <div className="line-clamp-2">{actionSummary}</div>
+                              </button>
+                            ) : (
+                              <div className="line-clamp-2">{actionSummary}</div>
+                            )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {record.reported_by}
@@ -542,18 +718,6 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
                               </button>
                             ) : (
                               <span className="text-gray-400">-</span>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
-                            {record.action_taken.length > 100 && (
-                              <button
-                                onClick={() =>
-                                  openActionModal(record.work_order_number, record.action_taken)
-                                }
-                                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                              >
-                                View Details
-                              </button>
                             )}
                           </td>
                         </tr>
@@ -607,6 +771,274 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
               >
                 Close
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add New Record Modal */}
+      {isAddRecordModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+            onClick={closeAddRecordModal}
+          />
+
+          {/* Modal */}
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="relative w-full max-w-2xl bg-white rounded-lg shadow-xl">
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                <h2 className="text-xl font-semibold text-gray-900">Add New Maintenance Record</h2>
+                <button
+                  onClick={closeAddRecordModal}
+                  className="text-gray-400 hover:text-gray-600 focus:outline-none focus:text-gray-600 transition-colors"
+                >
+                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleAddNewRecord} className="px-6 py-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Work Order Number */}
+                  <div>
+                    <label
+                      htmlFor="work_order_number"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                      Work Order Number <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      id="work_order_number"
+                      type="text"
+                      value={newRecordForm.work_order_number}
+                      onChange={(e) =>
+                        handleNewRecordInputChange('work_order_number', e.target.value)
+                      }
+                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-600 text-gray-900 ${
+                        newRecordErrors.work_order_number ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="Enter work order number"
+                    />
+                    {newRecordErrors.work_order_number && (
+                      <p className="mt-1 text-sm text-red-600">
+                        {newRecordErrors.work_order_number}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Work Order Date */}
+                  <div>
+                    <label
+                      htmlFor="work_order_date"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                      Work Order Date <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      id="work_order_date"
+                      type="date"
+                      value={newRecordForm.work_order_date}
+                      onChange={(e) =>
+                        handleNewRecordInputChange('work_order_date', e.target.value)
+                      }
+                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 ${
+                        newRecordErrors.work_order_date ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                    />
+                    {newRecordErrors.work_order_date && (
+                      <p className="mt-1 text-sm text-red-600">{newRecordErrors.work_order_date}</p>
+                    )}
+                  </div>
+
+                  {/* Maintenance Type */}
+                  <div>
+                    <label
+                      htmlFor="worker_order_type"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                      Maintenance Type <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      id="worker_order_type"
+                      value={newRecordForm.worker_order_type}
+                      onChange={(e) =>
+                        handleNewRecordInputChange('worker_order_type', e.target.value)
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                    >
+                      <option value="Preventive">Preventive</option>
+                      <option value="Corrective">Corrective</option>
+                      <option value="Emergency">Emergency</option>
+                      <option value="Inspection">Inspection</option>
+                    </select>
+                  </div>
+
+                  {/* Reported By */}
+                  <div>
+                    <label
+                      htmlFor="reported_by"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                      Reported By <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      id="reported_by"
+                      type="text"
+                      value={newRecordForm.reported_by}
+                      onChange={(e) => handleNewRecordInputChange('reported_by', e.target.value)}
+                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-600 text-gray-900 ${
+                        newRecordErrors.reported_by ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="Enter technician name"
+                    />
+                    {newRecordErrors.reported_by && (
+                      <p className="mt-1 text-sm text-red-600">{newRecordErrors.reported_by}</p>
+                    )}
+                  </div>
+
+                  {/* Attachment */}
+                  <div className="md:col-span-2">
+                    <label
+                      htmlFor="attachment"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                      Attachment
+                    </label>
+                    <div className="space-y-3">
+                      <input
+                        id="attachment"
+                        type="file"
+                        onChange={handleNewRecordFileChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                        accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.txt"
+                        disabled={isUploading}
+                      />
+
+                      {/* Upload Progress */}
+                      {isUploading && (
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm text-gray-600">
+                            <span>Uploading...</span>
+                            <span>{Math.round(uploadProgress)}%</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
+                              style={{ width: `${uploadProgress}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* File Info */}
+                      {selectedFile && !isUploading && (
+                        <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-3">
+                          <div className="flex items-center space-x-2">
+                            <svg
+                              className="h-5 w-5 text-green-600"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                              />
+                            </svg>
+                            <div>
+                              <p className="text-sm font-medium text-green-800">
+                                {selectedFile.name}
+                              </p>
+                              <p className="text-xs text-green-600">
+                                {(selectedFile.size / 1024).toFixed(1)} KB - Upload successful
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedFile(null);
+                              setNewRecordForm((prev) => ({ ...prev, attachment: '' }));
+                              const fileInput = document.getElementById(
+                                'attachment'
+                              ) as HTMLInputElement;
+                              if (fileInput) fileInput.value = '';
+                            }}
+                            className="text-red-500 hover:text-red-700 focus:outline-none focus:text-red-700 transition-colors"
+                            title="Remove file"
+                          >
+                            <svg
+                              className="h-5 w-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M6 18L18 6M6 6l12 12"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Taken */}
+                <div className="mt-6">
+                  <label
+                    htmlFor="action_taken"
+                    className="block text-sm font-medium text-gray-700 mb-2"
+                  >
+                    Action Taken / Description <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    id="action_taken"
+                    value={newRecordForm.action_taken}
+                    onChange={(e) => handleNewRecordInputChange('action_taken', e.target.value)}
+                    rows={4}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-600 text-gray-900 ${
+                      newRecordErrors.action_taken ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Describe the maintenance action performed, parts replaced, issues found, etc."
+                  />
+                  {newRecordErrors.action_taken && (
+                    <p className="mt-1 text-sm text-red-600">{newRecordErrors.action_taken}</p>
+                  )}
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex justify-end gap-3 mt-8">
+                  <button
+                    type="button"
+                    onClick={closeAddRecordModal}
+                    className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                  >
+                    Add Record
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>
