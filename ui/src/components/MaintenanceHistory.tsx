@@ -66,7 +66,7 @@ const getMaintenanceTypeIcon = (type: string): React.ReactElement => {
 export default function MaintenanceHistory({ machine, onBack }: MaintenanceHistoryProps) {
   const [sortField, setSortField] = useState<SortField>('work_order_date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [selectedAction, setSelectedAction] = useState<{ workOrder: string; action: string } | null>(null);
 
   // Filter maintenance records for this specific machine
   const maintenanceRecords = useMemo(() => {
@@ -119,14 +119,12 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
     }
   };
 
-  const toggleRowExpansion = (workOrderNumber: string) => {
-    const newExpandedRows = new Set(expandedRows);
-    if (newExpandedRows.has(workOrderNumber)) {
-      newExpandedRows.delete(workOrderNumber);
-    } else {
-      newExpandedRows.add(workOrderNumber);
-    }
-    setExpandedRows(newExpandedRows);
+  const openActionModal = (workOrder: string, action: string) => {
+    setSelectedAction({ workOrder, action });
+  };
+
+  const closeActionModal = () => {
+    setSelectedAction(null);
   };
 
   const formatDate = (dateString: string) => {
@@ -284,7 +282,7 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
                   {machine.additional_notes && (
                     <div>
                       <h4 className="text-sm font-semibold text-gray-700 mb-2">Additional Notes</h4>
-                      <div className="text-sm text-gray-600 bg-gray-50 rounded-lg p-3">
+                      <div className="text-sm text-gray-700 bg-gray-100 rounded-lg p-3">
                         {machine.additional_notes}
                       </div>
                     </div>
@@ -398,7 +396,6 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {sortedRecords.map((record) => {
-                    const isExpanded = expandedRows.has(record.work_order_number);
                     const actionSummary = record.action_taken.length > 100 
                       ? record.action_taken.substring(0, 100) + '...' 
                       : record.action_taken;
@@ -426,7 +423,7 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-900 max-w-md">
                             <div className="line-clamp-2">
-                              {isExpanded ? record.action_taken : actionSummary}
+                              {actionSummary}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -451,10 +448,10 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
                           <td className="px-6 py-4 whitespace-nowrap text-center">
                             {record.action_taken.length > 100 && (
                               <button
-                                onClick={() => toggleRowExpansion(record.work_order_number)}
+                                onClick={() => openActionModal(record.work_order_number, record.action_taken)}
                                 className="text-blue-600 hover:text-blue-800 text-sm font-medium"
                               >
-                                {isExpanded ? 'Show Less' : 'Show More'}
+                                View Details
                               </button>
                             )}
                           </td>
@@ -468,6 +465,45 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
           )}
         </div>
       </div>
+
+      {/* Action Details Modal */}
+      {selectedAction && (
+        <div className="fixed inset-0 backdrop-blur-md flex items-center justify-center z-50" onClick={closeActionModal}>
+          <div className="bg-white rounded-lg border-2 border-gray-800 max-w-2xl w-full mx-4 max-h-96 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Action Details - {selectedAction.workOrder}
+              </h3>
+              <button
+                onClick={closeActionModal}
+                className="text-gray-400 hover:text-gray-600 focus:outline-none focus:text-gray-600 transition-colors"
+              >
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-80">
+              <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                {selectedAction.action}
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 p-6 border-t border-gray-200">
+              <button
+                onClick={closeActionModal}
+                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

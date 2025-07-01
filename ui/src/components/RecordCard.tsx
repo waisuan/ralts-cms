@@ -1,4 +1,7 @@
+'use client';
+
 import { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Machine } from '../types/machine';
 import { getPPMStatus } from '../utils/ppmUtils';
 import { mockMaintenanceRecords } from '../data/mockMaintenance';
