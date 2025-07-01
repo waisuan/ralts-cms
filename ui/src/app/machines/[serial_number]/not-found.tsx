@@ -9,7 +9,7 @@ export default function NotFound() {
         <p className="text-gray-600 mb-6">
           The machine with this serial number could not be found.
         </p>
-        <Link 
+        <Link
           href="/"
           className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
         >
@@ -18,4 +18,4 @@ export default function NotFound() {
       </div>
     </div>
   );
-} 
+}

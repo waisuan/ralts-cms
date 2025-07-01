@@ -15,11 +15,9 @@ export default function MachinePage({ params }: MachinePageProps) {
 
   // Decode the serial number from the URL
   const serialNumber = decodeURIComponent(params.serial_number);
-  
+
   // Find the machine by serial number
-  const machine = mockMachines.find(
-    (m) => m.serial_number === serialNumber
-  );
+  const machine = mockMachines.find((m) => m.serial_number === serialNumber);
 
   // If machine not found, show 404
   if (!machine) {
@@ -34,4 +32,4 @@ export default function MachinePage({ params }: MachinePageProps) {
       }}
     />
   );
-} 
+}

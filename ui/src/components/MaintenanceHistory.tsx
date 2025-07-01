@@ -33,31 +33,56 @@ const getMaintenanceTypeIcon = (type: string): React.ReactElement => {
     case 'Preventive':
       return (
         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
         </svg>
       );
     case 'Emergency':
       return (
         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+          />
         </svg>
       );
     case 'Corrective':
       return (
         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+          />
         </svg>
       );
     case 'Inspection':
       return (
         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          />
         </svg>
       );
     default:
       return (
         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+          />
         </svg>
       );
   }
@@ -66,7 +91,10 @@ const getMaintenanceTypeIcon = (type: string): React.ReactElement => {
 export default function MaintenanceHistory({ machine, onBack }: MaintenanceHistoryProps) {
   const [sortField, setSortField] = useState<SortField>('work_order_date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
-  const [selectedAction, setSelectedAction] = useState<{ workOrder: string; action: string } | null>(null);
+  const [selectedAction, setSelectedAction] = useState<{
+    workOrder: string;
+    action: string;
+  } | null>(null);
 
   // Filter maintenance records for this specific machine
   const maintenanceRecords = useMemo(() => {
@@ -155,8 +183,18 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
   const getSortIcon = (field: SortField) => {
     if (sortField !== field) {
       return (
-        <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+        <svg
+          className="h-4 w-4 text-gray-400"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
+          />
         </svg>
       );
     }
@@ -183,7 +221,12 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
               className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
             >
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
               </svg>
               Back to Machines
             </button>
@@ -191,7 +234,7 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
 
           <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
             <h1 className="text-2xl font-bold text-gray-900 mb-4">Machine Information</h1>
-            
+
             {/* Machine Details Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <div>
@@ -210,7 +253,9 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
                   </div>
                   <div>
                     <span className="text-sm text-gray-500">Status:</span>
-                    <div className="font-medium text-gray-900">{machine.status || 'Not specified'}</div>
+                    <div className="font-medium text-gray-900">
+                      {machine.status || 'Not specified'}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -223,11 +268,15 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
                   </div>
                   <div>
                     <span className="text-sm text-gray-500">Account Type:</span>
-                    <div className="font-medium text-gray-900">{machine.account_type || 'Not specified'}</div>
+                    <div className="font-medium text-gray-900">
+                      {machine.account_type || 'Not specified'}
+                    </div>
                   </div>
                   <div>
                     <span className="text-sm text-gray-500">Location:</span>
-                    <div className="font-medium text-gray-900">{machine.district}, {machine.state}</div>
+                    <div className="font-medium text-gray-900">
+                      {machine.district}, {machine.state}
+                    </div>
                   </div>
                   <div>
                     <span className="text-sm text-gray-500">Person in Charge:</span>
@@ -240,15 +289,21 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
                 <div className="space-y-2">
                   <div>
                     <span className="text-sm text-gray-500">TNC Date:</span>
-                    <div className="font-medium text-gray-900">{machine.tnc_date ? formatDate(machine.tnc_date) : 'Not set'}</div>
+                    <div className="font-medium text-gray-900">
+                      {machine.tnc_date ? formatDate(machine.tnc_date) : 'Not set'}
+                    </div>
                   </div>
                   <div>
                     <span className="text-sm text-gray-500">PPM Date:</span>
-                    <div className="font-medium text-gray-900">{machine.ppm_date ? formatDate(machine.ppm_date) : 'Not set'}</div>
+                    <div className="font-medium text-gray-900">
+                      {machine.ppm_date ? formatDate(machine.ppm_date) : 'Not set'}
+                    </div>
                   </div>
                   <div>
                     <span className="text-sm text-gray-500">Reported By:</span>
-                    <div className="font-medium text-gray-900">{machine.reported_by || 'Not specified'}</div>
+                    <div className="font-medium text-gray-900">
+                      {machine.reported_by || 'Not specified'}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -258,19 +313,43 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
             <div className="mt-6 pt-4 border-t border-gray-200">
               <div className="flex flex-wrap items-center justify-center gap-8 text-sm">
                 <div className="flex items-center gap-2">
-                  <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  <svg
+                    className="h-4 w-4 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                    />
                   </svg>
                   <span className="text-gray-500">Created:</span>
-                  <span className="font-medium text-gray-900">{formatDateTime(machine.created_at)}</span>
+                  <span className="font-medium text-gray-900">
+                    {formatDateTime(machine.created_at)}
+                  </span>
                 </div>
                 <div className="hidden sm:block text-gray-300">•</div>
                 <div className="flex items-center gap-2">
-                  <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  <svg
+                    className="h-4 w-4 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                    />
                   </svg>
                   <span className="text-gray-500">Last Updated:</span>
-                  <span className="font-medium text-gray-900">{formatDateTime(machine.updated_at)}</span>
+                  <span className="font-medium text-gray-900">
+                    {formatDateTime(machine.updated_at)}
+                  </span>
                 </div>
               </div>
             </div>
@@ -295,8 +374,18 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
                         className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 transition-colors"
                         title="Download attachment"
                       >
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        <svg
+                          className="h-4 w-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                          />
                         </svg>
                         <span>{machine.attachment}</span>
                       </button>
@@ -315,19 +404,19 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
             </div>
             <div className="bg-white rounded-lg shadow-sm border p-4">
               <div className="text-2xl font-bold text-green-600">
-                {maintenanceRecords.filter(r => r.worker_order_type === 'Preventive').length}
+                {maintenanceRecords.filter((r) => r.worker_order_type === 'Preventive').length}
               </div>
               <div className="text-sm text-gray-600">Preventive</div>
             </div>
             <div className="bg-white rounded-lg shadow-sm border p-4">
               <div className="text-2xl font-bold text-red-600">
-                {maintenanceRecords.filter(r => r.worker_order_type === 'Emergency').length}
+                {maintenanceRecords.filter((r) => r.worker_order_type === 'Emergency').length}
               </div>
               <div className="text-sm text-gray-600">Emergency</div>
             </div>
             <div className="bg-white rounded-lg shadow-sm border p-4">
               <div className="text-2xl font-bold text-blue-600">
-                {maintenanceRecords.filter(r => r.worker_order_type === 'Corrective').length}
+                {maintenanceRecords.filter((r) => r.worker_order_type === 'Corrective').length}
               </div>
               <div className="text-sm text-gray-600">Corrective</div>
             </div>
@@ -396,9 +485,10 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {sortedRecords.map((record) => {
-                    const actionSummary = record.action_taken.length > 100 
-                      ? record.action_taken.substring(0, 100) + '...' 
-                      : record.action_taken;
+                    const actionSummary =
+                      record.action_taken.length > 100
+                        ? record.action_taken.substring(0, 100) + '...'
+                        : record.action_taken;
 
                     return (
                       <React.Fragment key={record.work_order_number}>
@@ -416,15 +506,15 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
                             {formatDate(record.work_order_date)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${getMaintenanceTypeColor(record.worker_order_type)}`}>
+                            <span
+                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${getMaintenanceTypeColor(record.worker_order_type)}`}
+                            >
                               {getMaintenanceTypeIcon(record.worker_order_type)}
                               {record.worker_order_type}
                             </span>
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-900 max-w-md">
-                            <div className="line-clamp-2">
-                              {actionSummary}
-                            </div>
+                            <div className="line-clamp-2">{actionSummary}</div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {record.reported_by}
@@ -436,8 +526,18 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
                                 className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
                                 title="Download attachment"
                               >
-                                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                <svg
+                                  className="h-4 w-4"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                  />
                                 </svg>
                                 <span className="text-xs">Download</span>
                               </button>
@@ -448,7 +548,9 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
                           <td className="px-6 py-4 whitespace-nowrap text-center">
                             {record.action_taken.length > 100 && (
                               <button
-                                onClick={() => openActionModal(record.work_order_number, record.action_taken)}
+                                onClick={() =>
+                                  openActionModal(record.work_order_number, record.action_taken)
+                                }
                                 className="text-blue-600 hover:text-blue-800 text-sm font-medium"
                               >
                                 View Details
@@ -468,8 +570,14 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
 
       {/* Action Details Modal */}
       {selectedAction && (
-        <div className="fixed inset-0 backdrop-blur-md flex items-center justify-center z-50" onClick={closeActionModal}>
-          <div className="bg-white rounded-lg border-2 border-gray-800 max-w-2xl w-full mx-4 max-h-96 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 backdrop-blur-md flex items-center justify-center z-50"
+          onClick={closeActionModal}
+        >
+          <div
+            className="bg-white rounded-lg border-2 border-gray-800 max-w-2xl w-full mx-4 max-h-96 overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
               <h3 className="text-lg font-semibold text-gray-900">
                 Action Details - {selectedAction.workOrder}
@@ -506,4 +614,4 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
       )}
     </div>
   );
-} 
+}
