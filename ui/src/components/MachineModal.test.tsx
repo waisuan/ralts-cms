@@ -1,5 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { act } from 'react';
 import MachineModal from './MachineModal';
 import { Machine } from '../types/machine';
 
@@ -263,12 +264,14 @@ describe('MachineModal', () => {
       // Should show upload progress initially
       expect(screen.getByText('Uploading...')).toBeInTheDocument();
 
-      // Advance timers to complete the upload simulation
-      jest.advanceTimersByTime(1000);
+      // Advance timers to complete the upload simulation with act()
+      await act(async () => {
+        jest.advanceTimersByTime(1000);
+      });
 
-      // Wait for upload to complete
+      // Wait for upload to complete - look for the file size and success text
       await waitFor(() => {
-        expect(screen.getByText('Upload successful')).toBeInTheDocument();
+        expect(screen.getByText(/Upload successful/)).toBeInTheDocument();
       });
 
       expect(screen.getByText('test.pdf')).toBeInTheDocument();
@@ -283,12 +286,14 @@ describe('MachineModal', () => {
 
       await user.upload(fileInput, file);
 
-      // Advance timers to complete the upload simulation
-      jest.advanceTimersByTime(1000);
+      // Advance timers to complete the upload simulation with act()
+      await act(async () => {
+        jest.advanceTimersByTime(1000);
+      });
 
-      // Wait for upload to complete
+      // Wait for upload to complete - look for the file size and success text
       await waitFor(() => {
-        expect(screen.getByText('Upload successful')).toBeInTheDocument();
+        expect(screen.getByText(/Upload successful/)).toBeInTheDocument();
       });
 
       // Remove the file
