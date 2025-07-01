@@ -2,6 +2,34 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import RecordCard from './RecordCard';
 import { Machine } from '../types/machine';
 
+// Mock maintenance data for RecordCard tests
+jest.mock('../data/mockMaintenance', () => ({
+  mockMaintenanceRecords: [
+    {
+      machine_serial_number: 'SN-TEST',
+      work_order_number: 'WO-TEST-001',
+      work_order_date: '2024-06-15',
+      action_taken: 'Test maintenance action',
+      reported_by: 'Test Tech',
+      worker_order_type: 'Preventive',
+      attachment: 'test_report.pdf',
+      created_at: '2024-06-15T09:00:00Z',
+      updated_at: '2024-06-15T10:30:00Z',
+    },
+    {
+      machine_serial_number: 'SN-TEST',
+      work_order_number: 'WO-TEST-002',
+      work_order_date: '2024-06-10',
+      action_taken: 'Another test maintenance action',
+      reported_by: 'Test Tech 2',
+      worker_order_type: 'Emergency',
+      attachment: '',
+      created_at: '2024-06-10T14:00:00Z',
+      updated_at: '2024-06-10T16:00:00Z',
+    },
+  ],
+}));
+
 // Mock the current date for consistent testing
 const MOCK_CURRENT_DATE = '2024-06-29T12:00:00.000Z';
 
@@ -66,7 +94,9 @@ describe('RecordCard', () => {
     render(
       <RecordCard machine={baseMachine} onView={() => {}} onEdit={() => {}} onDelete={() => {}} />
     );
-    expect(screen.getByText(/Reported By: Test Reporter/)).toBeInTheDocument();
+    // Text is split across elements, so check for both parts
+    expect(screen.getByText('Reported By:')).toBeInTheDocument();
+    expect(screen.getByText('Test Reporter')).toBeInTheDocument();
   });
 
   it('shows attachment download icon when attachment exists', () => {
@@ -175,7 +205,9 @@ describe('RecordCard', () => {
         onDelete={() => {}}
       />
     );
-    expect(screen.getByText(/Reported By: Not specified/)).toBeInTheDocument();
+    // Text is split across elements, so check for both parts
+    expect(screen.getByText('Reported By:')).toBeInTheDocument();
+    expect(screen.getByText('Not specified')).toBeInTheDocument();
   });
 
   it('shows "Not specified" for empty status field', () => {
@@ -246,5 +278,46 @@ describe('RecordCard', () => {
       <RecordCard machine={futureMachine} onView={() => {}} onEdit={() => {}} onDelete={() => {}} />
     );
     expect(screen.getByText('Upcoming')).toBeInTheDocument();
+  });
+
+  it('displays maintenance count badge', () => {
+    render(
+      <RecordCard machine={baseMachine} onView={() => {}} onEdit={() => {}} onDelete={() => {}} />
+    );
+
+    // Should have 2 maintenance records for SN-TEST from mock data
+    const badge = screen.getByTitle('2 maintenance records available');
+    expect(badge).toBeInTheDocument();
+  });
+
+  it('maintenance count badge is clickable and calls onView', () => {
+    const mockOnView = jest.fn();
+    render(
+      <RecordCard machine={baseMachine} onView={mockOnView} onEdit={() => {}} onDelete={() => {}} />
+    );
+
+    const badge = screen.getByTitle('2 maintenance records available');
+    fireEvent.click(badge);
+
+    expect(mockOnView).toHaveBeenCalledWith('SN-TEST');
+  });
+
+  it('displays correct maintenance count in badge', () => {
+    render(
+      <RecordCard machine={baseMachine} onView={() => {}} onEdit={() => {}} onDelete={() => {}} />
+    );
+
+    // The count should match the number of maintenance records for this machine (2 from mock)
+    const badge = screen.getByTitle('2 maintenance records available');
+    expect(badge).toHaveTextContent('2');
+  });
+
+  it('has proper styling for maintenance badge', () => {
+    render(
+      <RecordCard machine={baseMachine} onView={() => {}} onEdit={() => {}} onDelete={() => {}} />
+    );
+
+    const badge = screen.getByTitle('2 maintenance records available');
+    expect(badge).toHaveClass('bg-indigo-100', 'text-indigo-800', 'cursor-pointer');
   });
 });

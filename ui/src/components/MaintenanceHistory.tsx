@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { Maintenance, MaintenanceOrderType } from '../types/maintenance';
 import { mockMaintenanceRecords } from '../data/mockMaintenance';
 import { Machine } from '../types/machine';
 

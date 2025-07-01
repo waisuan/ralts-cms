@@ -4,6 +4,14 @@ import RecordsList from './RecordsList';
 import { SearchOptions } from './SearchBar';
 import { DEFAULT_SEARCH_PROPERTY } from '@/utils/constants';
 
+// Mock next/navigation
+const mockPush = jest.fn();
+jest.mock('next/navigation', () => ({
+  useRouter: jest.fn(() => ({
+    push: mockPush,
+  })),
+}));
+
 // Mock the current date for consistent testing
 const MOCK_CURRENT_DATE = '2024-06-29T12:00:00.000Z';
 
@@ -106,6 +114,7 @@ describe('RecordsList', () => {
   beforeEach(() => {
     // Clear any console logs from previous tests
     jest.clearAllMocks();
+    mockPush.mockClear();
 
     // Mock the current date for consistent testing
     jest.useFakeTimers();
@@ -246,9 +255,8 @@ describe('RecordsList', () => {
     expect(screen.getByText(/No machines match "NonExistentMachine"/)).toBeInTheDocument();
   });
 
-  it('calls onView when View button is clicked', async () => {
+  it('calls router.push when View button is clicked', async () => {
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
     render(<RecordsList searchOptions={defaultSearchOptions} />);
 
@@ -264,9 +272,7 @@ describe('RecordsList', () => {
     expect(viewButton).toBeInTheDocument();
     await user.click(viewButton!);
 
-    expect(consoleSpy).toHaveBeenCalledWith('View machine:', 'SN-003');
-
-    consoleSpy.mockRestore();
+    expect(mockPush).toHaveBeenCalledWith('/machines/SN-003');
   });
 
   it('opens edit modal when Edit button is clicked', async () => {

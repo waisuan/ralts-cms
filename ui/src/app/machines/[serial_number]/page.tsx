@@ -22,6 +22,7 @@ export default function MachinePage({ params }: MachinePageProps) {
   // If machine not found, show 404
   if (!machine) {
     notFound();
+    return null; // This prevents rendering in test environments where notFound() doesn't stop execution
   }
 
   return (
