@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Machine } from '../types/machine';
 import { getPPMStatus } from '../utils/ppmUtils';
+import { mockMaintenanceRecords } from '../data/mockMaintenance';
 
 interface RecordCardProps {
   machine: Machine;
@@ -12,6 +13,13 @@ interface RecordCardProps {
 export default function RecordCard({ machine, onView, onEdit, onDelete }: RecordCardProps) {
   const [showNotesModal, setShowNotesModal] = useState(false);
   const status = getPPMStatus(machine.ppm_date);
+
+  // Count maintenance records for this machine
+  const maintenanceCount = useMemo(() => {
+    return mockMaintenanceRecords.filter(
+      record => record.machine_serial_number === machine.serial_number
+    ).length;
+  }, [machine.serial_number]);
 
   const formatDate = (dateString: string) => {
     if (!dateString) return '-';
@@ -56,6 +64,18 @@ export default function RecordCard({ machine, onView, onEdit, onDelete }: Record
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {/* Maintenance History Count Badge */}
+              <div 
+                className="flex items-center gap-1 bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full text-xs font-medium cursor-pointer hover:bg-indigo-200 transition-colors"
+                title={`${maintenanceCount} maintenance record${maintenanceCount !== 1 ? 's' : ''} available`}
+                onClick={() => onView(machine.serial_number)}
+              >
+                <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                </svg>
+                <span>{maintenanceCount}</span>
+              </div>
+
               {/* Attachment Download Icon */}
               {machine.attachment && (
                 <button
@@ -117,12 +137,16 @@ export default function RecordCard({ machine, onView, onEdit, onDelete }: Record
             </div>
           </div>
 
-          <div className="text-xs text-gray-500 mb-4 space-y-1">
-            <div>TNC Date: {formatDate(machine.tnc_date)}</div>
-            <div>PPM Date: {formatDate(machine.ppm_date)}</div>
-            <div>Reported By: {machine.reported_by || 'Not specified'}</div>
-            <div>Created: {formatDate(machine.created_at)}</div>
-            <div>Updated: {formatDate(machine.updated_at)}</div>
+          <div className="text-xs mb-4 space-y-1">
+            <div className="text-gray-500">
+              TNC Date: <span className="text-gray-700">{formatDate(machine.tnc_date)}</span>
+            </div>
+            <div className="text-gray-500">
+              PPM Date: <span className="text-gray-700">{formatDate(machine.ppm_date)}</span>
+            </div>
+            <div className="text-gray-500">
+              Reported By: <span className="text-gray-700">{machine.reported_by || 'Not specified'}</span>
+            </div>
           </div>
 
           <div className="flex gap-2">
@@ -144,6 +168,25 @@ export default function RecordCard({ machine, onView, onEdit, onDelete }: Record
             >
               Delete
             </button>
+          </div>
+
+          {/* Timestamps Footer */}
+          <div className="text-center text-xs mt-3 pt-3 border-t border-gray-100 flex items-center justify-center gap-3">
+            <span className="flex items-center gap-1 text-gray-500">
+              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              <span>Created:</span>
+              <span className="text-gray-700">{formatDate(machine.created_at)}</span>
+            </span>
+            <span className="text-gray-400">•</span>
+            <span className="flex items-center gap-1 text-gray-500">
+              <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              <span>Updated:</span>
+              <span className="text-gray-700">{formatDate(machine.updated_at)}</span>
+            </span>
           </div>
         </div>
       </div>

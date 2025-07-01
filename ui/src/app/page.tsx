@@ -4,9 +4,11 @@ import { useState } from 'react';
 import RecordsList, { SortType } from '@/components/RecordsList';
 import SearchBar, { SearchOptions } from '@/components/SearchBar';
 import OverdueAlert from '@/components/OverdueAlert';
+import MaintenanceHistory from '@/components/MaintenanceHistory';
 import { DEFAULT_SEARCH_PROPERTY } from '@/utils/constants';
 import { mockMachines } from '@/data/mockMachines';
 import { useOverdueStats } from '@/hooks/useOverdueStats';
+import { Machine } from '@/types/machine';
 
 type FilterType = 'all' | 'overdue' | 'due';
 
@@ -19,6 +21,7 @@ export default function Home() {
   const [sortBy, setSortBy] = useState<SortType>('newest');
   const [isOverdueDismissed, setIsOverdueDismissed] = useState(false);
   const [isDueDismissed, setIsDueDismissed] = useState(false);
+  const [selectedMachineForHistory, setSelectedMachineForHistory] = useState<Machine | null>(null);
 
   // Calculate overdue statistics for the alert banner
   const overdueStats = useOverdueStats(mockMachines);
@@ -57,6 +60,24 @@ export default function Home() {
     setIsDueDismissed(true);
   };
 
+  const handleViewMachineHistory = (machine: Machine) => {
+    setSelectedMachineForHistory(machine);
+  };
+
+  const handleBackFromHistory = () => {
+    setSelectedMachineForHistory(null);
+  };
+
+  // If showing maintenance history, render that component
+  if (selectedMachineForHistory) {
+    return (
+      <MaintenanceHistory
+        machine={selectedMachineForHistory}
+        onBack={handleBackFromHistory}
+      />
+    );
+  }
+
   return (
     <main className="min-h-screen bg-gray-50 py-8">
       <div className="container mx-auto px-4">
@@ -85,6 +106,7 @@ export default function Home() {
           sortBy={sortBy}
           onShowAll={handleShowAll}
           onSortChange={handleSortChange}
+          onViewMachineHistory={handleViewMachineHistory}
         />
       </div>
     </main>

@@ -19,6 +19,7 @@ interface RecordsListProps {
   sortBy?: SortType;
   onShowAll?: () => void;
   onSortChange?: (sortBy: SortType) => void;
+  onViewMachineHistory: (machine: Machine) => void;
 }
 
 const ITEMS_PER_PAGE = 3; // Show 3 machines initially, then load more
@@ -29,6 +30,7 @@ export default function RecordsList({
   sortBy = 'newest',
   onShowAll,
   onSortChange,
+  onViewMachineHistory,
 }: RecordsListProps) {
   const [machines, setMachines] = useState(mockMachines);
   const [displayedCount, setDisplayedCount] = useState(ITEMS_PER_PAGE);
@@ -115,7 +117,10 @@ export default function RecordsList({
   };
 
   const handleView = (serial_number: string) => {
-    console.log('View machine:', serial_number);
+    const machine = machines.find((m) => m.serial_number === serial_number);
+    if (machine) {
+      onViewMachineHistory(machine);
+    }
   };
 
   const handleEdit = (serial_number: string) => {
