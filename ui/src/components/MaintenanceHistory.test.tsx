@@ -217,9 +217,18 @@ describe('MaintenanceHistory', () => {
   it('closes action details modal when clicking backdrop', async () => {
     const { container } = render(<MaintenanceHistory machine={mockMachine} onBack={() => {}} />);
 
-    // Open modal
-    const viewDetailsButton = screen.getByText('View Details');
-    fireEvent.click(viewDetailsButton);
+    // Open modal by clicking truncated action
+    const truncatedActionButton = screen
+      .getByText((content, element) => {
+        return (
+          content.includes('This is a very long action description') &&
+          content.includes('...') &&
+          element?.closest('button') !== null
+        );
+      })
+      .closest('button');
+
+    fireEvent.click(truncatedActionButton!);
 
     await waitFor(() => {
       expect(screen.getByText('Action Details - WO-002')).toBeInTheDocument();
