@@ -133,6 +133,15 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
   const [editSelectedFile, setEditSelectedFile] = useState<File | null>(null);
   const [editIsUploading, setEditIsUploading] = useState(false);
   const [editUploadProgress, setEditUploadProgress] = useState(0);
+  const [showEditCancelConfirm, setShowEditCancelConfirm] = useState(false);
+  const [originalEditFormData, setOriginalEditFormData] = useState({
+    work_order_number: '',
+    work_order_date: '',
+    action_taken: '',
+    reported_by: '',
+    worker_order_type: 'Preventive' as MaintenanceOrderType,
+    attachment: '',
+  });
 
   // Delete confirmation state
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -140,6 +149,7 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
 
   // Dropdown menu state
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+  const [dropdownPosition, setDropdownPosition] = useState<'above' | 'below'>('below');
 
   // Use local maintenance records
   const maintenanceRecords = localMaintenanceRecords;
@@ -359,15 +369,18 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
 
   // Edit record handlers
   const openEditRecordModal = (record: Maintenance) => {
-    setEditingRecord(record);
-    setEditRecordForm({
+    const formData = {
       work_order_number: record.work_order_number,
       work_order_date: record.work_order_date.split('T')[0], // Extract date part for input
       action_taken: record.action_taken,
       reported_by: record.reported_by,
       worker_order_type: record.worker_order_type as MaintenanceOrderType,
       attachment: record.attachment,
-    });
+    };
+
+    setEditingRecord(record);
+    setEditRecordForm(formData);
+    setOriginalEditFormData(formData); // Store original data for comparison
     setEditRecordErrors({});
     setEditSelectedFile(null);
     setEditUploadProgress(0);
@@ -387,10 +400,41 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
       worker_order_type: 'Preventive',
       attachment: '',
     });
+    setOriginalEditFormData({
+      work_order_number: '',
+      work_order_date: '',
+      action_taken: '',
+      reported_by: '',
+      worker_order_type: 'Preventive',
+      attachment: '',
+    });
     setEditRecordErrors({});
     setEditSelectedFile(null);
     setEditUploadProgress(0);
     setEditIsUploading(false);
+    setShowEditCancelConfirm(false);
+  };
+
+  const handleEditCancelClick = () => {
+    // Check if form data has been changed
+    const hasChanges =
+      Object.keys(editRecordForm).some((key) => {
+        return (
+          editRecordForm[key as keyof typeof editRecordForm] !==
+          originalEditFormData[key as keyof typeof originalEditFormData]
+        );
+      }) || editSelectedFile;
+
+    if (hasChanges) {
+      setShowEditCancelConfirm(true);
+    } else {
+      closeEditRecordModal();
+    }
+  };
+
+  const handleEditConfirmCancel = () => {
+    setShowEditCancelConfirm(false);
+    closeEditRecordModal();
   };
 
   const handleEditRecordInputChange = (field: string, value: string) => {
@@ -506,12 +550,32 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
   };
 
   // Dropdown menu handlers
-  const toggleDropdown = (workOrderNumber: string) => {
-    setOpenDropdownId(openDropdownId === workOrderNumber ? null : workOrderNumber);
+  const toggleDropdown = (workOrderNumber: string, event: React.MouseEvent<HTMLButtonElement>) => {
+    if (openDropdownId === workOrderNumber) {
+      setOpenDropdownId(null);
+    } else {
+      const position = getDropdownPosition(event.currentTarget);
+      setDropdownPosition(position);
+      setOpenDropdownId(workOrderNumber);
+    }
   };
 
-  const closeDropdown = () => {
-    setOpenDropdownId(null);
+  // Calculate dropdown position to prevent it from going off-screen
+  const getDropdownPosition = (buttonElement: HTMLElement) => {
+    const rect = buttonElement.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const dropdownHeight = 130; // Approximate height of dropdown menu with padding
+
+    // Check if there's enough space below
+    const spaceBelow = viewportHeight - rect.bottom;
+
+    if (spaceBelow >= dropdownHeight) {
+      // Position below (default)
+      return 'below';
+    } else {
+      // Position above
+      return 'above';
+    }
   };
 
   const getSortIcon = (field: SortField) => {
@@ -920,11 +984,16 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
                           <td className="px-6 py-4 whitespace-nowrap text-center">
                             <div className="relative">
                               <button
-                                onClick={() => toggleDropdown(record.work_order_number)}
+                                onClick={(e) => toggleDropdown(record.work_order_number, e)}
                                 className="p-2 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-full"
                                 aria-label="More options"
                               >
-                                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg
+                                  className="h-5 w-5"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
                                   <path
                                     strokeLinecap="round"
                                     strokeLinejoin="round"
@@ -936,13 +1005,24 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
 
                               {/* Dropdown Menu */}
                               {openDropdownId === record.work_order_number && (
-                                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-10">
+                                <div
+                                  className={`absolute right-0 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-20 ${
+                                    dropdownPosition === 'above'
+                                      ? 'bottom-full mb-2'
+                                      : 'top-full mt-2'
+                                  }`}
+                                >
                                   <div className="py-1">
                                     <button
                                       onClick={() => openEditRecordModal(record)}
                                       className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
                                     >
-                                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <svg
+                                        className="h-4 w-4"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
                                         <path
                                           strokeLinecap="round"
                                           strokeLinejoin="round"
@@ -956,7 +1036,12 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
                                       onClick={() => openDeleteConfirm(record)}
                                       className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
                                     >
-                                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <svg
+                                        className="h-4 w-4"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
                                         <path
                                           strokeLinecap="round"
                                           strokeLinejoin="round"
@@ -1301,7 +1386,7 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
           {/* Backdrop */}
           <div
             className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
-            onClick={closeEditRecordModal}
+            onClick={handleEditCancelClick}
           />
 
           {/* Modal */}
@@ -1311,7 +1396,7 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
                 <h2 className="text-xl font-semibold text-gray-900">Edit Maintenance Record</h2>
                 <button
-                  onClick={closeEditRecordModal}
+                  onClick={handleEditCancelClick}
                   className="text-gray-400 hover:text-gray-600 focus:outline-none focus:text-gray-600 transition-colors"
                 >
                   <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1375,7 +1460,9 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
                       }`}
                     />
                     {editRecordErrors.work_order_date && (
-                      <p className="mt-1 text-sm text-red-600">{editRecordErrors.work_order_date}</p>
+                      <p className="mt-1 text-sm text-red-600">
+                        {editRecordErrors.work_order_date}
+                      </p>
                     )}
                   </div>
 
@@ -1533,7 +1620,9 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
                               />
                             </svg>
                             <div>
-                              <p className="text-sm font-medium text-blue-800">{editRecordForm.attachment}</p>
+                              <p className="text-sm font-medium text-blue-800">
+                                {editRecordForm.attachment}
+                              </p>
                               <p className="text-xs text-blue-600">Current attachment</p>
                             </div>
                           </div>
@@ -1590,7 +1679,7 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
                 <div className="flex justify-end gap-3 mt-8">
                   <button
                     type="button"
-                    onClick={closeEditRecordModal}
+                    onClick={handleEditCancelClick}
                     className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
                   >
                     Cancel
@@ -1633,7 +1722,9 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
                   </div>
                 </div>
                 <div className="text-center">
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Delete Maintenance Record</h3>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    Delete Maintenance Record
+                  </h3>
                   <p className="text-sm text-gray-500 mb-2">
                     Are you sure you want to delete maintenance record{' '}
                     <strong>{recordToDelete.work_order_number}</strong>?
@@ -1657,6 +1748,59 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
                     className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
                   >
                     Delete Record
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Cancel Confirmation Dialog */}
+      {showEditCancelConfirm && (
+        <div className="fixed inset-0 z-60 overflow-y-auto">
+          <div className="fixed inset-0 bg-black bg-opacity-50" />
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full">
+              <div className="p-6">
+                <div className="flex items-center mb-4">
+                  <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100">
+                    <svg
+                      className="h-6 w-6 text-red-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                      />
+                    </svg>
+                  </div>
+                </div>
+                <div className="text-center">
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Discard changes?</h3>
+                  <p className="text-sm text-gray-500 mb-6">
+                    You have unsaved changes to this maintenance record. Are you sure you want to
+                    discard them and close the form?
+                  </p>
+                </div>
+                <div className="flex space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowEditCancelConfirm(false)}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+                  >
+                    Keep editing
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleEditConfirmCancel}
+                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
+                  >
+                    Discard changes
                   </button>
                 </div>
               </div>
