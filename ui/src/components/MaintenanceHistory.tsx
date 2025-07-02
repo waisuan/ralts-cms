@@ -8,10 +8,16 @@ import { Maintenance, MaintenanceOrderType } from '../types/maintenance';
 interface MaintenanceHistoryProps {
   machine: Machine;
   onBack: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
 type SortField = 'work_order_date' | 'work_order_number' | 'worker_order_type' | 'reported_by';
 type SortDirection = 'asc' | 'desc';
+
+// Pagination configuration
+const ITEMS_PER_PAGE = 10;
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 50];
 
 const getMaintenanceTypeColor = (type: string): string => {
   switch (type) {
@@ -88,13 +94,22 @@ const getMaintenanceTypeIcon = (type: string): React.ReactElement => {
   }
 };
 
-export default function MaintenanceHistory({ machine, onBack }: MaintenanceHistoryProps) {
+export default function MaintenanceHistory({
+  machine,
+  onBack,
+  onEdit,
+  onDelete,
+}: MaintenanceHistoryProps) {
   const [sortField, setSortField] = useState<SortField>('work_order_date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [selectedAction, setSelectedAction] = useState<{
     workOrder: string;
     action: string;
   } | null>(null);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(ITEMS_PER_PAGE);
 
   // Local state for maintenance records
   const [localMaintenanceRecords, setLocalMaintenanceRecords] = useState<Maintenance[]>(() =>
@@ -203,6 +218,23 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
     });
   }, [maintenanceRecords, sortField, sortDirection]);
 
+  // Pagination calculations
+  const totalItems = sortedRecords.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentRecords = sortedRecords.slice(startIndex, endIndex);
+
+  // Reset to first page when sorting changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [sortField, sortDirection]);
+
+  // Reset to first page when items per page changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [itemsPerPage]);
+
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -210,6 +242,55 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
       setSortField(field);
       setSortDirection('desc');
     }
+  };
+
+  // Pagination handlers
+  const goToPage = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleItemsPerPageChange = (newItemsPerPage: number) => {
+    setItemsPerPage(newItemsPerPage);
+  };
+
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisiblePages = 5;
+
+    if (totalPages <= maxVisiblePages) {
+      // Show all pages if total is small
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      // Show pages around current page
+      let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+      let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+      // Adjust if we're near the end
+      if (endPage - startPage + 1 < maxVisiblePages) {
+        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+      }
+
+      for (let i = startPage; i <= endPage; i++) {
+        pages.push(i);
+      }
+    }
+
+    return pages;
   };
 
   const openActionModal = (workOrder: string, action: string) => {
@@ -829,20 +910,54 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
           {/* Add New Record Button */}
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-semibold text-gray-900">Maintenance History</h2>
-            <button
-              onClick={openAddRecordModal}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
-            >
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-              Add New Record
-            </button>
+            <div className="flex items-center gap-3">
+              {onEdit && (
+                <button
+                  onClick={onEdit}
+                  className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                    />
+                  </svg>
+                  Edit Machine
+                </button>
+              )}
+              {onDelete && (
+                <button
+                  onClick={onDelete}
+                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
+                  </svg>
+                  Delete Machine
+                </button>
+              )}
+              <button
+                onClick={openAddRecordModal}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4v16m8-8H4"
+                  />
+                </svg>
+                Add New Record
+              </button>
+            </div>
           </div>
         </div>
 
@@ -855,214 +970,284 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
               <p className="text-gray-500">No maintenance history found for this machine.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      <button
-                        onClick={() => handleSort('work_order_number')}
-                        className="flex items-center gap-1 hover:text-gray-700"
-                      >
-                        Work Order
-                        {getSortIcon('work_order_number')}
-                      </button>
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      <button
-                        onClick={() => handleSort('work_order_date')}
-                        className="flex items-center gap-1 hover:text-gray-700"
-                      >
-                        Date
-                        {getSortIcon('work_order_date')}
-                      </button>
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      <button
-                        onClick={() => handleSort('worker_order_type')}
-                        className="flex items-center gap-1 hover:text-gray-700"
-                      >
-                        Type
-                        {getSortIcon('worker_order_type')}
-                      </button>
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Action Summary
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      <button
-                        onClick={() => handleSort('reported_by')}
-                        className="flex items-center gap-1 hover:text-gray-700"
-                      >
-                        Reported By
-                        {getSortIcon('reported_by')}
-                      </button>
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Attachment
-                    </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {sortedRecords.map((record) => {
-                    const actionSummary =
-                      record.action_taken.length > 100
-                        ? record.action_taken.substring(0, 100) + '...'
-                        : record.action_taken;
-                    const isActionTruncated = record.action_taken.length > 100;
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <button
+                          onClick={() => handleSort('work_order_number')}
+                          className="flex items-center gap-1 hover:text-gray-700"
+                        >
+                          Work Order
+                          {getSortIcon('work_order_number')}
+                        </button>
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <button
+                          onClick={() => handleSort('work_order_date')}
+                          className="flex items-center gap-1 hover:text-gray-700"
+                        >
+                          Date
+                          {getSortIcon('work_order_date')}
+                        </button>
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <button
+                          onClick={() => handleSort('worker_order_type')}
+                          className="flex items-center gap-1 hover:text-gray-700"
+                        >
+                          Type
+                          {getSortIcon('worker_order_type')}
+                        </button>
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Action Summary
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <button
+                          onClick={() => handleSort('reported_by')}
+                          className="flex items-center gap-1 hover:text-gray-700"
+                        >
+                          Reported By
+                          {getSortIcon('reported_by')}
+                        </button>
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Attachment
+                      </th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {currentRecords.map((record) => {
+                      const actionSummary =
+                        record.action_taken.length > 100
+                          ? record.action_taken.substring(0, 100) + '...'
+                          : record.action_taken;
+                      const isActionTruncated = record.action_taken.length > 100;
 
-                    return (
-                      <React.Fragment key={record.work_order_number}>
-                        <tr className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">
-                              {record.work_order_number}
-                            </div>
-                            <div className="text-xs text-gray-500 space-y-1">
-                              <div>Created: {formatDateTime(record.created_at)}</div>
-                              <div>Updated: {formatDateTime(record.updated_at)}</div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {formatDate(record.work_order_date)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span
-                              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${getMaintenanceTypeColor(record.worker_order_type)}`}
-                            >
-                              {getMaintenanceTypeIcon(record.worker_order_type)}
-                              {record.worker_order_type}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-900 max-w-md">
-                            {isActionTruncated ? (
-                              <button
-                                onClick={() =>
-                                  openActionModal(record.work_order_number, record.action_taken)
-                                }
-                                className="text-left hover:text-blue-600 cursor-pointer transition-colors"
-                                title="Click to view full details"
+                      return (
+                        <React.Fragment key={record.work_order_number}>
+                          <tr className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">
+                                {record.work_order_number}
+                              </div>
+                              <div className="text-xs text-gray-500 space-y-1">
+                                <div>Created: {formatDateTime(record.created_at)}</div>
+                                <div>Updated: {formatDateTime(record.updated_at)}</div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {formatDate(record.work_order_date)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span
+                                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${getMaintenanceTypeColor(record.worker_order_type)}`}
                               >
+                                {getMaintenanceTypeIcon(record.worker_order_type)}
+                                {record.worker_order_type}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900 max-w-md">
+                              {isActionTruncated ? (
+                                <button
+                                  onClick={() =>
+                                    openActionModal(record.work_order_number, record.action_taken)
+                                  }
+                                  className="text-left hover:text-blue-600 cursor-pointer transition-colors"
+                                  title="Click to view full details"
+                                >
+                                  <div className="line-clamp-2">{actionSummary}</div>
+                                </button>
+                              ) : (
                                 <div className="line-clamp-2">{actionSummary}</div>
-                              </button>
-                            ) : (
-                              <div className="line-clamp-2">{actionSummary}</div>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {record.reported_by}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {record.attachment ? (
-                              <button
-                                onClick={() => handleDownloadAttachment(record.attachment)}
-                                className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
-                                title="Download attachment"
-                              >
-                                <svg
-                                  className="h-4 w-4"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                                  />
-                                </svg>
-                                <span className="text-xs">Download</span>
-                              </button>
-                            ) : (
-                              <span className="text-gray-400">-</span>
-                            )}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
-                            <div className="relative">
-                              <button
-                                onClick={(e) => toggleDropdown(record.work_order_number, e)}
-                                className="p-2 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-full"
-                                aria-label="More options"
-                              >
-                                <svg
-                                  className="h-5 w-5"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-                                  />
-                                </svg>
-                              </button>
-
-                              {/* Dropdown Menu */}
-                              {openDropdownId === record.work_order_number && (
-                                <div
-                                  className={`absolute right-0 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-20 ${
-                                    dropdownPosition === 'above'
-                                      ? 'bottom-full mb-2'
-                                      : 'top-full mt-2'
-                                  }`}
-                                >
-                                  <div className="py-1">
-                                    <button
-                                      onClick={() => openEditRecordModal(record)}
-                                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-                                    >
-                                      <svg
-                                        className="h-4 w-4"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth={2}
-                                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                        />
-                                      </svg>
-                                      Edit Record
-                                    </button>
-                                    <button
-                                      onClick={() => openDeleteConfirm(record)}
-                                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                                    >
-                                      <svg
-                                        className="h-4 w-4"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        viewBox="0 0 24 24"
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          strokeWidth={2}
-                                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                        />
-                                      </svg>
-                                      Delete Record
-                                    </button>
-                                  </div>
-                                </div>
                               )}
-                            </div>
-                          </td>
-                        </tr>
-                      </React.Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {record.reported_by}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {record.attachment ? (
+                                <button
+                                  onClick={() => handleDownloadAttachment(record.attachment)}
+                                  className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
+                                  title="Download attachment"
+                                >
+                                  <svg
+                                    className="h-4 w-4"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                    />
+                                  </svg>
+                                  <span className="text-xs">Download</span>
+                                </button>
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-center">
+                              <div className="relative">
+                                <button
+                                  onClick={(e) => toggleDropdown(record.work_order_number, e)}
+                                  className="p-2 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-full"
+                                  aria-label="More options"
+                                >
+                                  <svg
+                                    className="h-5 w-5"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+                                    />
+                                  </svg>
+                                </button>
+
+                                {/* Dropdown Menu */}
+                                {openDropdownId === record.work_order_number && (
+                                  <div
+                                    className={`absolute right-0 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-20 ${
+                                      dropdownPosition === 'above'
+                                        ? 'bottom-full mb-2'
+                                        : 'top-full mt-2'
+                                    }`}
+                                  >
+                                    <div className="py-1">
+                                      <button
+                                        onClick={() => openEditRecordModal(record)}
+                                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                                      >
+                                        <svg
+                                          className="h-4 w-4"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          viewBox="0 0 24 24"
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                          />
+                                        </svg>
+                                        Edit Record
+                                      </button>
+                                      <button
+                                        onClick={() => openDeleteConfirm(record)}
+                                        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                      >
+                                        <svg
+                                          className="h-4 w-4"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          viewBox="0 0 24 24"
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                          />
+                                        </svg>
+                                        Delete Record
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="bg-white px-6 py-4 border-t border-gray-200">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    {/* Items per page selector */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-900 font-medium">Show:</span>
+                      <select
+                        value={itemsPerPage}
+                        onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                        className="border border-gray-300 rounded-md px-3 py-1 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        {PAGE_SIZE_OPTIONS.map((option) => (
+                          <option key={option} value={option}>
+                            {option}
+                          </option>
+                        ))}
+                      </select>
+                      <span className="text-sm text-gray-900 font-medium">per page</span>
+                    </div>
+
+                    {/* Pagination info */}
+                    <div className="text-sm text-gray-900 font-medium">
+                      Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems}{' '}
+                      results
+                    </div>
+
+                    {/* Pagination navigation */}
+                    <div className="flex items-center gap-2">
+                      {/* Previous button */}
+                      <button
+                        onClick={goToPreviousPage}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 text-gray-900 font-medium"
+                      >
+                        Previous
+                      </button>
+
+                      {/* Page numbers */}
+                      <div className="flex items-center gap-1">
+                        {getPageNumbers().map((page) => (
+                          <button
+                            key={page}
+                            onClick={() => goToPage(page)}
+                            className={`px-3 py-1 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 font-medium ${
+                              currentPage === page
+                                ? 'bg-blue-600 text-white border-blue-600'
+                                : 'border-gray-300 text-gray-900 hover:bg-gray-50'
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Next button */}
+                      <button
+                        onClick={goToNextPage}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 text-gray-900 font-medium"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

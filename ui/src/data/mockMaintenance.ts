@@ -1,88 +1,167 @@
 import { Maintenance } from '../types/maintenance';
 
-export const mockMaintenanceRecords: Maintenance[] = [
-  {
-    machine_serial_number: 'SN-001',
-    work_order_number: 'WO-2024-001',
-    work_order_date: '2024-06-15',
-    action_taken:
-      'Completed routine preventive maintenance. Replaced air filters, checked fluid levels, and performed system diagnostics. All components functioning within normal parameters.',
-    reported_by: 'John Smith',
-    worker_order_type: 'Preventive',
-    attachment: 'maintenance_report_001.pdf',
-    created_at: '2024-06-15T09:00:00.000Z',
-    updated_at: '2024-06-15T14:30:00.000Z',
-  },
-  {
-    machine_serial_number: 'SN-001',
-    work_order_number: 'WO-2024-002',
-    work_order_date: '2024-05-20',
-    action_taken:
-      'Emergency repair due to hydraulic pump failure. Replaced faulty pump assembly and tested system pressure. Machine returned to full operational status.',
-    reported_by: 'Sarah Johnson',
-    worker_order_type: 'Emergency',
-    attachment: 'emergency_repair_002.pdf',
-    created_at: '2024-05-20T08:15:00.000Z',
-    updated_at: '2024-05-20T16:45:00.000Z',
-  },
-  {
-    machine_serial_number: 'SN-001',
-    work_order_number: 'WO-2024-003',
-    work_order_date: '2024-04-10',
-    action_taken:
-      'Corrective maintenance to address belt tension issues. Adjusted tension on drive belts and replaced worn components. System calibration completed.',
-    reported_by: 'Mike Davis',
-    worker_order_type: 'Corrective',
-    attachment: '',
-    created_at: '2024-04-10T10:30:00.000Z',
-    updated_at: '2024-04-10T15:20:00.000Z',
-  },
-  {
-    machine_serial_number: 'SN-002',
-    work_order_number: 'WO-2024-004',
-    work_order_date: '2024-06-10',
-    action_taken:
-      'Monthly inspection and lubrication service. Checked all moving parts, applied lubricants as per schedule, and verified safety systems.',
-    reported_by: 'Lisa Chen',
-    worker_order_type: 'Inspection',
-    attachment: 'inspection_004.pdf',
-    created_at: '2024-06-10T11:00:00.000Z',
-    updated_at: '2024-06-10T13:45:00.000Z',
-  },
-  {
-    machine_serial_number: 'SN-002',
-    work_order_number: 'WO-2024-005',
-    work_order_date: '2024-05-05',
-    action_taken:
-      'Replaced worn-out conveyor belt and realigned transport mechanism. Performed load testing to ensure proper operation.',
-    reported_by: 'Tom Wilson',
-    worker_order_type: 'Corrective',
-    attachment: 'belt_replacement_005.pdf',
-    created_at: '2024-05-05T09:45:00.000Z',
-    updated_at: '2024-05-05T17:30:00.000Z',
-  },
-  {
-    machine_serial_number: 'SN-003',
-    work_order_number: 'WO-2024-006',
-    work_order_date: '2024-06-25',
-    action_taken:
-      'Quarterly preventive maintenance cycle. Complete system overhaul including filter replacement, fluid changes, and comprehensive testing.',
-    reported_by: 'Emma Brown',
-    worker_order_type: 'Preventive',
-    attachment: 'quarterly_maintenance_006.pdf',
-    created_at: '2024-06-25T08:00:00.000Z',
-    updated_at: '2024-06-25T16:00:00.000Z',
-  },
-  {
-    machine_serial_number: 'SN-003',
-    work_order_number: 'WO-2024-007',
-    work_order_date: '2024-03-15',
-    action_taken:
-      'Emergency shutdown investigation. Found and repaired electrical fault in control panel. Updated safety protocols and tested all emergency systems.',
-    reported_by: 'Alex Rodriguez',
-    worker_order_type: 'Emergency',
-    attachment: 'emergency_electrical_007.pdf',
-    created_at: '2024-03-15T14:20:00.000Z',
-    updated_at: '2024-03-15T20:15:00.000Z',
-  },
-];
+// Helper function to generate random dates within a range
+const randomDate = (start: Date, end: Date): string => {
+  return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()))
+    .toISOString()
+    .split('T')[0];
+};
+
+// Helper function to generate random datetime
+const randomDateTime = (start: Date, end: Date): string => {
+  return new Date(
+    start.getTime() + Math.random() * (end.getTime() - start.getTime())
+  ).toISOString();
+};
+
+// Generate extensive mock data for pagination testing
+const generateMockRecords = (): Maintenance[] => {
+  const records: Maintenance[] = [];
+  const machineSerialNumbers = [
+    'SN-001',
+    'SN-002',
+    'SN-003',
+    'SN-004',
+    'SN-005',
+    'SN-006',
+    'SN-007',
+    'SN-008',
+    'SN-009',
+    'SN-010',
+  ];
+  const technicians = [
+    'John Smith',
+    'Sarah Johnson',
+    'Mike Davis',
+    'Lisa Chen',
+    'Tom Wilson',
+    'Emma Brown',
+    'Alex Rodriguez',
+    'Maria Garcia',
+    'David Lee',
+    'Jennifer White',
+    'Robert Taylor',
+    'Amanda Clark',
+    'James Anderson',
+    'Michelle Lewis',
+    'Christopher Hall',
+  ];
+  const maintenanceTypes = ['Preventive', 'Corrective', 'Emergency', 'Inspection'] as const;
+  const attachments = [
+    'maintenance_report.pdf',
+    'repair_log.pdf',
+    'inspection_checklist.pdf',
+    'parts_replacement.pdf',
+    'safety_audit.pdf',
+    'calibration_report.pdf',
+    'troubleshooting_guide.pdf',
+    'preventive_schedule.pdf',
+    'emergency_protocol.pdf',
+    'quality_check.pdf',
+    'performance_test.pdf',
+    'compliance_report.pdf',
+    'warranty_claim.pdf',
+    'service_history.pdf',
+    'maintenance_manual.pdf',
+  ];
+
+  let workOrderCounter = 1;
+
+  // Generate records for each machine
+  machineSerialNumbers.forEach((serialNumber) => {
+    // Generate 15-25 records per machine
+    const numRecords = Math.floor(Math.random() * 11) + 15; // 15-25 records
+
+    for (let i = 0; i < numRecords; i++) {
+      const workOrderDate = randomDate(new Date('2023-01-01'), new Date('2024-12-31'));
+      const createdDate = randomDateTime(new Date(workOrderDate), new Date());
+      const updatedDate = randomDateTime(new Date(createdDate), new Date());
+
+      const maintenanceType = maintenanceTypes[Math.floor(Math.random() * maintenanceTypes.length)];
+      const technician = technicians[Math.floor(Math.random() * technicians.length)];
+      const hasAttachment = Math.random() > 0.3; // 70% chance of having attachment
+      const attachment = hasAttachment
+        ? attachments[Math.floor(Math.random() * attachments.length)]
+        : '';
+
+      // Generate realistic action descriptions based on maintenance type
+      let actionTaken = '';
+      switch (maintenanceType) {
+        case 'Preventive':
+          actionTaken = `Completed scheduled preventive maintenance. ${
+            [
+              'Replaced air filters and checked fluid levels.',
+              'Performed system diagnostics and calibration.',
+              'Lubricated moving parts and tightened connections.',
+              'Updated software and firmware versions.',
+              'Conducted safety system verification.',
+              'Replaced worn components as per maintenance schedule.',
+              'Performed vibration analysis and alignment checks.',
+              'Updated maintenance logs and documentation.',
+            ][Math.floor(Math.random() * 8)]
+          } All systems operating within normal parameters.`;
+          break;
+        case 'Corrective':
+          actionTaken = `Corrective maintenance performed to address ${
+            [
+              'belt tension and alignment issues.',
+              'hydraulic system pressure problems.',
+              'electrical connection faults.',
+              'mechanical wear and tear.',
+              'sensor calibration drift.',
+              'control system malfunctions.',
+              'cooling system inefficiencies.',
+              'drive mechanism problems.',
+            ][Math.floor(Math.random() * 8)]
+          } Repairs completed and system tested for proper operation.`;
+          break;
+        case 'Emergency':
+          actionTaken = `Emergency repair required due to ${
+            [
+              'sudden hydraulic pump failure.',
+              'electrical system shutdown.',
+              'mechanical component breakdown.',
+              'safety system activation.',
+              'control panel malfunction.',
+              'drive motor overheating.',
+              'sensor failure causing shutdown.',
+              'emergency stop activation.',
+            ][Math.floor(Math.random() * 8)]
+          } Immediate action taken to restore operation. Root cause analysis completed.`;
+          break;
+        case 'Inspection':
+          actionTaken = `Comprehensive inspection conducted including ${
+            [
+              'visual examination of all components.',
+              'performance testing and measurement.',
+              'safety system verification.',
+              'compliance audit and documentation review.',
+              'quality control assessment.',
+              'environmental impact evaluation.',
+              'regulatory compliance check.',
+              'operational efficiency analysis.',
+            ][Math.floor(Math.random() * 8)]
+          } Inspection report generated with recommendations.`;
+          break;
+      }
+
+      records.push({
+        machine_serial_number: serialNumber,
+        work_order_number: `WO-2024-${workOrderCounter.toString().padStart(3, '0')}`,
+        work_order_date: workOrderDate,
+        action_taken: actionTaken,
+        reported_by: technician,
+        worker_order_type: maintenanceType,
+        attachment: attachment,
+        created_at: createdDate,
+        updated_at: updatedDate,
+      });
+
+      workOrderCounter++;
+    }
+  });
+
+  return records;
+};
+
+export const mockMaintenanceRecords: Maintenance[] = generateMockRecords();

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import RecordCard from './RecordCard';
 import MachineModal from './MachineModal';
 import { mockMachines } from '../data/mockMachines';
+import { mockMaintenanceRecords } from '../data/mockMaintenance';
 import { SearchOptions } from './SearchBar';
 import { isDateProperty } from '@/utils/constants';
 import { getPPMStatusLabel } from '@/utils/ppmUtils';
@@ -42,6 +43,12 @@ export default function RecordsList({
 
   // Calculate overdue statistics
   const overdueStats = useOverdueStats(machines);
+
+  // Count maintenance records for a machine
+  const getMaintenanceCount = (serialNumber: string) => {
+    return mockMaintenanceRecords.filter((record) => record.machine_serial_number === serialNumber)
+      .length;
+  };
 
   // Filter and sort machines based on search options, filter type, and sort order
   const filteredMachines = useMemo(() => {
@@ -310,8 +317,16 @@ export default function RecordsList({
 
           <button
             onClick={handleOpenAddModal}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
           >
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
             Add New Machine
           </button>
         </div>
@@ -382,16 +397,34 @@ export default function RecordsList({
                     </svg>
                   </div>
                 </div>
-                <div className="text-center">
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Delete Machine</h3>
-                  <p className="text-sm text-gray-500 mb-2">
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2 text-center">
+                    Delete Machine
+                  </h3>
+                  <p className="text-sm text-gray-500 mb-2 text-center">
                     Are you sure you want to delete machine{' '}
                     <strong>{machineToDelete.serial_number}</strong>?
                   </p>
-                  <p className="text-sm text-gray-500 mb-6">
+                  <p className="text-sm text-gray-500 mb-2 text-center">
                     This action cannot be undone. All data associated with this machine will be
                     permanently removed.
                   </p>
+                  {(() => {
+                    const maintenanceCount = getMaintenanceCount(machineToDelete.serial_number);
+                    return maintenanceCount > 0 ? (
+                      <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-4">
+                        <div>
+                          <h4 className="text-sm font-bold text-red-800 mb-1 text-center">
+                            Warning
+                          </h4>
+                          <p className="text-sm text-red-800">
+                            This machine has {maintenanceCount} maintenance record
+                            {maintenanceCount !== 1 ? 's' : ''} that will also be deleted.
+                          </p>
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
                 <div className="flex space-x-3">
                   <button
