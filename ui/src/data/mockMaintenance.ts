@@ -28,6 +28,7 @@ const generateMockRecords = (): Maintenance[] => {
     'SN-008',
     'SN-009',
     'SN-010',
+    'SN-012',
   ];
   const technicians = [
     'John Smith',
@@ -69,6 +70,8 @@ const generateMockRecords = (): Maintenance[] => {
 
   // Generate records for each machine
   machineSerialNumbers.forEach((serialNumber) => {
+    // Only generate records for SN-001 to SN-010
+    if (serialNumber === 'SN-012') return;
     // Generate 15-25 records per machine
     const numRecords = Math.floor(Math.random() * 11) + 15; // 15-25 records
 
