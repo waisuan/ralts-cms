@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { mockMaintenanceRecords } from '../data/mockMaintenance';
 import { Machine } from '../types/machine';
 import { Maintenance, MaintenanceOrderType } from '../types/maintenance';
@@ -118,8 +118,45 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
+  // Edit record state
+  const [isEditRecordModalOpen, setIsEditRecordModalOpen] = useState(false);
+  const [editingRecord, setEditingRecord] = useState<Maintenance | null>(null);
+  const [editRecordForm, setEditRecordForm] = useState({
+    work_order_number: '',
+    work_order_date: '',
+    action_taken: '',
+    reported_by: '',
+    worker_order_type: 'Preventive' as MaintenanceOrderType,
+    attachment: '',
+  });
+  const [editRecordErrors, setEditRecordErrors] = useState<Record<string, string>>({});
+  const [editSelectedFile, setEditSelectedFile] = useState<File | null>(null);
+  const [editIsUploading, setEditIsUploading] = useState(false);
+  const [editUploadProgress, setEditUploadProgress] = useState(0);
+
+  // Delete confirmation state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [recordToDelete, setRecordToDelete] = useState<Maintenance | null>(null);
+
+  // Dropdown menu state
+  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+
   // Use local maintenance records
   const maintenanceRecords = localMaintenanceRecords;
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (openDropdownId && !(event.target as Element).closest('.relative')) {
+        setOpenDropdownId(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [openDropdownId]);
 
   // Sort maintenance records
   const sortedRecords = useMemo(() => {
@@ -318,6 +355,163 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
 
     setLocalMaintenanceRecords((prev) => [newRecord, ...prev]);
     closeAddRecordModal();
+  };
+
+  // Edit record handlers
+  const openEditRecordModal = (record: Maintenance) => {
+    setEditingRecord(record);
+    setEditRecordForm({
+      work_order_number: record.work_order_number,
+      work_order_date: record.work_order_date.split('T')[0], // Extract date part for input
+      action_taken: record.action_taken,
+      reported_by: record.reported_by,
+      worker_order_type: record.worker_order_type as MaintenanceOrderType,
+      attachment: record.attachment,
+    });
+    setEditRecordErrors({});
+    setEditSelectedFile(null);
+    setEditUploadProgress(0);
+    setEditIsUploading(false);
+    setIsEditRecordModalOpen(true);
+    setOpenDropdownId(null);
+  };
+
+  const closeEditRecordModal = () => {
+    setIsEditRecordModalOpen(false);
+    setEditingRecord(null);
+    setEditRecordForm({
+      work_order_number: '',
+      work_order_date: '',
+      action_taken: '',
+      reported_by: '',
+      worker_order_type: 'Preventive',
+      attachment: '',
+    });
+    setEditRecordErrors({});
+    setEditSelectedFile(null);
+    setEditUploadProgress(0);
+    setEditIsUploading(false);
+  };
+
+  const handleEditRecordInputChange = (field: string, value: string) => {
+    setEditRecordForm((prev) => ({ ...prev, [field]: value }));
+    if (editRecordErrors[field]) {
+      setEditRecordErrors((prev) => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  const handleEditRecordFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setEditSelectedFile(file);
+      setEditIsUploading(true);
+      setEditUploadProgress(0);
+
+      const progressInterval = setInterval(() => {
+        setEditUploadProgress((prev) => {
+          if (prev >= 100) {
+            clearInterval(progressInterval);
+            setEditIsUploading(false);
+            return 100;
+          }
+          const increment = Math.random() * 25 + 10;
+          return Math.min(prev + increment, 100);
+        });
+      }, 150);
+
+      setEditRecordForm((prev) => ({ ...prev, attachment: file.name }));
+    } else {
+      setEditSelectedFile(null);
+      setEditUploadProgress(0);
+      setEditIsUploading(false);
+      setEditRecordForm((prev) => ({ ...prev, attachment: '' }));
+    }
+  };
+
+  const validateEditRecordForm = () => {
+    const errors: Record<string, string> = {};
+
+    if (!editRecordForm.work_order_number.trim()) {
+      errors.work_order_number = 'Work order number is required';
+    }
+    if (!editRecordForm.work_order_date) {
+      errors.work_order_date = 'Work order date is required';
+    }
+    if (!editRecordForm.action_taken.trim()) {
+      errors.action_taken = 'Action taken is required';
+    }
+    if (!editRecordForm.reported_by.trim()) {
+      errors.reported_by = 'Reported by is required';
+    }
+
+    // Check if work order number already exists (excluding current record)
+    const existingRecord = localMaintenanceRecords.find(
+      (record) =>
+        record.work_order_number === editRecordForm.work_order_number.trim() &&
+        record.work_order_number !== editingRecord?.work_order_number
+    );
+    if (existingRecord) {
+      errors.work_order_number = 'Work order number already exists';
+    }
+
+    setEditRecordErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleEditRecord = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validateEditRecordForm() || !editingRecord) {
+      return;
+    }
+
+    const updatedRecord: Maintenance = {
+      ...editingRecord,
+      work_order_number: editRecordForm.work_order_number.trim(),
+      work_order_date: editRecordForm.work_order_date,
+      action_taken: editRecordForm.action_taken.trim(),
+      reported_by: editRecordForm.reported_by.trim(),
+      worker_order_type: editRecordForm.worker_order_type,
+      attachment: editRecordForm.attachment,
+      updated_at: new Date().toISOString(),
+    };
+
+    setLocalMaintenanceRecords((prev) =>
+      prev.map((record) =>
+        record.work_order_number === editingRecord.work_order_number ? updatedRecord : record
+      )
+    );
+    closeEditRecordModal();
+  };
+
+  // Delete record handlers
+  const openDeleteConfirm = (record: Maintenance) => {
+    setRecordToDelete(record);
+    setShowDeleteConfirm(true);
+    setOpenDropdownId(null);
+  };
+
+  const closeDeleteConfirm = () => {
+    setRecordToDelete(null);
+    setShowDeleteConfirm(false);
+  };
+
+  const handleDeleteRecord = () => {
+    if (recordToDelete) {
+      setLocalMaintenanceRecords((prev) =>
+        prev.filter((record) => record.work_order_number !== recordToDelete.work_order_number)
+      );
+    }
+    closeDeleteConfirm();
+  };
+
+  // Dropdown menu handlers
+  const toggleDropdown = (workOrderNumber: string) => {
+    setOpenDropdownId(openDropdownId === workOrderNumber ? null : workOrderNumber);
+  };
+
+  const closeDropdown = () => {
+    setOpenDropdownId(null);
   };
 
   const getSortIcon = (field: SortField) => {
@@ -643,6 +837,9 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Attachment
                     </th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -719,6 +916,60 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
                             ) : (
                               <span className="text-gray-400">-</span>
                             )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-center">
+                            <div className="relative">
+                              <button
+                                onClick={() => toggleDropdown(record.work_order_number)}
+                                className="p-2 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-full"
+                                aria-label="More options"
+                              >
+                                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+                                  />
+                                </svg>
+                              </button>
+
+                              {/* Dropdown Menu */}
+                              {openDropdownId === record.work_order_number && (
+                                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-10">
+                                  <div className="py-1">
+                                    <button
+                                      onClick={() => openEditRecordModal(record)}
+                                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+                                    >
+                                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                        />
+                                      </svg>
+                                      Edit Record
+                                    </button>
+                                    <button
+                                      onClick={() => openDeleteConfirm(record)}
+                                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                    >
+                                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          strokeWidth={2}
+                                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                        />
+                                      </svg>
+                                      Delete Record
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       </React.Fragment>
@@ -1039,6 +1290,376 @@ export default function MaintenanceHistory({ machine, onBack }: MaintenanceHisto
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Record Modal */}
+      {isEditRecordModalOpen && editingRecord && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+            onClick={closeEditRecordModal}
+          />
+
+          {/* Modal */}
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="relative w-full max-w-2xl bg-white rounded-lg shadow-xl">
+              {/* Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                <h2 className="text-xl font-semibold text-gray-900">Edit Maintenance Record</h2>
+                <button
+                  onClick={closeEditRecordModal}
+                  className="text-gray-400 hover:text-gray-600 focus:outline-none focus:text-gray-600 transition-colors"
+                >
+                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleEditRecord} className="px-6 py-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Work Order Number */}
+                  <div>
+                    <label
+                      htmlFor="edit_work_order_number"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                      Work Order Number <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      id="edit_work_order_number"
+                      type="text"
+                      value={editRecordForm.work_order_number}
+                      onChange={(e) =>
+                        handleEditRecordInputChange('work_order_number', e.target.value)
+                      }
+                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-600 text-gray-900 ${
+                        editRecordErrors.work_order_number ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="Enter work order number"
+                    />
+                    {editRecordErrors.work_order_number && (
+                      <p className="mt-1 text-sm text-red-600">
+                        {editRecordErrors.work_order_number}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Work Order Date */}
+                  <div>
+                    <label
+                      htmlFor="edit_work_order_date"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                      Work Order Date <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      id="edit_work_order_date"
+                      type="date"
+                      value={editRecordForm.work_order_date}
+                      onChange={(e) =>
+                        handleEditRecordInputChange('work_order_date', e.target.value)
+                      }
+                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 ${
+                        editRecordErrors.work_order_date ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                    />
+                    {editRecordErrors.work_order_date && (
+                      <p className="mt-1 text-sm text-red-600">{editRecordErrors.work_order_date}</p>
+                    )}
+                  </div>
+
+                  {/* Maintenance Type */}
+                  <div>
+                    <label
+                      htmlFor="edit_worker_order_type"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                      Maintenance Type <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      id="edit_worker_order_type"
+                      value={editRecordForm.worker_order_type}
+                      onChange={(e) =>
+                        handleEditRecordInputChange('worker_order_type', e.target.value)
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                    >
+                      <option value="Preventive">Preventive</option>
+                      <option value="Corrective">Corrective</option>
+                      <option value="Emergency">Emergency</option>
+                      <option value="Inspection">Inspection</option>
+                    </select>
+                  </div>
+
+                  {/* Reported By */}
+                  <div>
+                    <label
+                      htmlFor="edit_reported_by"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                      Reported By <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      id="edit_reported_by"
+                      type="text"
+                      value={editRecordForm.reported_by}
+                      onChange={(e) => handleEditRecordInputChange('reported_by', e.target.value)}
+                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-600 text-gray-900 ${
+                        editRecordErrors.reported_by ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="Enter technician name"
+                    />
+                    {editRecordErrors.reported_by && (
+                      <p className="mt-1 text-sm text-red-600">{editRecordErrors.reported_by}</p>
+                    )}
+                  </div>
+
+                  {/* Attachment */}
+                  <div className="md:col-span-2">
+                    <label
+                      htmlFor="edit_attachment"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                      Attachment
+                    </label>
+                    <div className="space-y-3">
+                      <input
+                        id="edit_attachment"
+                        type="file"
+                        onChange={handleEditRecordFileChange}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                        accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.txt"
+                        disabled={editIsUploading}
+                      />
+
+                      {/* Upload Progress */}
+                      {editIsUploading && (
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm text-gray-600">
+                            <span>Uploading...</span>
+                            <span>{Math.round(editUploadProgress)}%</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
+                              style={{ width: `${editUploadProgress}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* File Info */}
+                      {editSelectedFile && !editIsUploading && (
+                        <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-3">
+                          <div className="flex items-center space-x-2">
+                            <svg
+                              className="h-5 w-5 text-green-600"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                              />
+                            </svg>
+                            <div>
+                              <p className="text-sm font-medium text-green-800">
+                                {editSelectedFile.name}
+                              </p>
+                              <p className="text-xs text-green-600">
+                                {(editSelectedFile.size / 1024).toFixed(1)} KB - Upload successful
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditSelectedFile(null);
+                              setEditRecordForm((prev) => ({ ...prev, attachment: '' }));
+                              const fileInput = document.getElementById(
+                                'edit_attachment'
+                              ) as HTMLInputElement;
+                              if (fileInput) fileInput.value = '';
+                            }}
+                            className="text-red-500 hover:text-red-700 focus:outline-none focus:text-red-700 transition-colors"
+                            title="Remove file"
+                          >
+                            <svg
+                              className="h-5 w-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M6 18L18 6M6 6l12 12"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Show existing attachment in edit mode if no new file */}
+                      {!editSelectedFile && !editIsUploading && editRecordForm.attachment && (
+                        <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-3">
+                          <div className="flex items-center space-x-2">
+                            <svg
+                              className="h-5 w-5 text-blue-600"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                              />
+                            </svg>
+                            <div>
+                              <p className="text-sm font-medium text-blue-800">{editRecordForm.attachment}</p>
+                              <p className="text-xs text-blue-600">Current attachment</p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleEditRecordInputChange('attachment', '')}
+                            className="text-red-500 hover:text-red-700 focus:outline-none focus:text-red-700 transition-colors"
+                            title="Remove attachment"
+                          >
+                            <svg
+                              className="h-5 w-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M6 18L18 6M6 6l12 12"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Taken */}
+                <div className="mt-6">
+                  <label
+                    htmlFor="edit_action_taken"
+                    className="block text-sm font-medium text-gray-700 mb-2"
+                  >
+                    Action Taken / Description <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    id="edit_action_taken"
+                    value={editRecordForm.action_taken}
+                    onChange={(e) => handleEditRecordInputChange('action_taken', e.target.value)}
+                    rows={4}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-600 text-gray-900 ${
+                      editRecordErrors.action_taken ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Describe the maintenance action performed, parts replaced, issues found, etc."
+                  />
+                  {editRecordErrors.action_taken && (
+                    <p className="mt-1 text-sm text-red-600">{editRecordErrors.action_taken}</p>
+                  )}
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex justify-end gap-3 mt-8">
+                  <button
+                    type="button"
+                    onClick={closeEditRecordModal}
+                    className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                  >
+                    Update Record
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && recordToDelete && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="fixed inset-0 bg-black bg-opacity-50" onClick={closeDeleteConfirm} />
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full">
+              <div className="p-6">
+                <div className="flex items-center mb-4">
+                  <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100">
+                    <svg
+                      className="h-6 w-6 text-red-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                      />
+                    </svg>
+                  </div>
+                </div>
+                <div className="text-center">
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Delete Maintenance Record</h3>
+                  <p className="text-sm text-gray-500 mb-2">
+                    Are you sure you want to delete maintenance record{' '}
+                    <strong>{recordToDelete.work_order_number}</strong>?
+                  </p>
+                  <p className="text-sm text-gray-500 mb-6">
+                    This action cannot be undone. All data associated with this maintenance record
+                    will be permanently removed.
+                  </p>
+                </div>
+                <div className="flex space-x-3">
+                  <button
+                    type="button"
+                    onClick={closeDeleteConfirm}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDeleteRecord}
+                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
+                  >
+                    Delete Record
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
