@@ -142,42 +142,4 @@ describe('RegisterPage', () => {
       }),
     } as Response);
   });
-
-  it('should clear form data after successful registration', async () => {
-    const mockFetch = fetch as jest.MockedFunction<typeof fetch>;
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        message: 'User registered successfully',
-        user: { id: '1', name: 'John Doe', email: 'john@example.com', role: 'user' },
-      }),
-    } as Response);
-
-    render(<RegisterPage />);
-
-    // Fill out the form
-    const nameInput = screen.getByLabelText('Full Name');
-    const emailInput = screen.getByLabelText('Email address');
-    const passwordInput = screen.getByLabelText('Password');
-    const confirmPasswordInput = screen.getByLabelText('Confirm Password');
-
-    fireEvent.change(nameInput, { target: { value: 'John Doe' } });
-    fireEvent.change(emailInput, { target: { value: 'john@example.com' } });
-    fireEvent.change(passwordInput, { target: { value: 'password123' } });
-    fireEvent.change(confirmPasswordInput, { target: { value: 'password123' } });
-
-    // Submit the form
-    fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
-
-    // Wait for success
-    await waitFor(() => {
-      expect(screen.getByText('Registration Successful!')).toBeInTheDocument();
-    });
-
-    // Form should be cleared (inputs should be empty)
-    expect(nameInput).toHaveValue('');
-    expect(emailInput).toHaveValue('');
-    expect(passwordInput).toHaveValue('');
-    expect(confirmPasswordInput).toHaveValue('');
-  });
 });

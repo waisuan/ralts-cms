@@ -1,8 +1,4 @@
-import { writeFile, readFile, access } from 'fs/promises';
 import { join } from 'path';
-
-// Mock fs/promises
-jest.mock('fs/promises');
 
 // Mock path
 jest.mock('path');

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { readFile, access } from 'fs/promises';
 import { join } from 'path';
 
-const USERS_FILE = join(process.cwd(), 'users.txt');
+const USERS_FILE = join(process.cwd(), 'src/data/users.txt');
 
 interface UserData {
   id: string;

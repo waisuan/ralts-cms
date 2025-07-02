@@ -43,7 +43,11 @@ describe('Users Logic', () => {
     ];
 
     const parseUsers = (data: UserData[]) => {
-      return data.map(({ password, ...user }) => user);
+      return data.map((user) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { password, ...userWithoutPassword } = user;
+        return userWithoutPassword;
+      });
     };
 
     const result = parseUsers(userData);
@@ -63,7 +67,11 @@ describe('Users Logic', () => {
 
   it('should handle empty user data', () => {
     const parseUsers = (data: UserData[]) => {
-      return data.map(({ password, ...user }) => user);
+      return data.map((user) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { password, ...userWithoutPassword } = user;
+        return userWithoutPassword;
+      });
     };
 
     const result = parseUsers([]);
@@ -83,7 +91,11 @@ describe('Users Logic', () => {
     ];
 
     const parseUsers = (data: UserData[]) => {
-      return data.map(({ password, ...user }) => user);
+      return data.map((user) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { password, ...userWithoutPassword } = user;
+        return userWithoutPassword;
+      });
     };
 
     const result = parseUsers(userData);

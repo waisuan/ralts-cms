@@ -1,0 +1,40 @@
+[
+  {
+    "serial_number": "SN-001",
+    "customer": "Acme Corp",
+    "state": "CA",
+    "account_type": "Premium",
+    "model": "X100",
+    "status": "Active",
+    "brand": "BrandA",
+    "district": "North",
+    "person_in_charge": "Alice Johnson",
+    "reported_by": "Bob Smith",
+    "additional_notes": "Needs inspection after last maintenance check. Unit has been running well but requires quarterly review.",
+    "attachment": "inspection_report_SN001.pdf",
+    "ppm_status": "",
+    "tnc_date": "2024-07-01",
+    "ppm_date": "2024-06-25",
+    "created_at": "2024-01-01",
+    "updated_at": "2024-06-01"
+  },
+  {
+    "serial_number": "SN-002",
+    "customer": "Beta LLC",
+    "state": "NY",
+    "account_type": "Standard",
+    "model": "Y200",
+    "status": "",
+    "brand": "BrandB",
+    "district": "East",
+    "person_in_charge": "Charlie Brown",
+    "reported_by": "",
+    "additional_notes": "Regular maintenance scheduled",
+    "attachment": "",
+    "ppm_status": "",
+    "tnc_date": "2024-07-10",
+    "ppm_date": "2024-07-03",
+    "created_at": "2024-02-01",
+    "updated_at": "2024-06-10"
+  }
+] 

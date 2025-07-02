@@ -1,0 +1,24 @@
+[
+  {
+    "machine_serial_number": "SN-001",
+    "work_order_number": "WO-2024-001",
+    "work_order_date": "2024-06-01",
+    "action_taken": "Completed scheduled preventive maintenance. Replaced air filters and checked fluid levels. All systems operating within normal parameters.",
+    "reported_by": "John Smith",
+    "worker_order_type": "Preventive",
+    "attachment": "maintenance_report.pdf",
+    "created_at": "2024-06-01T10:00:00.000Z",
+    "updated_at": "2024-06-01T12:00:00.000Z"
+  },
+  {
+    "machine_serial_number": "SN-002",
+    "work_order_number": "WO-2024-002",
+    "work_order_date": "2024-06-10",
+    "action_taken": "Corrective maintenance performed to address belt tension and alignment issues. Repairs completed and system tested for proper operation.",
+    "reported_by": "Sarah Johnson",
+    "worker_order_type": "Corrective",
+    "attachment": "repair_log.pdf",
+    "created_at": "2024-06-10T09:00:00.000Z",
+    "updated_at": "2024-06-10T11:00:00.000Z"
+  }
+] 
