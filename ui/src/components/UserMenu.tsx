@@ -56,19 +56,12 @@ export default function UserMenu() {
             <p className="text-xs text-gray-500">{user.role}</p>
           </div>
           <svg
-            className={`h-4 w-4 text-gray-400 transition-transform ${
-              isOpen ? 'rotate-180' : ''
-            }`}
+            className={`h-4 w-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M19 9l-7 7-7-7"
-            />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </div>
       </button>
@@ -82,7 +75,7 @@ export default function UserMenu() {
               {user.role}
             </span>
           </div>
-          
+
           <button
             onClick={handleLogout}
             className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 focus:outline-none focus:bg-gray-100"
@@ -108,4 +101,4 @@ export default function UserMenu() {
       )}
     </div>
   );
-} 
+}

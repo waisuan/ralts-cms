@@ -11,7 +11,7 @@ export default function Header() {
             <h1 className="text-xl font-semibold text-gray-900">Ralts CMS</h1>
             <span className="ml-2 text-sm text-gray-500">Content Management System</span>
           </div>
-          
+
           <div className="flex items-center space-x-4">
             <UserMenu />
           </div>
@@ -19,4 +19,4 @@ export default function Header() {
       </div>
     </header>
   );
-} 
+}
