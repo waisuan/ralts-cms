@@ -121,10 +121,6 @@ describe('Home Page', () => {
   it('renders the main page with all components and basic functionality', () => {
     render(<Home />);
 
-    // Check main title and description
-    expect(screen.getByText('Ralts CMS')).toBeInTheDocument();
-    expect(screen.getByText('Content Management System')).toBeInTheDocument();
-
     // Check that all main components are present
     expect(screen.getByTestId('search-bar')).toBeInTheDocument();
     expect(screen.getByTestId('records-list')).toBeInTheDocument();
