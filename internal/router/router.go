@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"ralts-cms/internal/deps"
 	"ralts-cms/internal/handler"
+	"ralts-cms/internal/middleware"
 
 	"github.com/gorilla/mux"
 )
@@ -41,9 +42,9 @@ func NewRouter(deps *deps.Dependencies) http.Handler {
 	api.HandleFunc("/machines/{serial_number}/maintenance/{work_order_number}", handler.NewMaintenanceHandler(deps).DeleteMaintenance).Methods(http.MethodDelete)
 
 	// Apply middleware to protected endpoints
-	api.Use(handler.LoggingMiddleware)
-	api.Use(handler.CORSMiddleware)
-	api.Use(handler.AuthMiddleware(deps.Config.JWTSecret))
+	api.Use(middleware.LoggingMiddleware)
+	api.Use(middleware.CORSMiddleware)
+	api.Use(middleware.AuthMiddleware(deps.Config.JWTSecret))
 
 	return r
 }

@@ -15,24 +15,36 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/gorilla/mux"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
-func setupMaintenanceTestHandler(t *testing.T) (*handler.MaintenanceHandler, *mockmaintenance.MockRepository) {
-	ctrl := gomock.NewController(t)
-	mockRepo := mockmaintenance.NewMockRepository(ctrl)
-	deps := &deps.Dependencies{
-		MaintenanceRepository: mockRepo,
-	}
-	handler := handler.NewMaintenanceHandler(deps)
-	return handler, mockRepo
+// MaintenanceHandlerTestSuite defines the test suite for maintenance handler
+type MaintenanceHandlerTestSuite struct {
+	suite.Suite
+
+	handler  *handler.MaintenanceHandler
+	mockRepo *mockmaintenance.MockRepository
+	ctrl     *gomock.Controller
 }
 
-func TestMaintenanceHandler_GetMaintenance(t *testing.T) {
-	handler, mockRepo := setupMaintenanceTestHandler(t)
+// SetupTest sets up each test
+func (suite *MaintenanceHandlerTestSuite) SetupTest() {
+	suite.ctrl = gomock.NewController(suite.T())
 
-	t.Run("should return maintenance when found", func(t *testing.T) {
+	suite.mockRepo = mockmaintenance.NewMockRepository(suite.ctrl)
+	deps := &deps.Dependencies{
+		MaintenanceRepository: suite.mockRepo,
+	}
+	suite.handler = handler.NewMaintenanceHandler(deps)
+}
+
+// TearDownTest cleans up after each test
+func (suite *MaintenanceHandlerTestSuite) TearDownTest() {
+	suite.ctrl.Finish()
+}
+
+func (suite *MaintenanceHandlerTestSuite) TestGetMaintenance() {
+	suite.Run("should return maintenance when found", func() {
 		expectedMaintenance := &maintenance.Maintenance{
 			MachineSerialNumber: "MACHINE123",
 			WorkOrderNumber:     "WO001",
@@ -40,59 +52,57 @@ func TestMaintenanceHandler_GetMaintenance(t *testing.T) {
 			ReportedBy:          "John Doe",
 		}
 
-		mockRepo.EXPECT().GetByWorkOrder(gomock.Any(), "MACHINE123", "WO001").Return(expectedMaintenance, nil)
+		suite.mockRepo.EXPECT().GetByWorkOrder(gomock.Any(), "MACHINE123", "WO001").Return(expectedMaintenance, nil)
 
 		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance/WO001", nil)
 		w := httptest.NewRecorder()
 
 		router := mux.NewRouter()
-		router.HandleFunc("/machines/{serial_number}/maintenance/{work_order_number}", handler.GetMaintenance)
+		router.HandleFunc("/machines/{serial_number}/maintenance/{work_order_number}", suite.handler.GetMaintenance)
 		router.ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusOK, w.Code)
-		assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+		suite.Assert().Equal(http.StatusOK, w.Code)
+		suite.Assert().Equal("application/json", w.Header().Get("Content-Type"))
 
 		var response maintenance.Maintenance
 		err := json.Unmarshal(w.Body.Bytes(), &response)
-		require.NoError(t, err)
-		assert.Equal(t, "MACHINE123", response.MachineSerialNumber)
-		assert.Equal(t, "WO001", response.WorkOrderNumber)
-		assert.Equal(t, "Routine maintenance", response.ActionTaken)
+		suite.Require().NoError(err)
+		suite.Assert().Equal("MACHINE123", response.MachineSerialNumber)
+		suite.Assert().Equal("WO001", response.WorkOrderNumber)
+		suite.Assert().Equal("Routine maintenance", response.ActionTaken)
 	})
 
-	t.Run("should return 404 when maintenance not found", func(t *testing.T) {
-		mockRepo.EXPECT().GetByWorkOrder(gomock.Any(), "MACHINE123", "NOTFOUND").Return(nil, fmt.Errorf("maintenance not found"))
+	suite.Run("should return 404 when maintenance not found", func() {
+		suite.mockRepo.EXPECT().GetByWorkOrder(gomock.Any(), "MACHINE123", "NOTFOUND").Return(nil, fmt.Errorf("maintenance not found"))
 
 		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance/NOTFOUND", nil)
 		w := httptest.NewRecorder()
 
 		router := mux.NewRouter()
-		router.HandleFunc("/machines/{serial_number}/maintenance/{work_order_number}", handler.GetMaintenance)
+		router.HandleFunc("/machines/{serial_number}/maintenance/{work_order_number}", suite.handler.GetMaintenance)
 		router.ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusNotFound, w.Code)
-		assert.Contains(t, w.Body.String(), "Maintenance not found")
+		suite.Assert().Equal(http.StatusNotFound, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Maintenance not found")
 	})
 
-	t.Run("should return 500 on repository error", func(t *testing.T) {
-		mockRepo.EXPECT().GetByWorkOrder(gomock.Any(), "MACHINE123", "ERROR").Return(nil, fmt.Errorf("database error"))
+	suite.Run("should return 500 on repository error", func() {
+		suite.mockRepo.EXPECT().GetByWorkOrder(gomock.Any(), "MACHINE123", "ERROR").Return(nil, fmt.Errorf("database error"))
 
 		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance/ERROR", nil)
 		w := httptest.NewRecorder()
 
 		router := mux.NewRouter()
-		router.HandleFunc("/machines/{serial_number}/maintenance/{work_order_number}", handler.GetMaintenance)
+		router.HandleFunc("/machines/{serial_number}/maintenance/{work_order_number}", suite.handler.GetMaintenance)
 		router.ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusInternalServerError, w.Code)
-		assert.Contains(t, w.Body.String(), "Failed to get maintenance")
+		suite.Assert().Equal(http.StatusInternalServerError, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Failed to get maintenance")
 	})
 }
 
-func TestMaintenanceHandler_ListMaintenance(t *testing.T) {
-	handler, mockRepo := setupMaintenanceTestHandler(t)
-
-	t.Run("should return list of maintenance records", func(t *testing.T) {
+func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
+	suite.Run("should return list of maintenance records", func() {
 		expectedMaintenance := []*maintenance.Maintenance{
 			{
 				MachineSerialNumber: "MACHINE123",
@@ -108,63 +118,61 @@ func TestMaintenanceHandler_ListMaintenance(t *testing.T) {
 			},
 		}
 
-		mockRepo.EXPECT().ListByMachine(gomock.Any(), "MACHINE123").Return(expectedMaintenance, nil)
+		suite.mockRepo.EXPECT().ListByMachine(gomock.Any(), "MACHINE123").Return(expectedMaintenance, nil)
 
 		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance", nil)
 		w := httptest.NewRecorder()
 
 		router := mux.NewRouter()
-		router.HandleFunc("/machines/{serial_number}/maintenance", handler.ListMaintenance)
+		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.ListMaintenance)
 		router.ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusOK, w.Code)
-		assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+		suite.Assert().Equal(http.StatusOK, w.Code)
+		suite.Assert().Equal("application/json", w.Header().Get("Content-Type"))
 
 		var response []*maintenance.Maintenance
 		err := json.Unmarshal(w.Body.Bytes(), &response)
-		require.NoError(t, err)
-		assert.Len(t, response, 2)
-		assert.Equal(t, "WO001", response[0].WorkOrderNumber)
-		assert.Equal(t, "WO002", response[1].WorkOrderNumber)
+		suite.Require().NoError(err)
+		suite.Assert().Len(response, 2)
+		suite.Assert().Equal("WO001", response[0].WorkOrderNumber)
+		suite.Assert().Equal("WO002", response[1].WorkOrderNumber)
 	})
 
-	t.Run("should return empty list when no maintenance found", func(t *testing.T) {
-		mockRepo.EXPECT().ListByMachine(gomock.Any(), "NOMAINTAINANCE").Return([]*maintenance.Maintenance{}, nil)
+	suite.Run("should return empty list when no maintenance found", func() {
+		suite.mockRepo.EXPECT().ListByMachine(gomock.Any(), "NOMAINTAINANCE").Return([]*maintenance.Maintenance{}, nil)
 
 		req := httptest.NewRequest("GET", "/machines/NOMAINTAINANCE/maintenance", nil)
 		w := httptest.NewRecorder()
 
 		router := mux.NewRouter()
-		router.HandleFunc("/machines/{serial_number}/maintenance", handler.ListMaintenance)
+		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.ListMaintenance)
 		router.ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusOK, w.Code)
+		suite.Assert().Equal(http.StatusOK, w.Code)
 
 		var response []*maintenance.Maintenance
 		err := json.Unmarshal(w.Body.Bytes(), &response)
-		require.NoError(t, err)
-		assert.Empty(t, response)
+		suite.Require().NoError(err)
+		suite.Assert().Empty(response)
 	})
 
-	t.Run("should return 500 on repository error", func(t *testing.T) {
-		mockRepo.EXPECT().ListByMachine(gomock.Any(), "ERROR").Return(nil, fmt.Errorf("database error"))
+	suite.Run("should return 500 on repository error", func() {
+		suite.mockRepo.EXPECT().ListByMachine(gomock.Any(), "ERROR").Return(nil, fmt.Errorf("database error"))
 
 		req := httptest.NewRequest("GET", "/machines/ERROR/maintenance", nil)
 		w := httptest.NewRecorder()
 
 		router := mux.NewRouter()
-		router.HandleFunc("/machines/{serial_number}/maintenance", handler.ListMaintenance)
+		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.ListMaintenance)
 		router.ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusInternalServerError, w.Code)
-		assert.Contains(t, w.Body.String(), "Failed to list maintenance")
+		suite.Assert().Equal(http.StatusInternalServerError, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Failed to list maintenance")
 	})
 }
 
-func TestMaintenanceHandler_CreateMaintenance(t *testing.T) {
-	handler, mockRepo := setupMaintenanceTestHandler(t)
-
-	t.Run("should create maintenance successfully", func(t *testing.T) {
+func (suite *MaintenanceHandlerTestSuite) TestCreateMaintenance() {
+	suite.Run("should create maintenance successfully", func() {
 		maintenanceData := maintenance.Maintenance{
 			MachineSerialNumber: "MACHINE123",
 			WorkOrderNumber:     "WO001",
@@ -172,10 +180,10 @@ func TestMaintenanceHandler_CreateMaintenance(t *testing.T) {
 			ReportedBy:          "John Doe",
 		}
 
-		mockRepo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, m *maintenance.Maintenance) error {
-			assert.Equal(t, "MACHINE123", m.MachineSerialNumber)
-			assert.Equal(t, "WO001", m.WorkOrderNumber)
-			assert.Equal(t, "Routine maintenance", m.ActionTaken)
+		suite.mockRepo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, m *maintenance.Maintenance) error {
+			suite.Assert().Equal("MACHINE123", m.MachineSerialNumber)
+			suite.Assert().Equal("WO001", m.WorkOrderNumber)
+			suite.Assert().Equal("Routine maintenance", m.ActionTaken)
 			return nil
 		})
 
@@ -185,21 +193,21 @@ func TestMaintenanceHandler_CreateMaintenance(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		router := mux.NewRouter()
-		router.HandleFunc("/machines/{serial_number}/maintenance", handler.CreateMaintenance)
+		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.CreateMaintenance)
 		router.ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusCreated, w.Code)
-		assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+		suite.Assert().Equal(http.StatusCreated, w.Code)
+		suite.Assert().Equal("application/json", w.Header().Get("Content-Type"))
 
 		var response maintenance.Maintenance
 		err := json.Unmarshal(w.Body.Bytes(), &response)
-		require.NoError(t, err)
-		assert.Equal(t, "MACHINE123", response.MachineSerialNumber)
-		assert.Equal(t, "WO001", response.WorkOrderNumber)
-		assert.Equal(t, "Routine maintenance", response.ActionTaken)
+		suite.Require().NoError(err)
+		suite.Assert().Equal("MACHINE123", response.MachineSerialNumber)
+		suite.Assert().Equal("WO001", response.WorkOrderNumber)
+		suite.Assert().Equal("Routine maintenance", response.ActionTaken)
 	})
 
-	t.Run("should return 400 when work order number is missing", func(t *testing.T) {
+	suite.Run("should return 400 when work order number is missing", func() {
 		maintenanceData := maintenance.Maintenance{
 			MachineSerialNumber: "MACHINE123",
 			ActionTaken:         "Maintenance without work order",
@@ -211,34 +219,34 @@ func TestMaintenanceHandler_CreateMaintenance(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		router := mux.NewRouter()
-		router.HandleFunc("/machines/{serial_number}/maintenance", handler.CreateMaintenance)
+		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.CreateMaintenance)
 		router.ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-		assert.Contains(t, w.Body.String(), "Work order number is required")
+		suite.Assert().Equal(http.StatusBadRequest, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Work order number is required")
 	})
 
-	t.Run("should return 400 when request body is invalid", func(t *testing.T) {
+	suite.Run("should return 400 when request body is invalid", func() {
 		req := httptest.NewRequest("POST", "/machines/MACHINE123/maintenance", bytes.NewBufferString("invalid json"))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
 		router := mux.NewRouter()
-		router.HandleFunc("/machines/{serial_number}/maintenance", handler.CreateMaintenance)
+		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.CreateMaintenance)
 		router.ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-		assert.Contains(t, w.Body.String(), "Invalid request body")
+		suite.Assert().Equal(http.StatusBadRequest, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Invalid request body")
 	})
 
-	t.Run("should return 409 when maintenance already exists", func(t *testing.T) {
+	suite.Run("should return 409 when maintenance already exists", func() {
 		maintenanceData := maintenance.Maintenance{
 			MachineSerialNumber: "MACHINE123",
 			WorkOrderNumber:     "WO001",
 			ActionTaken:         "Duplicate maintenance",
 		}
 
-		mockRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(fmt.Errorf("ConditionalCheckFailedException"))
+		suite.mockRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(fmt.Errorf("ConditionalCheckFailedException"))
 
 		body, _ := json.Marshal(maintenanceData)
 		req := httptest.NewRequest("POST", "/machines/MACHINE123/maintenance", bytes.NewBuffer(body))
@@ -246,21 +254,21 @@ func TestMaintenanceHandler_CreateMaintenance(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		router := mux.NewRouter()
-		router.HandleFunc("/machines/{serial_number}/maintenance", handler.CreateMaintenance)
+		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.CreateMaintenance)
 		router.ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusConflict, w.Code)
-		assert.Contains(t, w.Body.String(), "Maintenance already exists")
+		suite.Assert().Equal(http.StatusConflict, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Maintenance already exists")
 	})
 
-	t.Run("should return 500 on repository error", func(t *testing.T) {
+	suite.Run("should return 500 on repository error", func() {
 		maintenanceData := maintenance.Maintenance{
 			MachineSerialNumber: "MACHINE123",
 			WorkOrderNumber:     "WO001",
 			ActionTaken:         "Error maintenance",
 		}
 
-		mockRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(fmt.Errorf("database error"))
+		suite.mockRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(fmt.Errorf("database error"))
 
 		body, _ := json.Marshal(maintenanceData)
 		req := httptest.NewRequest("POST", "/machines/MACHINE123/maintenance", bytes.NewBuffer(body))
@@ -268,18 +276,16 @@ func TestMaintenanceHandler_CreateMaintenance(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		router := mux.NewRouter()
-		router.HandleFunc("/machines/{serial_number}/maintenance", handler.CreateMaintenance)
+		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.CreateMaintenance)
 		router.ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusInternalServerError, w.Code)
-		assert.Contains(t, w.Body.String(), "Failed to create maintenance")
+		suite.Assert().Equal(http.StatusInternalServerError, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Failed to create maintenance")
 	})
 }
 
-func TestMaintenanceHandler_UpdateMaintenance(t *testing.T) {
-	handler, mockRepo := setupMaintenanceTestHandler(t)
-
-	t.Run("should update maintenance successfully", func(t *testing.T) {
+func (suite *MaintenanceHandlerTestSuite) TestUpdateMaintenance() {
+	suite.Run("should update maintenance successfully", func() {
 		maintenanceData := maintenance.Maintenance{
 			MachineSerialNumber: "MACHINE123",
 			WorkOrderNumber:     "WO001",
@@ -288,12 +294,12 @@ func TestMaintenanceHandler_UpdateMaintenance(t *testing.T) {
 		}
 
 		// Mock the existence check
-		mockRepo.EXPECT().GetByWorkOrder(gomock.Any(), "MACHINE123", "WO001").Return(&maintenance.Maintenance{WorkOrderNumber: "WO001"}, nil)
+		suite.mockRepo.EXPECT().GetByWorkOrder(gomock.Any(), "MACHINE123", "WO001").Return(&maintenance.Maintenance{WorkOrderNumber: "WO001"}, nil)
 		// Mock the update
-		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, m *maintenance.Maintenance) error {
-			assert.Equal(t, "MACHINE123", m.MachineSerialNumber)
-			assert.Equal(t, "WO001", m.WorkOrderNumber)
-			assert.Equal(t, "Updated maintenance", m.ActionTaken)
+		suite.mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, m *maintenance.Maintenance) error {
+			suite.Assert().Equal("MACHINE123", m.MachineSerialNumber)
+			suite.Assert().Equal("WO001", m.WorkOrderNumber)
+			suite.Assert().Equal("Updated maintenance", m.ActionTaken)
 			return nil
 		})
 
@@ -303,21 +309,21 @@ func TestMaintenanceHandler_UpdateMaintenance(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		router := mux.NewRouter()
-		router.HandleFunc("/machines/{serial_number}/maintenance", handler.UpdateMaintenance)
+		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.UpdateMaintenance)
 		router.ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusOK, w.Code)
-		assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+		suite.Assert().Equal(http.StatusOK, w.Code)
+		suite.Assert().Equal("application/json", w.Header().Get("Content-Type"))
 
 		var response maintenance.Maintenance
 		err := json.Unmarshal(w.Body.Bytes(), &response)
-		require.NoError(t, err)
-		assert.Equal(t, "MACHINE123", response.MachineSerialNumber)
-		assert.Equal(t, "WO001", response.WorkOrderNumber)
-		assert.Equal(t, "Updated maintenance", response.ActionTaken)
+		suite.Require().NoError(err)
+		suite.Assert().Equal("MACHINE123", response.MachineSerialNumber)
+		suite.Assert().Equal("WO001", response.WorkOrderNumber)
+		suite.Assert().Equal("Updated maintenance", response.ActionTaken)
 	})
 
-	t.Run("should return 400 when work order number is missing", func(t *testing.T) {
+	suite.Run("should return 400 when work order number is missing", func() {
 		maintenanceData := maintenance.Maintenance{
 			MachineSerialNumber: "MACHINE123",
 			ActionTaken:         "Maintenance without work order",
@@ -329,21 +335,21 @@ func TestMaintenanceHandler_UpdateMaintenance(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		router := mux.NewRouter()
-		router.HandleFunc("/machines/{serial_number}/maintenance", handler.UpdateMaintenance)
+		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.UpdateMaintenance)
 		router.ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusBadRequest, w.Code)
-		assert.Contains(t, w.Body.String(), "Work order number is required")
+		suite.Assert().Equal(http.StatusBadRequest, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Work order number is required")
 	})
 
-	t.Run("should return 404 when maintenance not found", func(t *testing.T) {
+	suite.Run("should return 404 when maintenance not found", func() {
 		maintenanceData := maintenance.Maintenance{
 			MachineSerialNumber: "MACHINE123",
 			WorkOrderNumber:     "NOTFOUND",
 			ActionTaken:         "Not found maintenance",
 		}
 
-		mockRepo.EXPECT().GetByWorkOrder(gomock.Any(), "MACHINE123", "NOTFOUND").Return(nil, fmt.Errorf("maintenance not found"))
+		suite.mockRepo.EXPECT().GetByWorkOrder(gomock.Any(), "MACHINE123", "NOTFOUND").Return(nil, fmt.Errorf("maintenance not found"))
 
 		body, _ := json.Marshal(maintenanceData)
 		req := httptest.NewRequest("PUT", "/machines/MACHINE123/maintenance", bytes.NewBuffer(body))
@@ -351,14 +357,14 @@ func TestMaintenanceHandler_UpdateMaintenance(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		router := mux.NewRouter()
-		router.HandleFunc("/machines/{serial_number}/maintenance", handler.UpdateMaintenance)
+		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.UpdateMaintenance)
 		router.ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusNotFound, w.Code)
-		assert.Contains(t, w.Body.String(), "Maintenance not found")
+		suite.Assert().Equal(http.StatusNotFound, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Maintenance not found")
 	})
 
-	t.Run("should return 500 on update error", func(t *testing.T) {
+	suite.Run("should return 500 on update error", func() {
 		maintenanceData := maintenance.Maintenance{
 			MachineSerialNumber: "MACHINE123",
 			WorkOrderNumber:     "WO001",
@@ -366,9 +372,9 @@ func TestMaintenanceHandler_UpdateMaintenance(t *testing.T) {
 		}
 
 		// Mock the existence check
-		mockRepo.EXPECT().GetByWorkOrder(gomock.Any(), "MACHINE123", "WO001").Return(&maintenance.Maintenance{WorkOrderNumber: "WO001"}, nil)
+		suite.mockRepo.EXPECT().GetByWorkOrder(gomock.Any(), "MACHINE123", "WO001").Return(&maintenance.Maintenance{WorkOrderNumber: "WO001"}, nil)
 		// Mock the update error
-		mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(fmt.Errorf("update error"))
+		suite.mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(fmt.Errorf("update error"))
 
 		body, _ := json.Marshal(maintenanceData)
 		req := httptest.NewRequest("PUT", "/machines/MACHINE123/maintenance", bytes.NewBuffer(body))
@@ -376,61 +382,64 @@ func TestMaintenanceHandler_UpdateMaintenance(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		router := mux.NewRouter()
-		router.HandleFunc("/machines/{serial_number}/maintenance", handler.UpdateMaintenance)
+		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.UpdateMaintenance)
 		router.ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusInternalServerError, w.Code)
-		assert.Contains(t, w.Body.String(), "Failed to update maintenance")
+		suite.Assert().Equal(http.StatusInternalServerError, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Failed to update maintenance")
 	})
 }
 
-func TestMaintenanceHandler_DeleteMaintenance(t *testing.T) {
-	handler, mockRepo := setupMaintenanceTestHandler(t)
-
-	t.Run("should delete maintenance successfully", func(t *testing.T) {
+func (suite *MaintenanceHandlerTestSuite) TestDeleteMaintenance() {
+	suite.Run("should delete maintenance successfully", func() {
 		// Mock the existence check
-		mockRepo.EXPECT().GetByWorkOrder(gomock.Any(), "MACHINE123", "WO001").Return(&maintenance.Maintenance{WorkOrderNumber: "WO001"}, nil)
+		suite.mockRepo.EXPECT().GetByWorkOrder(gomock.Any(), "MACHINE123", "WO001").Return(&maintenance.Maintenance{WorkOrderNumber: "WO001"}, nil)
 		// Mock the delete
-		mockRepo.EXPECT().Delete(gomock.Any(), "MACHINE123", "WO001").Return(nil)
+		suite.mockRepo.EXPECT().Delete(gomock.Any(), "MACHINE123", "WO001").Return(nil)
 
 		req := httptest.NewRequest("DELETE", "/machines/MACHINE123/maintenance/WO001", nil)
 		w := httptest.NewRecorder()
 
 		router := mux.NewRouter()
-		router.HandleFunc("/machines/{serial_number}/maintenance/{work_order_number}", handler.DeleteMaintenance)
+		router.HandleFunc("/machines/{serial_number}/maintenance/{work_order_number}", suite.handler.DeleteMaintenance)
 		router.ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusNoContent, w.Code)
+		suite.Assert().Equal(http.StatusNoContent, w.Code)
 	})
 
-	t.Run("should return 404 when maintenance not found", func(t *testing.T) {
-		mockRepo.EXPECT().GetByWorkOrder(gomock.Any(), "MACHINE123", "NOTFOUND").Return(nil, fmt.Errorf("maintenance not found"))
+	suite.Run("should return 404 when maintenance not found", func() {
+		suite.mockRepo.EXPECT().GetByWorkOrder(gomock.Any(), "MACHINE123", "NOTFOUND").Return(nil, fmt.Errorf("maintenance not found"))
 
 		req := httptest.NewRequest("DELETE", "/machines/MACHINE123/maintenance/NOTFOUND", nil)
 		w := httptest.NewRecorder()
 
 		router := mux.NewRouter()
-		router.HandleFunc("/machines/{serial_number}/maintenance/{work_order_number}", handler.DeleteMaintenance)
+		router.HandleFunc("/machines/{serial_number}/maintenance/{work_order_number}", suite.handler.DeleteMaintenance)
 		router.ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusNotFound, w.Code)
-		assert.Contains(t, w.Body.String(), "Maintenance not found")
+		suite.Assert().Equal(http.StatusNotFound, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Maintenance not found")
 	})
 
-	t.Run("should return 500 on delete error", func(t *testing.T) {
+	suite.Run("should return 500 on delete error", func() {
 		// Mock the existence check
-		mockRepo.EXPECT().GetByWorkOrder(gomock.Any(), "MACHINE123", "WO001").Return(&maintenance.Maintenance{WorkOrderNumber: "WO001"}, nil)
+		suite.mockRepo.EXPECT().GetByWorkOrder(gomock.Any(), "MACHINE123", "WO001").Return(&maintenance.Maintenance{WorkOrderNumber: "WO001"}, nil)
 		// Mock the delete error
-		mockRepo.EXPECT().Delete(gomock.Any(), "MACHINE123", "WO001").Return(fmt.Errorf("delete error"))
+		suite.mockRepo.EXPECT().Delete(gomock.Any(), "MACHINE123", "WO001").Return(fmt.Errorf("delete error"))
 
 		req := httptest.NewRequest("DELETE", "/machines/MACHINE123/maintenance/WO001", nil)
 		w := httptest.NewRecorder()
 
 		router := mux.NewRouter()
-		router.HandleFunc("/machines/{serial_number}/maintenance/{work_order_number}", handler.DeleteMaintenance)
+		router.HandleFunc("/machines/{serial_number}/maintenance/{work_order_number}", suite.handler.DeleteMaintenance)
 		router.ServeHTTP(w, req)
 
-		assert.Equal(t, http.StatusInternalServerError, w.Code)
-		assert.Contains(t, w.Body.String(), "Failed to delete maintenance")
+		suite.Assert().Equal(http.StatusInternalServerError, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Failed to delete maintenance")
 	})
+}
+
+// TestMaintenanceHandlerTestSuite runs the test suite
+func TestMaintenanceHandlerTestSuite(t *testing.T) {
+	suite.Run(t, new(MaintenanceHandlerTestSuite))
 }

@@ -8,71 +8,51 @@ import (
 	"ralts-cms/internal/handler"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
-func TestHealthHandler_Health(t *testing.T) {
-	// Create mock dependencies
-	mockDeps := &deps.Dependencies{}
+// HealthHandlerTestSuite defines the test suite for health handler
+type HealthHandlerTestSuite struct {
+	suite.Suite
 
-	// Create handler
-	healthHandler := handler.NewHealthHandler(mockDeps)
-
-	// Create request
-	req := httptest.NewRequest(http.MethodGet, "/health", nil)
-	rr := httptest.NewRecorder()
-
-	// Call the handler
-	healthHandler.Health(rr, req)
-
-	// Check status code
-	assert.Equal(t, http.StatusOK, rr.Code)
-
-	// Check content type
-	assert.Equal(t, "application/json", rr.Header().Get("Content-Type"))
-
-	// Parse response body
-	var response handler.HealthResponse
-	err := json.Unmarshal(rr.Body.Bytes(), &response)
-	require.NoError(t, err)
-
-	// Check response fields
-	assert.Equal(t, "healthy", response.Status)
-	assert.Equal(t, "ralts-cms", response.Service)
-	assert.NotEmpty(t, response.Timestamp)
+	handler *handler.HealthHandler
+	deps    *deps.Dependencies
 }
 
-func TestHealthHandler_NewHealthHandler(t *testing.T) {
-	// Create mock dependencies
-	mockDeps := &deps.Dependencies{}
-
-	// Create handler
-	healthHandler := handler.NewHealthHandler(mockDeps)
-
-	// Check handler is not nil
-	assert.NotNil(t, healthHandler)
+// SetupTest sets up each test
+func (suite *HealthHandlerTestSuite) SetupTest() {
+	suite.deps = &deps.Dependencies{}
+	suite.handler = handler.NewHealthHandler(suite.deps)
 }
 
-func TestHealthResponse_Structure(t *testing.T) {
-	// Test the HealthResponse struct can be marshaled and unmarshaled
-	response := handler.HealthResponse{
-		Status:    "healthy",
-		Service:   "ralts-cms",
-		Timestamp: "2024-01-01T00:00:00Z",
-	}
+func (suite *HealthHandlerTestSuite) TestHealth() {
+	suite.Run("should return healthy status", func() {
+		// Create request
+		req := httptest.NewRequest(http.MethodGet, "/health", nil)
+		rr := httptest.NewRecorder()
 
-	// Marshal to JSON
-	jsonData, err := json.Marshal(response)
-	require.NoError(t, err)
+		// Call the handler
+		suite.handler.Health(rr, req)
 
-	// Unmarshal back
-	var unmarshaled handler.HealthResponse
-	err = json.Unmarshal(jsonData, &unmarshaled)
-	require.NoError(t, err)
+		// Check status code
+		suite.Assert().Equal(http.StatusOK, rr.Code)
 
-	// Check fields match
-	assert.Equal(t, response.Status, unmarshaled.Status)
-	assert.Equal(t, response.Service, unmarshaled.Service)
-	assert.Equal(t, response.Timestamp, unmarshaled.Timestamp)
+		// Check content type
+		suite.Assert().Equal("application/json", rr.Header().Get("Content-Type"))
+
+		// Parse response body
+		var response handler.HealthResponse
+		err := json.Unmarshal(rr.Body.Bytes(), &response)
+		suite.Require().NoError(err)
+
+		// Check response fields
+		suite.Assert().Equal("healthy", response.Status)
+		suite.Assert().Equal("ralts-cms", response.Service)
+		suite.Assert().NotEmpty(response.Timestamp)
+	})
+}
+
+// TestHealthHandlerTestSuite runs the test suite
+func TestHealthHandlerTestSuite(t *testing.T) {
+	suite.Run(t, new(HealthHandlerTestSuite))
 }

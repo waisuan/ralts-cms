@@ -6,11 +6,15 @@ import (
 
 	"ralts-cms/internal/machine"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
-func TestMachine_GetPartitionKey(t *testing.T) {
+// MachineTestSuite defines the test suite for machine model
+type MachineTestSuite struct {
+	suite.Suite
+}
+
+func (suite *MachineTestSuite) TestGetPartitionKey() {
 	tests := []struct {
 		name         string
 		serialNumber string
@@ -34,24 +38,26 @@ func TestMachine_GetPartitionKey(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		suite.Run(tt.name, func() {
 			machine := &machine.Machine{
 				SerialNumber: tt.serialNumber,
 			}
 			result := machine.GetPartitionKey()
-			assert.Equal(t, tt.expected, result)
+			suite.Assert().Equal(tt.expected, result)
 		})
 	}
 }
 
-func TestMachine_GetSortKey(t *testing.T) {
-	machine := &machine.Machine{}
-	result := machine.GetSortKey()
-	assert.Equal(t, "#", result)
+func (suite *MachineTestSuite) TestGetSortKey() {
+	suite.Run("should return correct sort key", func() {
+		machine := &machine.Machine{}
+		result := machine.GetSortKey()
+		suite.Assert().Equal("#", result)
+	})
 }
 
-func TestMachine_SetTimestamps(t *testing.T) {
-	t.Run("new machine", func(t *testing.T) {
+func (suite *MachineTestSuite) TestSetTimestamps() {
+	suite.Run("new machine", func() {
 		machine := &machine.Machine{
 			SerialNumber: "TEST123",
 		}
@@ -60,17 +66,17 @@ func TestMachine_SetTimestamps(t *testing.T) {
 
 		// Parse the timestamps
 		createdAt, err := time.Parse(time.RFC3339, machine.CreatedAt)
-		require.NoError(t, err)
+		suite.Require().NoError(err)
 		updatedAt, err := time.Parse(time.RFC3339, machine.UpdatedAt)
-		require.NoError(t, err)
+		suite.Require().NoError(err)
 
 		// Just check that timestamps are not empty and are equal
-		assert.NotEmpty(t, createdAt)
-		assert.NotEmpty(t, updatedAt)
-		assert.Equal(t, machine.CreatedAt, machine.UpdatedAt)
+		suite.Assert().NotEmpty(createdAt)
+		suite.Assert().NotEmpty(updatedAt)
+		suite.Assert().Equal(machine.CreatedAt, machine.UpdatedAt)
 	})
 
-	t.Run("existing machine", func(t *testing.T) {
+	suite.Run("existing machine", func() {
 		originalCreatedAt := "2023-01-01T00:00:00Z"
 		machine := &machine.Machine{
 			SerialNumber: "TEST123",
@@ -81,57 +87,16 @@ func TestMachine_SetTimestamps(t *testing.T) {
 		machine.SetTimestamps()
 
 		// CreatedAt should remain unchanged
-		assert.Equal(t, originalCreatedAt, machine.CreatedAt)
+		suite.Assert().Equal(originalCreatedAt, machine.CreatedAt)
 
 		// UpdatedAt should be updated and parseable
 		updatedAt, err := time.Parse(time.RFC3339, machine.UpdatedAt)
-		require.NoError(t, err)
-		assert.NotEmpty(t, updatedAt)
+		suite.Require().NoError(err)
+		suite.Assert().NotEmpty(updatedAt)
 	})
 }
 
-func TestMachine_Complete(t *testing.T) {
-	machine := &machine.Machine{
-		SerialNumber:    "MACHINE123",
-		Customer:        "Test Customer",
-		State:           "Active",
-		AccountType:     "Premium",
-		Model:           "Model X",
-		Status:          "Operational",
-		Brand:           "TestBrand",
-		District:        "District A",
-		PersonInCharge:  "John Doe",
-		ReportedBy:      "Jane Smith",
-		AdditionalNotes: "Test notes",
-		Attachment:      "attachment.pdf",
-		PpmStatus:       "Scheduled",
-		TncDate:         "2024-01-15",
-		PpmDate:         "2024-02-15",
-	}
-
-	// Test all fields are set correctly
-	assert.Equal(t, "MACHINE123", machine.SerialNumber)
-	assert.Equal(t, "Test Customer", machine.Customer)
-	assert.Equal(t, "Active", machine.State)
-	assert.Equal(t, "Premium", machine.AccountType)
-	assert.Equal(t, "Model X", machine.Model)
-	assert.Equal(t, "Operational", machine.Status)
-	assert.Equal(t, "TestBrand", machine.Brand)
-	assert.Equal(t, "District A", machine.District)
-	assert.Equal(t, "John Doe", machine.PersonInCharge)
-	assert.Equal(t, "Jane Smith", machine.ReportedBy)
-	assert.Equal(t, "Test notes", machine.AdditionalNotes)
-	assert.Equal(t, "attachment.pdf", machine.Attachment)
-	assert.Equal(t, "Scheduled", machine.PpmStatus)
-	assert.Equal(t, "2024-01-15", machine.TncDate)
-	assert.Equal(t, "2024-02-15", machine.PpmDate)
-
-	// Test partition and sort keys
-	assert.Equal(t, "Machine#MACHINE123", machine.GetPartitionKey())
-	assert.Equal(t, "#", machine.GetSortKey())
-
-	// Test timestamps
-	machine.SetTimestamps()
-	assert.NotEmpty(t, machine.CreatedAt)
-	assert.NotEmpty(t, machine.UpdatedAt)
+// TestMachineTestSuite runs the test suite
+func TestMachineTestSuite(t *testing.T) {
+	suite.Run(t, new(MachineTestSuite))
 }

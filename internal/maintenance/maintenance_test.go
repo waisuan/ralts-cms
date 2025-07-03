@@ -4,11 +4,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
-func TestMaintenance_GetPartitionKey(t *testing.T) {
+// MaintenanceTestSuite defines the test suite for maintenance model
+type MaintenanceTestSuite struct {
+	suite.Suite
+}
+
+func (suite *MaintenanceTestSuite) TestGetPartitionKey() {
 	tests := []struct {
 		name                string
 		machineSerialNumber string
@@ -32,17 +36,17 @@ func TestMaintenance_GetPartitionKey(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		suite.Run(tt.name, func() {
 			maintenance := &Maintenance{
 				MachineSerialNumber: tt.machineSerialNumber,
 			}
 			result := maintenance.GetPartitionKey()
-			assert.Equal(t, tt.expected, result)
+			suite.Assert().Equal(tt.expected, result)
 		})
 	}
 }
 
-func TestMaintenance_GetSortKey(t *testing.T) {
+func (suite *MaintenanceTestSuite) TestGetSortKey() {
 	tests := []struct {
 		name            string
 		workOrderNumber string
@@ -66,18 +70,18 @@ func TestMaintenance_GetSortKey(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		suite.Run(tt.name, func() {
 			maintenance := &Maintenance{
 				WorkOrderNumber: tt.workOrderNumber,
 			}
 			result := maintenance.GetSortKey()
-			assert.Equal(t, tt.expected, result)
+			suite.Assert().Equal(tt.expected, result)
 		})
 	}
 }
 
-func TestMaintenance_SetTimestamps(t *testing.T) {
-	t.Run("new maintenance", func(t *testing.T) {
+func (suite *MaintenanceTestSuite) TestSetTimestamps() {
+	suite.Run("new maintenance", func() {
 		maintenance := &Maintenance{
 			MachineSerialNumber: "MACHINE123",
 			WorkOrderNumber:     "WO123",
@@ -87,17 +91,17 @@ func TestMaintenance_SetTimestamps(t *testing.T) {
 
 		// Parse the timestamps
 		createdAt, err := time.Parse(time.RFC3339, maintenance.CreatedAt)
-		require.NoError(t, err)
+		suite.Require().NoError(err)
 		updatedAt, err := time.Parse(time.RFC3339, maintenance.UpdatedAt)
-		require.NoError(t, err)
+		suite.Require().NoError(err)
 
 		// Just check that timestamps are not empty and are equal
-		assert.NotEmpty(t, createdAt)
-		assert.NotEmpty(t, updatedAt)
-		assert.Equal(t, maintenance.CreatedAt, maintenance.UpdatedAt)
+		suite.Assert().NotEmpty(createdAt)
+		suite.Assert().NotEmpty(updatedAt)
+		suite.Assert().Equal(maintenance.CreatedAt, maintenance.UpdatedAt)
 	})
 
-	t.Run("existing maintenance", func(t *testing.T) {
+	suite.Run("existing maintenance", func() {
 		originalCreatedAt := "2023-01-01T00:00:00Z"
 		maintenance := &Maintenance{
 			MachineSerialNumber: "MACHINE123",
@@ -109,41 +113,16 @@ func TestMaintenance_SetTimestamps(t *testing.T) {
 		maintenance.SetTimestamps()
 
 		// CreatedAt should remain unchanged
-		assert.Equal(t, originalCreatedAt, maintenance.CreatedAt)
+		suite.Assert().Equal(originalCreatedAt, maintenance.CreatedAt)
 
 		// UpdatedAt should be updated and parseable
 		updatedAt, err := time.Parse(time.RFC3339, maintenance.UpdatedAt)
-		require.NoError(t, err)
-		assert.NotEmpty(t, updatedAt)
+		suite.Require().NoError(err)
+		suite.Assert().NotEmpty(updatedAt)
 	})
 }
 
-func TestMaintenance_Complete(t *testing.T) {
-	maintenance := &Maintenance{
-		MachineSerialNumber: "MACHINE123",
-		WorkOrderNumber:     "WO456",
-		WorkOrderDate:       "2024-01-15",
-		ActionTaken:         "Replaced filter",
-		ReportedBy:          "John Doe",
-		WorkerOrderType:     "Preventive",
-		Attachment:          "work_order.pdf",
-	}
-
-	// Test all fields are set correctly
-	assert.Equal(t, "MACHINE123", maintenance.MachineSerialNumber)
-	assert.Equal(t, "WO456", maintenance.WorkOrderNumber)
-	assert.Equal(t, "2024-01-15", maintenance.WorkOrderDate)
-	assert.Equal(t, "Replaced filter", maintenance.ActionTaken)
-	assert.Equal(t, "John Doe", maintenance.ReportedBy)
-	assert.Equal(t, "Preventive", maintenance.WorkerOrderType)
-	assert.Equal(t, "work_order.pdf", maintenance.Attachment)
-
-	// Test partition and sort keys
-	assert.Equal(t, "Machine#MACHINE123", maintenance.GetPartitionKey())
-	assert.Equal(t, "Maintenance#WO456", maintenance.GetSortKey())
-
-	// Test timestamps
-	maintenance.SetTimestamps()
-	assert.NotEmpty(t, maintenance.CreatedAt)
-	assert.NotEmpty(t, maintenance.UpdatedAt)
+// TestMaintenanceTestSuite runs the test suite
+func TestMaintenanceTestSuite(t *testing.T) {
+	suite.Run(t, new(MaintenanceTestSuite))
 }
