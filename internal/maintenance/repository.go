@@ -4,16 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	pkgdynamodb "ralts-cms/pkg/dynamodb"
-
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-)
-
-const (
-	MaintenanceSortKeyPrefix = "Maintenance#"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 //go:generate mockgen -destination=../maintenance/mock_maintenance_repository.go -package=maintenance -source=repository.go
@@ -26,70 +18,70 @@ type Repository interface {
 }
 
 type db struct {
-	client *dynamodb.Client
-	table  string
+	client *pgxpool.Pool
 }
 
-func NewRepository(client *dynamodb.Client, table string) Repository {
+func NewRepository(client *pgxpool.Pool) Repository {
 	return &db{
 		client: client,
-		table:  table,
 	}
 }
 
 func (r *db) GetByWorkOrder(ctx context.Context, machineSerialNumber, workOrderNumber string) (*Maintenance, error) {
-	maintenance := &Maintenance{
-		MachineSerialNumber: machineSerialNumber,
-		WorkOrderNumber:     workOrderNumber,
-	}
+	query := `
+		SELECT id, machine_serial_number, work_order_number, work_order_date, action_taken,
+		       reported_by, worker_order_type, attachment, created_at, updated_at
+		FROM maintenance 
+		WHERE machine_serial_number = $1 AND work_order_number = $2
+	`
 
-	result, err := r.client.GetItem(ctx, &dynamodb.GetItemInput{
-		TableName: aws.String(r.table),
-		Key: map[string]types.AttributeValue{
-			pkgdynamodb.PartitionKey: &types.AttributeValueMemberS{Value: maintenance.GetPartitionKey()},
-			pkgdynamodb.SortKey:      &types.AttributeValueMemberS{Value: maintenance.GetSortKey()},
-		},
-	})
+	var maintenance Maintenance
+	err := r.client.QueryRow(ctx, query, machineSerialNumber, workOrderNumber).Scan(
+		&maintenance.ID, &maintenance.MachineSerialNumber, &maintenance.WorkOrderNumber,
+		&maintenance.WorkOrderDate, &maintenance.ActionTaken, &maintenance.ReportedBy,
+		&maintenance.WorkerOrderType, &maintenance.Attachment, &maintenance.CreatedAt, &maintenance.UpdatedAt,
+	)
 	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, fmt.Errorf("maintenance not found")
+		}
 		return nil, fmt.Errorf("failed to get maintenance: %w", err)
 	}
 
-	if result.Item == nil {
-		return nil, fmt.Errorf("maintenance not found")
-	}
-
-	var retrievedMaintenance Maintenance
-	err = attributevalue.UnmarshalMap(result.Item, &retrievedMaintenance)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal maintenance: %w", err)
-	}
-
-	return &retrievedMaintenance, nil
+	return &maintenance, nil
 }
 
 func (r *db) ListByMachine(ctx context.Context, machineSerialNumber string) ([]*Maintenance, error) {
-	maintenance := &Maintenance{MachineSerialNumber: machineSerialNumber}
+	query := `
+		SELECT id, machine_serial_number, work_order_number, work_order_date, action_taken,
+		       reported_by, worker_order_type, attachment, created_at, updated_at
+		FROM maintenance 
+		WHERE machine_serial_number = $1
+		ORDER BY work_order_date DESC, created_at DESC
+	`
 
-	result, err := r.client.Query(ctx, &dynamodb.QueryInput{
-		TableName:              aws.String(r.table),
-		KeyConditionExpression: aws.String(fmt.Sprintf("%s = :pk AND begins_with(%s, :sk)", pkgdynamodb.PartitionKey, pkgdynamodb.SortKey)),
-		ExpressionAttributeValues: map[string]types.AttributeValue{
-			":pk": &types.AttributeValueMemberS{Value: maintenance.GetPartitionKey()},
-			":sk": &types.AttributeValueMemberS{Value: MaintenanceSortKeyPrefix},
-		},
-	})
+	rows, err := r.client.Query(ctx, query, machineSerialNumber)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query maintenance records: %w", err)
 	}
+	defer rows.Close()
 
 	var maintenanceRecords []*Maintenance
-	for _, item := range result.Items {
+	for rows.Next() {
 		var maintenance Maintenance
-		err := attributevalue.UnmarshalMap(item, &maintenance)
+		err := rows.Scan(
+			&maintenance.ID, &maintenance.MachineSerialNumber, &maintenance.WorkOrderNumber,
+			&maintenance.WorkOrderDate, &maintenance.ActionTaken, &maintenance.ReportedBy,
+			&maintenance.WorkerOrderType, &maintenance.Attachment, &maintenance.CreatedAt, &maintenance.UpdatedAt,
+		)
 		if err != nil {
-			return nil, fmt.Errorf("failed to unmarshal maintenance: %w", err)
+			return nil, fmt.Errorf("failed to scan maintenance: %w", err)
 		}
 		maintenanceRecords = append(maintenanceRecords, &maintenance)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating maintenance records: %w", err)
 	}
 
 	return maintenanceRecords, nil
@@ -98,20 +90,21 @@ func (r *db) ListByMachine(ctx context.Context, machineSerialNumber string) ([]*
 func (r *db) Create(ctx context.Context, maintenance *Maintenance) error {
 	maintenance.SetTimestamps()
 
-	item, err := attributevalue.MarshalMap(maintenance)
-	if err != nil {
-		return fmt.Errorf("failed to marshal maintenance: %w", err)
-	}
+	query := `
+		INSERT INTO maintenance (
+			machine_serial_number, work_order_number, work_order_date, action_taken,
+			reported_by, worker_order_type, attachment, created_at, updated_at
+		) VALUES (
+			$1, $2, $3, $4, $5, $6, $7, $8, $9
+		) RETURNING id
+	`
 
-	// Add DynamoDB keys
-	item[pkgdynamodb.PartitionKey] = &types.AttributeValueMemberS{Value: maintenance.GetPartitionKey()}
-	item[pkgdynamodb.SortKey] = &types.AttributeValueMemberS{Value: maintenance.GetSortKey()}
+	err := r.client.QueryRow(ctx, query,
+		maintenance.MachineSerialNumber, maintenance.WorkOrderNumber, maintenance.WorkOrderDate,
+		maintenance.ActionTaken, maintenance.ReportedBy, maintenance.WorkerOrderType,
+		maintenance.Attachment, maintenance.CreatedAt, maintenance.UpdatedAt,
+	).Scan(&maintenance.ID)
 
-	_, err = r.client.PutItem(ctx, &dynamodb.PutItemInput{
-		TableName:           aws.String(r.table),
-		Item:                item,
-		ConditionExpression: aws.String(fmt.Sprintf("attribute_not_exists(%s) AND attribute_not_exists(%s)", pkgdynamodb.PartitionKey, pkgdynamodb.SortKey)),
-	})
 	if err != nil {
 		return fmt.Errorf("failed to create maintenance: %w", err)
 	}
@@ -122,41 +115,39 @@ func (r *db) Create(ctx context.Context, maintenance *Maintenance) error {
 func (r *db) Update(ctx context.Context, maintenance *Maintenance) error {
 	maintenance.SetTimestamps()
 
-	item, err := attributevalue.MarshalMap(maintenance)
-	if err != nil {
-		return fmt.Errorf("failed to marshal maintenance: %w", err)
-	}
+	query := `
+		UPDATE maintenance SET
+			work_order_date = $1, action_taken = $2, reported_by = $3,
+			worker_order_type = $4, attachment = $5, updated_at = $6
+		WHERE machine_serial_number = $7 AND work_order_number = $8
+	`
 
-	// Add DynamoDB keys
-	item[pkgdynamodb.PartitionKey] = &types.AttributeValueMemberS{Value: maintenance.GetPartitionKey()}
-	item[pkgdynamodb.SortKey] = &types.AttributeValueMemberS{Value: maintenance.GetSortKey()}
-
-	_, err = r.client.PutItem(ctx, &dynamodb.PutItemInput{
-		TableName: aws.String(r.table),
-		Item:      item,
-	})
+	result, err := r.client.Exec(ctx, query,
+		maintenance.WorkOrderDate, maintenance.ActionTaken, maintenance.ReportedBy,
+		maintenance.WorkerOrderType, maintenance.Attachment, maintenance.UpdatedAt,
+		maintenance.MachineSerialNumber, maintenance.WorkOrderNumber,
+	)
 	if err != nil {
 		return fmt.Errorf("failed to update maintenance: %w", err)
+	}
+
+	if result.RowsAffected() == 0 {
+		return fmt.Errorf("maintenance not found")
 	}
 
 	return nil
 }
 
 func (r *db) Delete(ctx context.Context, machineSerialNumber, workOrderNumber string) error {
-	maintenance := &Maintenance{
-		MachineSerialNumber: machineSerialNumber,
-		WorkOrderNumber:     workOrderNumber,
-	}
+	query := `DELETE FROM maintenance WHERE machine_serial_number = $1 AND work_order_number = $2`
 
-	_, err := r.client.DeleteItem(ctx, &dynamodb.DeleteItemInput{
-		TableName: aws.String(r.table),
-		Key: map[string]types.AttributeValue{
-			pkgdynamodb.PartitionKey: &types.AttributeValueMemberS{Value: maintenance.GetPartitionKey()},
-			pkgdynamodb.SortKey:      &types.AttributeValueMemberS{Value: maintenance.GetSortKey()},
-		},
-	})
+	result, err := r.client.Exec(ctx, query, machineSerialNumber, workOrderNumber)
 	if err != nil {
 		return fmt.Errorf("failed to delete maintenance: %w", err)
+	}
+
+	if result.RowsAffected() == 0 {
+		return fmt.Errorf("maintenance not found")
 	}
 
 	return nil

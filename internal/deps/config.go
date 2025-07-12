@@ -20,6 +20,9 @@ type Config struct {
 	DynamoDBRegion   string `env:"DYNAMODB_REGION" envDefault:"us-east-1"`
 	DynamoDBTable    string `env:"DYNAMODB_TABLE" envDefault:"ralts"`
 
+	// PostgreSQL Configuration
+	DATABASE_URL string `env:"DATABASE_URL" envDefault:"postgres://ralts_user:ralts_password@localhost:5432/ralts_cms"`
+
 	// Server Configuration
 	ServerPort string `env:"SERVER_PORT" envDefault:"8080"`
 

@@ -4,12 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	pkgdynamodb "ralts-cms/pkg/dynamodb"
-
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 //go:generate mockgen -destination=../machine/mock_machines_repository.go -package=machine -source=repository.go
@@ -22,82 +18,76 @@ type Repository interface {
 }
 
 type db struct {
-	client *dynamodb.Client
-	table  string
+	client *pgxpool.Pool
 }
 
-func NewRepository(client *dynamodb.Client, table string) Repository {
+func NewRepository(client *pgxpool.Pool) Repository {
 	return &db{
 		client: client,
-		table:  table,
 	}
 }
 
 func (r *db) GetBySerialNumber(ctx context.Context, serialNumber string) (*Machine, error) {
-	machine := &Machine{SerialNumber: serialNumber}
+	query := `
+		SELECT id, serial_number, customer, state, account_type, model, status, brand, 
+		       district, person_in_charge, reported_by, additional_notes, attachment, 
+		       ppm_status, tnc_date, ppm_date, created_at, updated_at
+		FROM machines 
+		WHERE serial_number = $1
+	`
 
-	item, err := attributevalue.MarshalMap(machine)
+	var machine Machine
+	err := r.client.QueryRow(ctx, query, serialNumber).Scan(
+		&machine.ID, &machine.SerialNumber, &machine.Customer, &machine.State,
+		&machine.AccountType, &machine.Model, &machine.Status, &machine.Brand,
+		&machine.District, &machine.PersonInCharge, &machine.ReportedBy,
+		&machine.AdditionalNotes, &machine.Attachment, &machine.PpmStatus,
+		&machine.TncDate, &machine.PpmDate, &machine.CreatedAt, &machine.UpdatedAt,
+	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal machine: %w", err)
-	}
-
-	// Add DynamoDB keys
-	item[pkgdynamodb.PartitionKey] = &types.AttributeValueMemberS{Value: machine.GetPartitionKey()}
-	item[pkgdynamodb.SortKey] = &types.AttributeValueMemberS{Value: machine.GetSortKey()}
-
-	result, err := r.client.GetItem(ctx, &dynamodb.GetItemInput{
-		TableName: aws.String(r.table),
-		Key: map[string]types.AttributeValue{
-			pkgdynamodb.PartitionKey: &types.AttributeValueMemberS{Value: machine.GetPartitionKey()},
-			pkgdynamodb.SortKey:      &types.AttributeValueMemberS{Value: machine.GetSortKey()},
-		},
-	})
-	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, fmt.Errorf("machine not found")
+		}
 		return nil, fmt.Errorf("failed to get machine: %w", err)
 	}
 
-	if result.Item == nil {
-		return nil, fmt.Errorf("machine not found")
-	}
-
-	var retrievedMachine Machine
-	err = attributevalue.UnmarshalMap(result.Item, &retrievedMachine)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal machine: %w", err)
-	}
-
-	return &retrievedMachine, nil
+	return &machine, nil
 }
 
 func (r *db) List(ctx context.Context, limit int32) ([]*Machine, error) {
-	// Build scan input
-	scanInput := &dynamodb.ScanInput{
-		TableName: aws.String(r.table),
-		Limit:     aws.Int32(limit),
-	}
+	query := `
+		SELECT id, serial_number, customer, state, account_type, model, status, brand, 
+		       district, person_in_charge, reported_by, additional_notes, attachment, 
+		       ppm_status, tnc_date, ppm_date, created_at, updated_at
+		FROM machines 
+		ORDER BY created_at DESC
+		LIMIT $1
+	`
 
-	// Add filter expression to only get machine records (not maintenance records)
-	scanInput.FilterExpression = aws.String("begins_with(#pk, :pkPrefix)")
-	scanInput.ExpressionAttributeNames = map[string]string{
-		"#pk": pkgdynamodb.PartitionKey,
-	}
-	scanInput.ExpressionAttributeValues = map[string]types.AttributeValue{
-		":pkPrefix": &types.AttributeValueMemberS{Value: "Machine#"},
-	}
-
-	result, err := r.client.Scan(ctx, scanInput)
+	rows, err := r.client.Query(ctx, query, limit)
 	if err != nil {
-		return nil, fmt.Errorf("failed to scan machines: %w", err)
+		return nil, fmt.Errorf("failed to query machines: %w", err)
 	}
+	defer rows.Close()
 
 	var machines []*Machine
-	for _, item := range result.Items {
+	for rows.Next() {
 		var machine Machine
-		err := attributevalue.UnmarshalMap(item, &machine)
+		err := rows.Scan(
+			&machine.ID, &machine.SerialNumber, &machine.Customer, &machine.State,
+			&machine.AccountType, &machine.Model, &machine.Status, &machine.Brand,
+			&machine.District, &machine.PersonInCharge, &machine.ReportedBy,
+			&machine.AdditionalNotes, &machine.Attachment, &machine.PpmStatus,
+			&machine.TncDate, &machine.PpmDate, &machine.CreatedAt, &machine.UpdatedAt,
+		)
 		if err != nil {
-			return nil, fmt.Errorf("failed to unmarshal machine: %w", err)
+			return nil, fmt.Errorf("failed to scan machine: %w", err)
 		}
 		machines = append(machines, &machine)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating machines: %w", err)
 	}
 
 	return machines, nil
@@ -106,20 +96,24 @@ func (r *db) List(ctx context.Context, limit int32) ([]*Machine, error) {
 func (r *db) Create(ctx context.Context, machine *Machine) error {
 	machine.SetTimestamps()
 
-	item, err := attributevalue.MarshalMap(machine)
-	if err != nil {
-		return fmt.Errorf("failed to marshal machine: %w", err)
-	}
+	query := `
+		INSERT INTO machines (
+			serial_number, customer, state, account_type, model, status, brand,
+			district, person_in_charge, reported_by, additional_notes, attachment,
+			ppm_status, tnc_date, ppm_date, created_at, updated_at
+		) VALUES (
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
+		) RETURNING id
+	`
 
-	// Add DynamoDB keys
-	item[pkgdynamodb.PartitionKey] = &types.AttributeValueMemberS{Value: machine.GetPartitionKey()}
-	item[pkgdynamodb.SortKey] = &types.AttributeValueMemberS{Value: machine.GetSortKey()}
+	err := r.client.QueryRow(ctx, query,
+		machine.SerialNumber, machine.Customer, machine.State, machine.AccountType,
+		machine.Model, machine.Status, machine.Brand, machine.District,
+		machine.PersonInCharge, machine.ReportedBy, machine.AdditionalNotes,
+		machine.Attachment, machine.PpmStatus, machine.TncDate, machine.PpmDate,
+		machine.CreatedAt, machine.UpdatedAt,
+	).Scan(&machine.ID)
 
-	_, err = r.client.PutItem(ctx, &dynamodb.PutItemInput{
-		TableName:           aws.String(r.table),
-		Item:                item,
-		ConditionExpression: aws.String(fmt.Sprintf("attribute_not_exists(%s) AND attribute_not_exists(%s)", pkgdynamodb.PartitionKey, pkgdynamodb.SortKey)),
-	})
 	if err != nil {
 		return fmt.Errorf("failed to create machine: %w", err)
 	}
@@ -130,38 +124,43 @@ func (r *db) Create(ctx context.Context, machine *Machine) error {
 func (r *db) Update(ctx context.Context, machine *Machine) error {
 	machine.SetTimestamps()
 
-	item, err := attributevalue.MarshalMap(machine)
-	if err != nil {
-		return fmt.Errorf("failed to marshal machine: %w", err)
-	}
+	query := `
+		UPDATE machines SET
+			customer = $1, state = $2, account_type = $3, model = $4, status = $5,
+			brand = $6, district = $7, person_in_charge = $8, reported_by = $9,
+			additional_notes = $10, attachment = $11, ppm_status = $12,
+			tnc_date = $13, ppm_date = $14, updated_at = $15
+		WHERE serial_number = $16
+	`
 
-	// Add DynamoDB keys
-	item[pkgdynamodb.PartitionKey] = &types.AttributeValueMemberS{Value: machine.GetPartitionKey()}
-	item[pkgdynamodb.SortKey] = &types.AttributeValueMemberS{Value: machine.GetSortKey()}
-
-	_, err = r.client.PutItem(ctx, &dynamodb.PutItemInput{
-		TableName: aws.String(r.table),
-		Item:      item,
-	})
+	result, err := r.client.Exec(ctx, query,
+		machine.Customer, machine.State, machine.AccountType, machine.Model,
+		machine.Status, machine.Brand, machine.District, machine.PersonInCharge,
+		machine.ReportedBy, machine.AdditionalNotes, machine.Attachment,
+		machine.PpmStatus, machine.TncDate, machine.PpmDate, machine.UpdatedAt,
+		machine.SerialNumber,
+	)
 	if err != nil {
 		return fmt.Errorf("failed to update machine: %w", err)
+	}
+
+	if result.RowsAffected() == 0 {
+		return fmt.Errorf("machine not found")
 	}
 
 	return nil
 }
 
 func (r *db) Delete(ctx context.Context, serialNumber string) error {
-	machine := &Machine{SerialNumber: serialNumber}
+	query := `DELETE FROM machines WHERE serial_number = $1`
 
-	_, err := r.client.DeleteItem(ctx, &dynamodb.DeleteItemInput{
-		TableName: aws.String(r.table),
-		Key: map[string]types.AttributeValue{
-			pkgdynamodb.PartitionKey: &types.AttributeValueMemberS{Value: machine.GetPartitionKey()},
-			pkgdynamodb.SortKey:      &types.AttributeValueMemberS{Value: machine.GetSortKey()},
-		},
-	})
+	result, err := r.client.Exec(ctx, query, serialNumber)
 	if err != nil {
 		return fmt.Errorf("failed to delete machine: %w", err)
+	}
+
+	if result.RowsAffected() == 0 {
+		return fmt.Errorf("machine not found")
 	}
 
 	return nil

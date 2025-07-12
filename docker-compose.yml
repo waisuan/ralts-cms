@@ -1,22 +1,26 @@
 version: '3.8'
 
 services:
-  dynamodb-local:
-    image: amazon/dynamodb-local:latest
+  postgres:
+    image: postgres:16-alpine
     restart: always
-    container_name: dynamodb
+    container_name: postgres
     ports:
-      - "8000:8000"
+      - "5432:5432"
     volumes:
-      - data:/home/dynamodblocal/data
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
     environment:
-      - AWS_REGION=eu-west-1
-      - DYNAMODB_DATA_PATH=/home/dynamodblocal/data
+      - POSTGRES_DB=ralts_cms
+      - POSTGRES_USER=ralts_user
+      - POSTGRES_PASSWORD=ralts_password
+      - POSTGRES_HOST_AUTH_METHOD=trust
     healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:8000 || exit 1"]
-      interval: 1s
+      test: ["CMD-SHELL", "pg_isready -U ralts_user -d ralts_cms"]
+      interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 5
+      start_period: 30s
 
 volumes:
-  data:
+  postgres_data:

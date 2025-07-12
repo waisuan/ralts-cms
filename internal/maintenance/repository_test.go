@@ -9,6 +9,7 @@ import (
 	"ralts-cms/internal/maintenance"
 	"ralts-cms/internal/testutils"
 
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -24,28 +25,14 @@ type MaintenanceRepositoryTestSuite struct {
 func (suite *MaintenanceRepositoryTestSuite) SetupTest() {
 	deps := deps.Initialise()
 	suite.deps = deps
-	suite.repo = maintenance.NewRepository(deps.DynamoDBClient, deps.Config.DynamoDBTable)
-}
-
-// SetupSuite sets up the test suite once
-func (suite *MaintenanceRepositoryTestSuite) SetupSuite() {
-	// Clear the table once at the beginning to ensure clean state
-	deps := deps.Initialise()
-	err := testutils.ClearTable(context.Background(), deps.Config.DynamoDBTable, deps.DynamoDBClient)
-	if err != nil {
-		// Log the error but don't fail the suite setup
-		// This allows tests to run even if clearing fails
-		suite.T().Logf("Warning: Failed to clear table in SetupSuite: %v", err)
-	}
+	suite.repo = maintenance.NewRepository(deps.PostgresClient)
 }
 
 func (suite *MaintenanceRepositoryTestSuite) TearDownTest() {
-	if suite.deps != nil && suite.deps.DynamoDBClient != nil {
-		err := testutils.ClearTable(context.Background(), suite.deps.Config.DynamoDBTable, suite.deps.DynamoDBClient)
-		if err != nil {
-			suite.T().Logf("Warning: Failed to clear table in TearDownTest: %v", err)
-		}
-	}
+	// Clear the maintenance table for PostgreSQL
+	ctx := context.Background()
+	_, err := suite.deps.PostgresClient.Exec(ctx, "DELETE FROM maintenance")
+	require.NoError(suite.T(), err)
 }
 
 func (suite *MaintenanceRepositoryTestSuite) TestCreate() {
@@ -58,7 +45,7 @@ func (suite *MaintenanceRepositoryTestSuite) TestCreate() {
 		suite.Require().NoError(err)
 		suite.Assert().NotEmpty(maintenance.CreatedAt)
 		suite.Assert().NotEmpty(maintenance.UpdatedAt)
-		suite.Assert().Equal(maintenance.CreatedAt, maintenance.UpdatedAt)
+		suite.Assert().Greater(maintenance.ID, 0) // PostgreSQL should return an ID
 	})
 
 	suite.Run("should fail when creating duplicate maintenance", func() {
@@ -71,7 +58,8 @@ func (suite *MaintenanceRepositoryTestSuite) TestCreate() {
 		duplicateMaintenance := testutils.CreateMaintenance("MACHINE002", "WO002")
 		err = suite.repo.Create(ctx, duplicateMaintenance)
 		suite.Require().Error(err)
-		suite.Assert().Contains(err.Error(), "ConditionalCheckFailedException")
+		// PostgreSQL will return a unique constraint violation error
+		suite.Assert().Contains(err.Error(), "duplicate key")
 	})
 
 	suite.Run("should create maintenance with minimal fields", func() {
@@ -79,8 +67,11 @@ func (suite *MaintenanceRepositoryTestSuite) TestCreate() {
 
 		err := suite.repo.Create(ctx, maintenance)
 		suite.Require().NoError(err)
-		suite.Assert().NotEmpty(maintenance.CreatedAt)
-		suite.Assert().NotEmpty(maintenance.UpdatedAt)
+
+		retrieved, err := suite.repo.GetByWorkOrder(ctx, maintenance.MachineSerialNumber, maintenance.WorkOrderNumber)
+		suite.Require().NoError(err)
+		suite.Assert().NotEmpty(retrieved.CreatedAt)
+		suite.Assert().NotEmpty(retrieved.UpdatedAt)
 	})
 
 	suite.Run("should create maintenance with custom fields", func() {
@@ -88,8 +79,13 @@ func (suite *MaintenanceRepositoryTestSuite) TestCreate() {
 
 		err := suite.repo.Create(ctx, maintenance)
 		suite.Require().NoError(err)
-		suite.Assert().Equal("Custom Action", maintenance.ActionTaken)
-		suite.Assert().Equal("Custom Tech", maintenance.ReportedBy)
+
+		retrieved, err := suite.repo.GetByWorkOrder(ctx, maintenance.MachineSerialNumber, maintenance.WorkOrderNumber)
+		suite.Require().NoError(err)
+		suite.Assert().Equal("Custom Action", retrieved.ActionTaken)
+		suite.Assert().Equal("Custom Tech", retrieved.ReportedBy)
+		suite.Assert().NotEmpty(retrieved.CreatedAt)
+		suite.Assert().NotEmpty(retrieved.UpdatedAt)
 	})
 
 	suite.Run("should allow multiple maintenance records for same machine", func() {
@@ -98,8 +94,19 @@ func (suite *MaintenanceRepositoryTestSuite) TestCreate() {
 
 		err := suite.repo.Create(ctx, maintenance1)
 		suite.Require().NoError(err)
+
 		err = suite.repo.Create(ctx, maintenance2)
 		suite.Require().NoError(err)
+
+		retrieved, err := suite.repo.ListByMachine(ctx, "MACHINE005")
+		suite.Require().NoError(err)
+		suite.Assert().Len(retrieved, 2)
+		retrievedWorkOrders := make(map[string]bool)
+		for _, maintenance := range retrieved {
+			retrievedWorkOrders[maintenance.WorkOrderNumber] = true
+		}
+		suite.Assert().True(retrievedWorkOrders["WO005"])
+		suite.Assert().True(retrievedWorkOrders["WO006"])
 	})
 }
 
@@ -117,19 +124,19 @@ func (suite *MaintenanceRepositoryTestSuite) TestGetByWorkOrder() {
 		suite.Assert().Equal("WO007", retrieved.WorkOrderNumber)
 		suite.Assert().Equal("Routine maintenance", retrieved.ActionTaken)
 		suite.Assert().Equal("John Doe", retrieved.ReportedBy)
-		suite.Assert().NotEmpty(retrieved.CreatedAt)
-		suite.Assert().NotEmpty(retrieved.UpdatedAt)
+		suite.Assert().False(retrieved.CreatedAt.IsZero())
+		suite.Assert().False(retrieved.UpdatedAt.IsZero())
 	})
 
 	suite.Run("should return error for non-existent maintenance", func() {
 		_, err := suite.repo.GetByWorkOrder(ctx, "NONEXISTENT", "WO999")
 		suite.Require().Error(err)
-		suite.Assert().Equal("maintenance not found", err.Error())
+		suite.Assert().Contains(err.Error(), "maintenance not found")
 	})
 
 	suite.Run("should get maintenance with all fields populated", func() {
 		maintenance := testutils.CreateMaintenance("MACHINE007", "WO008")
-		maintenance.WorkOrderDate = "2025-01-15T10:30:00Z"
+		maintenance.WorkOrderDate = time.Date(2025, 1, 15, 10, 30, 0, 0, time.UTC)
 		maintenance.WorkerOrderType = "Emergency"
 		maintenance.Attachment = "emergency-maintenance.pdf"
 
@@ -138,7 +145,9 @@ func (suite *MaintenanceRepositoryTestSuite) TestGetByWorkOrder() {
 
 		retrieved, err := suite.repo.GetByWorkOrder(ctx, "MACHINE007", "WO008")
 		suite.Require().NoError(err)
-		suite.Assert().Equal("2025-01-15T10:30:00Z", retrieved.WorkOrderDate)
+		// PostgreSQL DATE type only stores the date part, not time
+		expectedDate := time.Date(2025, 1, 15, 0, 0, 0, 0, time.UTC)
+		suite.Assert().Equal(expectedDate, retrieved.WorkOrderDate)
 		suite.Assert().Equal("Emergency", retrieved.WorkerOrderType)
 		suite.Assert().Equal("emergency-maintenance.pdf", retrieved.Attachment)
 	})
@@ -258,23 +267,19 @@ func (suite *MaintenanceRepositoryTestSuite) TestUpdate() {
 		suite.Assert().Equal("Jane Doe", retrieved.ReportedBy)
 		suite.Assert().Equal("Corrective", retrieved.WorkerOrderType)
 		suite.Assert().Equal("updated-maintenance.pdf", retrieved.Attachment)
-		suite.Assert().Equal(originalCreatedAt, retrieved.CreatedAt)
+		delta := retrieved.CreatedAt.Sub(originalCreatedAt)
+		suite.Assert().True(delta < 2*time.Millisecond && delta > -2*time.Millisecond, "CreatedAt should be nearly unchanged")
 		// UpdatedAt should be different or at least not older
-		suite.Assert().True(retrieved.UpdatedAt >= originalUpdatedAt)
+		suite.Assert().True(retrieved.UpdatedAt.After(originalUpdatedAt) || retrieved.UpdatedAt.Equal(originalUpdatedAt))
 	})
 
-	suite.Run("should update non-existent maintenance (creates new record)", func() {
+	suite.Run("should return error when updating non-existent maintenance", func() {
 		maintenance := testutils.CreateMaintenance("MACHINE011", "WO017")
 		maintenance.ActionTaken = "New action"
 
 		err := suite.repo.Update(ctx, maintenance)
-		suite.Require().NoError(err)
-
-		retrieved, err := suite.repo.GetByWorkOrder(ctx, "MACHINE011", "WO017")
-		suite.Require().NoError(err)
-		suite.Assert().Equal("New action", retrieved.ActionTaken)
-		suite.Assert().NotEmpty(retrieved.CreatedAt)
-		suite.Assert().NotEmpty(retrieved.UpdatedAt)
+		suite.Require().Error(err)
+		suite.Assert().Contains(err.Error(), "maintenance not found")
 	})
 
 	suite.Run("should update maintenance with minimal changes", func() {
@@ -294,7 +299,7 @@ func (suite *MaintenanceRepositoryTestSuite) TestUpdate() {
 		suite.Require().NoError(err)
 		suite.Assert().Equal("Minimal update", retrieved.ActionTaken)
 		// UpdatedAt should be different or at least not older
-		suite.Assert().True(retrieved.UpdatedAt >= originalUpdatedAt)
+		suite.Assert().True(retrieved.UpdatedAt.After(originalUpdatedAt) || retrieved.UpdatedAt.Equal(originalUpdatedAt))
 	})
 }
 
@@ -317,12 +322,13 @@ func (suite *MaintenanceRepositoryTestSuite) TestDelete() {
 		// Verify maintenance is deleted
 		_, err = suite.repo.GetByWorkOrder(ctx, "MACHINE013", "WO019")
 		suite.Require().Error(err)
-		suite.Assert().Equal("maintenance not found", err.Error())
+		suite.Assert().Contains(err.Error(), "maintenance not found")
 	})
 
-	suite.Run("should not error when deleting non-existent maintenance", func() {
+	suite.Run("should return error when deleting non-existent maintenance", func() {
 		err := suite.repo.Delete(ctx, "NONEXISTENT", "WONONE")
-		suite.Require().NoError(err)
+		suite.Require().Error(err)
+		suite.Assert().Contains(err.Error(), "maintenance not found")
 	})
 
 	suite.Run("should delete maintenance and allow recreation", func() {

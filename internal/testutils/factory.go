@@ -22,8 +22,8 @@ func CreateMachine(serialNumber string) *machine.Machine {
 		AdditionalNotes: "Test notes",
 		Attachment:      "test.pdf",
 		PpmStatus:       "Scheduled",
-		TncDate:         time.Now().UTC().Format(time.RFC3339),
-		PpmDate:         time.Now().AddDate(0, 1, 0).UTC().Format(time.RFC3339),
+		TncDate:         time.Now().UTC(),
+		PpmDate:         time.Now().AddDate(0, 1, 0).UTC(),
 	}
 }
 
@@ -49,7 +49,7 @@ func CreateMaintenance(machineSerialNumber, workOrderNumber string) *maintenance
 	return &maintenance.Maintenance{
 		MachineSerialNumber: machineSerialNumber,
 		WorkOrderNumber:     workOrderNumber,
-		WorkOrderDate:       time.Now().UTC().Format(time.RFC3339),
+		WorkOrderDate:       time.Now().UTC(),
 		ActionTaken:         "Routine maintenance",
 		ReportedBy:          "John Doe",
 		WorkerOrderType:     "Preventive",

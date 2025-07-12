@@ -7,14 +7,13 @@ import (
 	"ralts-cms/internal/machine"
 	"ralts-cms/internal/maintenance"
 
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Dependencies struct {
 	Config *Config
 
-	// DynamoDB
-	DynamoDBClient *dynamodb.Client
+	PostgresClient *pgxpool.Pool
 
 	// Repositories
 	MachineRepository     machine.Repository
@@ -27,24 +26,19 @@ func Initialise() *Dependencies {
 		log.Fatalf("failed to load config: %e", err)
 	}
 
-	// Initialize DynamoDB client
-	dynamoClient, err := NewDynamoDBClient(context.Background(), cfg)
+	// Initialize PostgreSQL client
+	pgClient, err := NewPostgresClient(context.Background(), cfg)
 	if err != nil {
-		log.Fatalf("failed to initialize DynamoDB client: %e", err)
+		log.Fatalf("failed to initialize PostgreSQL pool: %v", err)
 	}
 
-	// Validate DynamoDB connection
-	if err := ValidateDynamoDBConnection(context.Background(), dynamoClient, cfg.DynamoDBTable); err != nil {
-		log.Fatalf("failed to validate DynamoDB connection: %e", err)
-	}
-
-	// Initialize repositories
-	machineRepo := machine.NewRepository(dynamoClient, cfg.DynamoDBTable)
-	maintenanceRepo := maintenance.NewRepository(dynamoClient, cfg.DynamoDBTable)
+	// Initialize repositories (update as needed to use pgPool)
+	machineRepo := machine.NewRepository(pgClient)
+	maintenanceRepo := maintenance.NewRepository(pgClient)
 
 	return &Dependencies{
 		Config:                cfg,
-		DynamoDBClient:        dynamoClient,
+		PostgresClient:        pgClient,
 		MachineRepository:     machineRepo,
 		MaintenanceRepository: maintenanceRepo,
 	}
