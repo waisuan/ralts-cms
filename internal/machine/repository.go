@@ -8,10 +8,34 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// SortOrder defines the sorting order for machine listing
+type SortOrder string
+
+const (
+	SortOrderCreatedAtDesc SortOrder = "created_at_desc" // Most recently created (default)
+	SortOrderCreatedAtAsc  SortOrder = "created_at_asc"  // Least recently created
+)
+
+// ListOptions defines the options for listing machines
+type ListOptions struct {
+	Limit  int32     `json:"limit"`
+	Offset int32     `json:"offset"`
+	Sort   SortOrder `json:"sort"`
+}
+
+// DefaultListOptions returns default list options
+func DefaultListOptions() *ListOptions {
+	return &ListOptions{
+		Limit:  50,
+		Offset: 0,
+		Sort:   SortOrderCreatedAtDesc,
+	}
+}
+
 //go:generate mockgen -destination=../machine/mock_machines_repository.go -package=machine -source=repository.go
 type Repository interface {
 	GetBySerialNumber(ctx context.Context, serialNumber string) (*Machine, error)
-	List(ctx context.Context, limit int32) ([]*Machine, error)
+	List(ctx context.Context, options *ListOptions) ([]*Machine, error)
 	Create(ctx context.Context, machine *Machine) error
 	Update(ctx context.Context, machine *Machine) error
 	Delete(ctx context.Context, serialNumber string) error
@@ -54,17 +78,33 @@ func (r *db) GetBySerialNumber(ctx context.Context, serialNumber string) (*Machi
 	return &machine, nil
 }
 
-func (r *db) List(ctx context.Context, limit int32) ([]*Machine, error) {
-	query := `
+func (r *db) List(ctx context.Context, options *ListOptions) ([]*Machine, error) {
+	// Use default options if none provided
+	if options == nil {
+		options = DefaultListOptions()
+	}
+
+	// Build the ORDER BY clause based on sort option
+	var orderByClause string
+	switch options.Sort {
+	case SortOrderCreatedAtAsc:
+		orderByClause = "ORDER BY created_at ASC"
+	case SortOrderCreatedAtDesc:
+		orderByClause = "ORDER BY created_at DESC"
+	default:
+		orderByClause = "ORDER BY created_at DESC" // Default to most recent first
+	}
+
+	query := fmt.Sprintf(`
 		SELECT id, serial_number, customer, state, account_type, model, status, brand, 
 		       district, person_in_charge, reported_by, additional_notes, attachment, 
 		       ppm_status, tnc_date, ppm_date, created_at, updated_at
 		FROM machines 
-		ORDER BY created_at DESC
-		LIMIT $1
-	`
+		%s
+		LIMIT $1 OFFSET $2
+	`, orderByClause)
 
-	rows, err := r.client.Query(ctx, query, limit)
+	rows, err := r.client.Query(ctx, query, options.Limit, options.Offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query machines: %w", err)
 	}

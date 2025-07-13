@@ -29,6 +29,8 @@ type Machine struct {
 // SetTimestamps sets the CreatedAt and UpdatedAt timestamps
 func (m *Machine) SetTimestamps() {
 	now := time.Now().UTC()
-	m.CreatedAt = now
+	if m.CreatedAt.IsZero() {
+		m.CreatedAt = now
+	}
 	m.UpdatedAt = now
 }

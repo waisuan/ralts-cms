@@ -349,13 +349,19 @@ func (suite *MachineHandlerTestSuite) TestDeleteMachine() {
 }
 
 func (suite *MachineHandlerTestSuite) TestListMachines() {
-	suite.Run("should list machines successfully", func() {
+	suite.Run("should list machines successfully with default parameters", func() {
 		expectedMachines := []*machine.Machine{
 			{SerialNumber: "MACHINE001", Customer: "Customer 1", Status: "Operational"},
 			{SerialNumber: "MACHINE002", Customer: "Customer 2", Status: "Maintenance"},
 		}
 
-		suite.mockRepo.EXPECT().List(gomock.Any(), int32(50)).Return(expectedMachines, nil)
+		expectedOptions := &machine.ListOptions{
+			Limit:  50,
+			Offset: 0,
+			Sort:   machine.SortOrderCreatedAtDesc,
+		}
+
+		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
 
 		req := httptest.NewRequest("GET", "/machines", nil)
 		w := httptest.NewRecorder()
@@ -371,6 +377,8 @@ func (suite *MachineHandlerTestSuite) TestListMachines() {
 
 		suite.Assert().Equal(float64(2), response["count"])
 		suite.Assert().Equal(float64(50), response["limit"])
+		suite.Assert().Equal(float64(0), response["offset"])
+		suite.Assert().Equal("created_at_desc", response["sort"])
 
 		machines := response["machines"].([]interface{})
 		suite.Assert().Len(machines, 2)
@@ -381,7 +389,13 @@ func (suite *MachineHandlerTestSuite) TestListMachines() {
 			{SerialNumber: "MACHINE001", Customer: "Customer 1", Status: "Operational"},
 		}
 
-		suite.mockRepo.EXPECT().List(gomock.Any(), int32(25)).Return(expectedMachines, nil)
+		expectedOptions := &machine.ListOptions{
+			Limit:  25,
+			Offset: 0,
+			Sort:   machine.SortOrderCreatedAtDesc,
+		}
+
+		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
 
 		req := httptest.NewRequest("GET", "/machines?limit=25", nil)
 		w := httptest.NewRecorder()
@@ -396,6 +410,90 @@ func (suite *MachineHandlerTestSuite) TestListMachines() {
 
 		suite.Assert().Equal(float64(25), response["limit"])
 		suite.Assert().Equal(float64(1), response["count"])
+	})
+
+	suite.Run("should use custom offset when provided", func() {
+		expectedMachines := []*machine.Machine{
+			{SerialNumber: "MACHINE003", Customer: "Customer 3", Status: "Operational"},
+		}
+
+		expectedOptions := &machine.ListOptions{
+			Limit:  50,
+			Offset: 10,
+			Sort:   machine.SortOrderCreatedAtDesc,
+		}
+
+		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
+
+		req := httptest.NewRequest("GET", "/machines?offset=10", nil)
+		w := httptest.NewRecorder()
+
+		suite.handler.ListMachines(w, req)
+
+		suite.Assert().Equal(http.StatusOK, w.Code)
+
+		var response map[string]interface{}
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		suite.Require().NoError(err)
+
+		suite.Assert().Equal(float64(10), response["offset"])
+		suite.Assert().Equal(float64(1), response["count"])
+	})
+
+	suite.Run("should use custom sort when provided", func() {
+		expectedMachines := []*machine.Machine{
+			{SerialNumber: "MACHINE001", Customer: "Customer 1", Status: "Operational"},
+		}
+
+		expectedOptions := &machine.ListOptions{
+			Limit:  50,
+			Offset: 0,
+			Sort:   machine.SortOrderCreatedAtAsc,
+		}
+
+		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
+
+		req := httptest.NewRequest("GET", "/machines?sort=created_at_asc", nil)
+		w := httptest.NewRecorder()
+
+		suite.handler.ListMachines(w, req)
+
+		suite.Assert().Equal(http.StatusOK, w.Code)
+
+		var response map[string]interface{}
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		suite.Require().NoError(err)
+
+		suite.Assert().Equal("created_at_asc", response["sort"])
+	})
+
+	suite.Run("should use all custom parameters together", func() {
+		expectedMachines := []*machine.Machine{
+			{SerialNumber: "MACHINE005", Customer: "Customer 5", Status: "Operational"},
+		}
+
+		expectedOptions := &machine.ListOptions{
+			Limit:  10,
+			Offset: 20,
+			Sort:   machine.SortOrderCreatedAtDesc,
+		}
+
+		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
+
+		req := httptest.NewRequest("GET", "/machines?limit=10&offset=20&sort=created_at_desc", nil)
+		w := httptest.NewRecorder()
+
+		suite.handler.ListMachines(w, req)
+
+		suite.Assert().Equal(http.StatusOK, w.Code)
+
+		var response map[string]interface{}
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		suite.Require().NoError(err)
+
+		suite.Assert().Equal(float64(10), response["limit"])
+		suite.Assert().Equal(float64(20), response["offset"])
+		suite.Assert().Equal("created_at_desc", response["sort"])
 	})
 
 	suite.Run("should return 400 for invalid limit parameter", func() {
@@ -428,8 +526,44 @@ func (suite *MachineHandlerTestSuite) TestListMachines() {
 		suite.Assert().Contains(w.Body.String(), "Invalid limit parameter")
 	})
 
+	suite.Run("should return 400 for invalid offset parameter", func() {
+		req := httptest.NewRequest("GET", "/machines?offset=invalid", nil)
+		w := httptest.NewRecorder()
+
+		suite.handler.ListMachines(w, req)
+
+		suite.Assert().Equal(http.StatusBadRequest, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Invalid offset parameter")
+	})
+
+	suite.Run("should return 400 for negative offset parameter", func() {
+		req := httptest.NewRequest("GET", "/machines?offset=-1", nil)
+		w := httptest.NewRecorder()
+
+		suite.handler.ListMachines(w, req)
+
+		suite.Assert().Equal(http.StatusBadRequest, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Invalid offset parameter")
+	})
+
+	suite.Run("should return 400 for invalid sort parameter", func() {
+		req := httptest.NewRequest("GET", "/machines?sort=invalid_sort", nil)
+		w := httptest.NewRecorder()
+
+		suite.handler.ListMachines(w, req)
+
+		suite.Assert().Equal(http.StatusBadRequest, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Invalid sort parameter")
+	})
+
 	suite.Run("should return 500 on repository error", func() {
-		suite.mockRepo.EXPECT().List(gomock.Any(), int32(50)).Return(nil, fmt.Errorf("database error"))
+		expectedOptions := &machine.ListOptions{
+			Limit:  50,
+			Offset: 0,
+			Sort:   machine.SortOrderCreatedAtDesc,
+		}
+
+		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(nil, fmt.Errorf("database error"))
 
 		req := httptest.NewRequest("GET", "/machines", nil)
 		w := httptest.NewRecorder()
@@ -441,7 +575,13 @@ func (suite *MachineHandlerTestSuite) TestListMachines() {
 	})
 
 	suite.Run("should handle empty result set", func() {
-		suite.mockRepo.EXPECT().List(gomock.Any(), int32(50)).Return([]*machine.Machine{}, nil)
+		expectedOptions := &machine.ListOptions{
+			Limit:  50,
+			Offset: 0,
+			Sort:   machine.SortOrderCreatedAtDesc,
+		}
+
+		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return([]*machine.Machine{}, nil)
 
 		req := httptest.NewRequest("GET", "/machines", nil)
 		w := httptest.NewRecorder()
@@ -456,6 +596,8 @@ func (suite *MachineHandlerTestSuite) TestListMachines() {
 
 		suite.Assert().Equal(float64(0), response["count"])
 		suite.Assert().Equal(float64(50), response["limit"])
+		suite.Assert().Equal(float64(0), response["offset"])
+		suite.Assert().Equal("created_at_desc", response["sort"])
 
 		machines := response["machines"].([]interface{})
 		suite.Assert().Len(machines, 0)

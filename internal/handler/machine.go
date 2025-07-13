@@ -47,10 +47,12 @@ func (h *MachineHandler) GetMachine(w http.ResponseWriter, r *http.Request) {
 
 // ListMachines handles GET /machines
 func (h *MachineHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
-	// Parse query parameters for pagination
+	// Parse query parameters for pagination and sorting
 	limitStr := r.URL.Query().Get("limit")
+	offsetStr := r.URL.Query().Get("offset")
+	sortStr := r.URL.Query().Get("sort")
 
-	// Use configurable default limit
+	// Parse limit parameter
 	limit := h.deps.Config.DefaultMachineLimit
 	if limitStr != "" {
 		if parsedLimit, err := strconv.ParseInt(limitStr, 10, 32); err == nil && parsedLimit > 0 && parsedLimit <= 100 {
@@ -61,8 +63,40 @@ func (h *MachineHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Parse offset parameter
+	var offset int32 = 0
+	if offsetStr != "" {
+		if parsedOffset, err := strconv.ParseInt(offsetStr, 10, 32); err == nil && parsedOffset >= 0 {
+			offset = int32(parsedOffset)
+		} else {
+			http.Error(w, "Invalid offset parameter. Must be a non-negative integer", http.StatusBadRequest)
+			return
+		}
+	}
+
+	// Parse sort parameter
+	sort := machine.SortOrderCreatedAtDesc // Default to newest first
+	if sortStr != "" {
+		switch sortStr {
+		case "created_at_desc":
+			sort = machine.SortOrderCreatedAtDesc
+		case "created_at_asc":
+			sort = machine.SortOrderCreatedAtAsc
+		default:
+			http.Error(w, "Invalid sort parameter. Must be 'created_at_desc' or 'created_at_asc'", http.StatusBadRequest)
+			return
+		}
+	}
+
+	// Create list options
+	options := &machine.ListOptions{
+		Limit:  limit,
+		Offset: offset,
+		Sort:   sort,
+	}
+
 	// Get machines from repository
-	machines, err := h.deps.MachineRepository.List(r.Context(), limit)
+	machines, err := h.deps.MachineRepository.List(r.Context(), options)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to list machines: %v", err), http.StatusInternalServerError)
 		return
@@ -73,6 +107,8 @@ func (h *MachineHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 		"machines": machines,
 		"count":    len(machines),
 		"limit":    limit,
+		"offset":   offset,
+		"sort":     string(sort),
 	}
 
 	w.Header().Set("Content-Type", "application/json")

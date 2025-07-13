@@ -29,7 +29,7 @@ func (suite *MachineRepositoryTestSuite) SetupTest() {
 	suite.repo = machine.NewRepository(deps.PostgresClient)
 }
 
-func (suite *MachineRepositoryTestSuite) TearDownTest() {
+func (suite *MachineRepositoryTestSuite) TearDownSubTest() {
 	// Clear the machines table for PostgreSQL
 	ctx := context.Background()
 	_, err := suite.deps.PostgresClient.Exec(ctx, "DELETE FROM machines")
@@ -204,31 +204,26 @@ func (suite *MachineRepositoryTestSuite) TestList() {
 	ctx := context.Background()
 
 	suite.Run("should return empty list when no machines exist", func() {
-		machines, err := suite.repo.List(ctx, 50)
+		options := machine.DefaultListOptions()
+		machines, err := suite.repo.List(ctx, options)
 		suite.Require().NoError(err)
 		suite.Assert().Empty(machines)
 		suite.Assert().Len(machines, 0)
 	})
 
 	suite.Run("should list all machines when limit is sufficient", func() {
-		// Create multiple machines
 		machine1 := testutils.CreateMachine("LIST001")
 		machine2 := testutils.CreateMachine("LIST002")
 		machine3 := testutils.CreateMachine("LIST003")
+		suite.Require().NoError(suite.repo.Create(ctx, machine1))
+		suite.Require().NoError(suite.repo.Create(ctx, machine2))
+		suite.Require().NoError(suite.repo.Create(ctx, machine3))
 
-		err := suite.repo.Create(ctx, machine1)
-		suite.Require().NoError(err)
-		err = suite.repo.Create(ctx, machine2)
-		suite.Require().NoError(err)
-		err = suite.repo.Create(ctx, machine3)
-		suite.Require().NoError(err)
-
-		machines, err := suite.repo.List(ctx, 50)
+		options := &machine.ListOptions{Limit: 50, Offset: 0, Sort: machine.SortOrderCreatedAtDesc}
+		machines, err := suite.repo.List(ctx, options)
 		suite.Require().NoError(err)
 		suite.Assert().Len(machines, 3)
-
-		// Verify all machines are returned
-		serialNumbers := make(map[string]bool)
+		serialNumbers := map[string]bool{}
 		for _, m := range machines {
 			serialNumbers[m.SerialNumber] = true
 		}
@@ -238,22 +233,104 @@ func (suite *MachineRepositoryTestSuite) TestList() {
 	})
 
 	suite.Run("should respect limit parameter", func() {
-		// Create 5 machines
 		for i := 1; i <= 5; i++ {
-			machine := testutils.CreateMachine(fmt.Sprintf("LIMIT%03d", i))
-			err := suite.repo.Create(ctx, machine)
-			suite.Require().NoError(err)
+			m := testutils.CreateMachine(fmt.Sprintf("LIMIT%03d", i))
+			suite.Require().NoError(suite.repo.Create(ctx, m))
 		}
-
-		// Test with limit of 3
-		machines, err := suite.repo.List(ctx, 3)
+		options := &machine.ListOptions{Limit: 3, Offset: 0, Sort: machine.SortOrderCreatedAtDesc}
+		machines, err := suite.repo.List(ctx, options)
 		suite.Require().NoError(err)
 		suite.Assert().Len(machines, 3)
+	})
 
-		// Test with limit of 1
-		machines, err = suite.repo.List(ctx, 1)
+	suite.Run("should support pagination with offset", func() {
+		for i := 1; i <= 5; i++ {
+			m := testutils.CreateMachine(fmt.Sprintf("PAGE%03d", i))
+			suite.Require().NoError(suite.repo.Create(ctx, m))
+		}
+		options := &machine.ListOptions{Limit: 2, Offset: 0, Sort: machine.SortOrderCreatedAtDesc}
+		machines, err := suite.repo.List(ctx, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machines, 2)
+		suite.Assert().Equal("PAGE005", machines[0].SerialNumber)
+		suite.Assert().Equal("PAGE004", machines[1].SerialNumber)
+
+		options.Offset = 2
+		machines, err = suite.repo.List(ctx, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machines, 2)
+		suite.Assert().Equal("PAGE003", machines[0].SerialNumber)
+		suite.Assert().Equal("PAGE002", machines[1].SerialNumber)
+
+		options.Offset = 4
+		machines, err = suite.repo.List(ctx, options)
 		suite.Require().NoError(err)
 		suite.Assert().Len(machines, 1)
+		suite.Assert().Equal("PAGE001", machines[0].SerialNumber)
+
+		options.Offset = 10
+		machines, err = suite.repo.List(ctx, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machines, 0)
+	})
+
+	suite.Run("should support sorting by created_at ascending", func() {
+		machine1 := testutils.CreateMachine("SORT001")
+		time.Sleep(10 * time.Millisecond)
+		machine2 := testutils.CreateMachine("SORT002")
+		time.Sleep(10 * time.Millisecond)
+		machine3 := testutils.CreateMachine("SORT003")
+		suite.Require().NoError(suite.repo.Create(ctx, machine1))
+		suite.Require().NoError(suite.repo.Create(ctx, machine2))
+		suite.Require().NoError(suite.repo.Create(ctx, machine3))
+
+		options := &machine.ListOptions{Limit: 10, Offset: 0, Sort: machine.SortOrderCreatedAtAsc}
+		machines, err := suite.repo.List(ctx, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machines, 3)
+		suite.Assert().Equal("SORT001", machines[0].SerialNumber)
+		suite.Assert().Equal("SORT002", machines[1].SerialNumber)
+		suite.Assert().Equal("SORT003", machines[2].SerialNumber)
+	})
+
+	suite.Run("should support sorting by created_at descending", func() {
+		machine1 := testutils.CreateMachine("SORT004")
+		time.Sleep(10 * time.Millisecond)
+		machine2 := testutils.CreateMachine("SORT005")
+		time.Sleep(10 * time.Millisecond)
+		machine3 := testutils.CreateMachine("SORT006")
+		suite.Require().NoError(suite.repo.Create(ctx, machine1))
+		suite.Require().NoError(suite.repo.Create(ctx, machine2))
+		suite.Require().NoError(suite.repo.Create(ctx, machine3))
+
+		options := &machine.ListOptions{Limit: 10, Offset: 0, Sort: machine.SortOrderCreatedAtDesc}
+		machines, err := suite.repo.List(ctx, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machines, 3)
+		suite.Assert().Equal("SORT006", machines[0].SerialNumber)
+		suite.Assert().Equal("SORT005", machines[1].SerialNumber)
+		suite.Assert().Equal("SORT004", machines[2].SerialNumber)
+	})
+
+	suite.Run("should use default options when nil is passed", func() {
+		machine := testutils.CreateMachine("DEFAULT001")
+		suite.Require().NoError(suite.repo.Create(ctx, machine))
+
+		machines, err := suite.repo.List(ctx, nil)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machines, 1)
+		suite.Assert().Equal("DEFAULT001", machines[0].SerialNumber)
+	})
+
+	suite.Run("should handle invalid sort order gracefully", func() {
+		m := testutils.CreateMachine("INVALID001")
+		suite.Require().NoError(suite.repo.Create(ctx, m))
+
+		options := &machine.ListOptions{Limit: 10, Offset: 0, Sort: "invalid_sort"}
+		machines, err := suite.repo.List(ctx, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machines, 1)
+		suite.Assert().Equal("INVALID001", machines[0].SerialNumber)
 	})
 }
 

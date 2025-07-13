@@ -78,18 +78,18 @@ func (mr *MockRepositoryMockRecorder) GetBySerialNumber(ctx, serialNumber interf
 }
 
 // List mocks base method.
-func (m *MockRepository) List(ctx context.Context, limit int32) ([]*Machine, error) {
+func (m *MockRepository) List(ctx context.Context, options *ListOptions) ([]*Machine, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "List", ctx, limit)
+	ret := m.ctrl.Call(m, "List", ctx, options)
 	ret0, _ := ret[0].([]*Machine)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // List indicates an expected call of List.
-func (mr *MockRepositoryMockRecorder) List(ctx, limit interface{}) *gomock.Call {
+func (mr *MockRepositoryMockRecorder) List(ctx, options interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockRepository)(nil).List), ctx, limit)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockRepository)(nil).List), ctx, options)
 }
 
 // Update mocks base method.

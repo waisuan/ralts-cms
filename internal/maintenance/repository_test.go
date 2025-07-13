@@ -28,7 +28,7 @@ func (suite *MaintenanceRepositoryTestSuite) SetupTest() {
 	suite.repo = maintenance.NewRepository(deps.PostgresClient)
 }
 
-func (suite *MaintenanceRepositoryTestSuite) TearDownTest() {
+func (suite *MaintenanceRepositoryTestSuite) TearDownSubTest() {
 	// Clear the maintenance table for PostgreSQL
 	ctx := context.Background()
 	_, err := suite.deps.PostgresClient.Exec(ctx, "DELETE FROM maintenance")
