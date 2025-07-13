@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"ralts-cms/internal/deps"
 	"ralts-cms/internal/maintenance"
+	"strconv"
 	"strings"
 
 	"github.com/gorilla/mux"
@@ -54,14 +55,75 @@ func (h *MaintenanceHandler) ListMaintenance(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	maintenanceList, err := h.deps.MaintenanceRepository.ListByMachine(r.Context(), machineSerialNumber)
+	// Parse query parameters for pagination and sorting
+	limitStr := r.URL.Query().Get("limit")
+	offsetStr := r.URL.Query().Get("offset")
+	sortStr := r.URL.Query().Get("sort")
+
+	// Parse limit parameter
+	limit := int32(50) // Default limit
+	if limitStr != "" {
+		if parsedLimit, err := strconv.ParseInt(limitStr, 10, 32); err == nil && parsedLimit > 0 && parsedLimit <= 100 {
+			limit = int32(parsedLimit)
+		} else {
+			http.Error(w, "Invalid limit parameter. Must be between 1 and 100", http.StatusBadRequest)
+			return
+		}
+	}
+
+	// Parse offset parameter
+	var offset int32 = 0
+	if offsetStr != "" {
+		if parsedOffset, err := strconv.ParseInt(offsetStr, 10, 32); err == nil && parsedOffset >= 0 {
+			offset = int32(parsedOffset)
+		} else {
+			http.Error(w, "Invalid offset parameter. Must be a non-negative integer", http.StatusBadRequest)
+			return
+		}
+	}
+
+	// Parse sort parameter
+	sort := maintenance.SortOrderWorkOrderDateDesc // Default to most recent work order first
+	if sortStr != "" {
+		switch sortStr {
+		case "work_order_date_desc":
+			sort = maintenance.SortOrderWorkOrderDateDesc
+		case "work_order_date_asc":
+			sort = maintenance.SortOrderWorkOrderDateAsc
+		case "created_at_desc":
+			sort = maintenance.SortOrderCreatedAtDesc
+		case "created_at_asc":
+			sort = maintenance.SortOrderCreatedAtAsc
+		default:
+			http.Error(w, "Invalid sort parameter. Must be 'work_order_date_desc', 'work_order_date_asc', 'created_at_desc', or 'created_at_asc'", http.StatusBadRequest)
+			return
+		}
+	}
+
+	// Create list options
+	options := &maintenance.ListOptions{
+		Limit:  limit,
+		Offset: offset,
+		Sort:   sort,
+	}
+
+	maintenanceList, err := h.deps.MaintenanceRepository.ListByMachine(r.Context(), machineSerialNumber, options)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to list maintenance: %v", err), http.StatusInternalServerError)
 		return
 	}
 
+	// Build response
+	response := map[string]interface{}{
+		"maintenance": maintenanceList,
+		"count":       len(maintenanceList),
+		"limit":       limit,
+		"offset":      offset,
+		"sort":        string(sort),
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(maintenanceList)
+	json.NewEncoder(w).Encode(response)
 }
 
 // CreateMaintenance handles POST /machines/{serial_number}/maintenance

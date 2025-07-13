@@ -8,10 +8,36 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// SortOrder defines the sorting order for maintenance listing
+type SortOrder string
+
+const (
+	SortOrderWorkOrderDateDesc SortOrder = "work_order_date_desc" // Most recent work order date (default)
+	SortOrderWorkOrderDateAsc  SortOrder = "work_order_date_asc"  // Oldest work order date
+	SortOrderCreatedAtDesc     SortOrder = "created_at_desc"      // Most recently created
+	SortOrderCreatedAtAsc      SortOrder = "created_at_asc"       // Least recently created
+)
+
+// ListOptions defines the options for listing maintenance records
+type ListOptions struct {
+	Limit  int32     `json:"limit"`
+	Offset int32     `json:"offset"`
+	Sort   SortOrder `json:"sort"`
+}
+
+// DefaultListOptions returns default list options
+func DefaultListOptions() *ListOptions {
+	return &ListOptions{
+		Limit:  50,
+		Offset: 0,
+		Sort:   SortOrderWorkOrderDateDesc,
+	}
+}
+
 //go:generate mockgen -destination=../maintenance/mock_maintenance_repository.go -package=maintenance -source=repository.go
 type Repository interface {
 	GetByWorkOrder(ctx context.Context, machineSerialNumber, workOrderNumber string) (*Maintenance, error)
-	ListByMachine(ctx context.Context, machineSerialNumber string) ([]*Maintenance, error)
+	ListByMachine(ctx context.Context, machineSerialNumber string, options *ListOptions) ([]*Maintenance, error)
 	Create(ctx context.Context, maintenance *Maintenance) error
 	Update(ctx context.Context, maintenance *Maintenance) error
 	Delete(ctx context.Context, machineSerialNumber, workOrderNumber string) error
@@ -51,16 +77,37 @@ func (r *db) GetByWorkOrder(ctx context.Context, machineSerialNumber, workOrderN
 	return &maintenance, nil
 }
 
-func (r *db) ListByMachine(ctx context.Context, machineSerialNumber string) ([]*Maintenance, error) {
-	query := `
+func (r *db) ListByMachine(ctx context.Context, machineSerialNumber string, options *ListOptions) ([]*Maintenance, error) {
+	// Use default options if none provided
+	if options == nil {
+		options = DefaultListOptions()
+	}
+
+	// Build the ORDER BY clause based on sort option
+	var orderByClause string
+	switch options.Sort {
+	case SortOrderWorkOrderDateAsc:
+		orderByClause = "ORDER BY work_order_date ASC, created_at ASC"
+	case SortOrderCreatedAtDesc:
+		orderByClause = "ORDER BY created_at DESC, work_order_date DESC"
+	case SortOrderCreatedAtAsc:
+		orderByClause = "ORDER BY created_at ASC, work_order_date ASC"
+	case SortOrderWorkOrderDateDesc:
+		orderByClause = "ORDER BY work_order_date DESC, created_at DESC"
+	default:
+		orderByClause = "ORDER BY work_order_date DESC, created_at DESC" // Default to most recent work order first
+	}
+
+	query := fmt.Sprintf(`
 		SELECT id, machine_serial_number, work_order_number, work_order_date, action_taken,
 		       reported_by, worker_order_type, attachment, created_at, updated_at
 		FROM maintenance 
 		WHERE machine_serial_number = $1
-		ORDER BY work_order_date DESC, created_at DESC
-	`
+		%s
+		LIMIT $2 OFFSET $3
+	`, orderByClause)
 
-	rows, err := r.client.Query(ctx, query, machineSerialNumber)
+	rows, err := r.client.Query(ctx, query, machineSerialNumber, options.Limit, options.Offset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query maintenance records: %w", err)
 	}

@@ -10,7 +10,6 @@ import (
 	"ralts-cms/internal/deps"
 	"ralts-cms/internal/handler"
 	"ralts-cms/internal/maintenance"
-	mockmaintenance "ralts-cms/internal/maintenance"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -23,7 +22,7 @@ type MaintenanceHandlerTestSuite struct {
 	suite.Suite
 
 	handler  *handler.MaintenanceHandler
-	mockRepo *mockmaintenance.MockRepository
+	mockRepo *maintenance.MockRepository
 	ctrl     *gomock.Controller
 }
 
@@ -31,7 +30,7 @@ type MaintenanceHandlerTestSuite struct {
 func (suite *MaintenanceHandlerTestSuite) SetupTest() {
 	suite.ctrl = gomock.NewController(suite.T())
 
-	suite.mockRepo = mockmaintenance.NewMockRepository(suite.ctrl)
+	suite.mockRepo = maintenance.NewMockRepository(suite.ctrl)
 	deps := &deps.Dependencies{
 		MaintenanceRepository: suite.mockRepo,
 	}
@@ -102,7 +101,7 @@ func (suite *MaintenanceHandlerTestSuite) TestGetMaintenance() {
 }
 
 func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
-	suite.Run("should return list of maintenance records", func() {
+	suite.Run("should return list of maintenance records with default parameters", func() {
 		expectedMaintenance := []*maintenance.Maintenance{
 			{
 				MachineSerialNumber: "MACHINE123",
@@ -118,7 +117,13 @@ func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
 			},
 		}
 
-		suite.mockRepo.EXPECT().ListByMachine(gomock.Any(), "MACHINE123").Return(expectedMaintenance, nil)
+		expectedOptions := &maintenance.ListOptions{
+			Limit:  50,
+			Offset: 0,
+			Sort:   maintenance.SortOrderWorkOrderDateDesc,
+		}
+
+		suite.mockRepo.EXPECT().ListByMachine(gomock.Any(), "MACHINE123", expectedOptions).Return(expectedMaintenance, nil)
 
 		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance", nil)
 		w := httptest.NewRecorder()
@@ -130,16 +135,239 @@ func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
 		suite.Assert().Equal(http.StatusOK, w.Code)
 		suite.Assert().Equal("application/json", w.Header().Get("Content-Type"))
 
-		var response []*maintenance.Maintenance
+		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		suite.Require().NoError(err)
-		suite.Assert().Len(response, 2)
-		suite.Assert().Equal("WO001", response[0].WorkOrderNumber)
-		suite.Assert().Equal("WO002", response[1].WorkOrderNumber)
+
+		suite.Assert().Equal(float64(2), response["count"])
+		suite.Assert().Equal(float64(50), response["limit"])
+		suite.Assert().Equal(float64(0), response["offset"])
+		suite.Assert().Equal("work_order_date_desc", response["sort"])
+
+		maintenanceList := response["maintenance"].([]interface{})
+		suite.Assert().Len(maintenanceList, 2)
+	})
+
+	suite.Run("should use custom limit when provided", func() {
+		expectedMaintenance := []*maintenance.Maintenance{
+			{
+				MachineSerialNumber: "MACHINE123",
+				WorkOrderNumber:     "WO001",
+				ActionTaken:         "First maintenance",
+				ReportedBy:          "Tech1",
+			},
+		}
+
+		expectedOptions := &maintenance.ListOptions{
+			Limit:  25,
+			Offset: 0,
+			Sort:   maintenance.SortOrderWorkOrderDateDesc,
+		}
+
+		suite.mockRepo.EXPECT().ListByMachine(gomock.Any(), "MACHINE123", expectedOptions).Return(expectedMaintenance, nil)
+
+		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance?limit=25", nil)
+		w := httptest.NewRecorder()
+
+		router := mux.NewRouter()
+		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.ListMaintenance)
+		router.ServeHTTP(w, req)
+
+		suite.Assert().Equal(http.StatusOK, w.Code)
+
+		var response map[string]interface{}
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		suite.Require().NoError(err)
+
+		suite.Assert().Equal(float64(25), response["limit"])
+		suite.Assert().Equal(float64(1), response["count"])
+	})
+
+	suite.Run("should use custom offset when provided", func() {
+		expectedMaintenance := []*maintenance.Maintenance{
+			{
+				MachineSerialNumber: "MACHINE123",
+				WorkOrderNumber:     "WO003",
+				ActionTaken:         "Third maintenance",
+				ReportedBy:          "Tech3",
+			},
+		}
+
+		expectedOptions := &maintenance.ListOptions{
+			Limit:  50,
+			Offset: 10,
+			Sort:   maintenance.SortOrderWorkOrderDateDesc,
+		}
+
+		suite.mockRepo.EXPECT().ListByMachine(gomock.Any(), "MACHINE123", expectedOptions).Return(expectedMaintenance, nil)
+
+		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance?offset=10", nil)
+		w := httptest.NewRecorder()
+
+		router := mux.NewRouter()
+		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.ListMaintenance)
+		router.ServeHTTP(w, req)
+
+		suite.Assert().Equal(http.StatusOK, w.Code)
+
+		var response map[string]interface{}
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		suite.Require().NoError(err)
+
+		suite.Assert().Equal(float64(10), response["offset"])
+		suite.Assert().Equal(float64(1), response["count"])
+	})
+
+	suite.Run("should use custom sort when provided", func() {
+		expectedMaintenance := []*maintenance.Maintenance{
+			{
+				MachineSerialNumber: "MACHINE123",
+				WorkOrderNumber:     "WO001",
+				ActionTaken:         "First maintenance",
+				ReportedBy:          "Tech1",
+			},
+		}
+
+		expectedOptions := &maintenance.ListOptions{
+			Limit:  50,
+			Offset: 0,
+			Sort:   maintenance.SortOrderCreatedAtDesc,
+		}
+
+		suite.mockRepo.EXPECT().ListByMachine(gomock.Any(), "MACHINE123", expectedOptions).Return(expectedMaintenance, nil)
+
+		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance?sort=created_at_desc", nil)
+		w := httptest.NewRecorder()
+
+		router := mux.NewRouter()
+		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.ListMaintenance)
+		router.ServeHTTP(w, req)
+
+		suite.Assert().Equal(http.StatusOK, w.Code)
+
+		var response map[string]interface{}
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		suite.Require().NoError(err)
+
+		suite.Assert().Equal("created_at_desc", response["sort"])
+	})
+
+	suite.Run("should use all custom parameters together", func() {
+		expectedMaintenance := []*maintenance.Maintenance{
+			{
+				MachineSerialNumber: "MACHINE123",
+				WorkOrderNumber:     "WO005",
+				ActionTaken:         "Fifth maintenance",
+				ReportedBy:          "Tech5",
+			},
+		}
+
+		expectedOptions := &maintenance.ListOptions{
+			Limit:  10,
+			Offset: 20,
+			Sort:   maintenance.SortOrderWorkOrderDateDesc,
+		}
+
+		suite.mockRepo.EXPECT().ListByMachine(gomock.Any(), "MACHINE123", expectedOptions).Return(expectedMaintenance, nil)
+
+		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance?limit=10&offset=20&sort=work_order_date_desc", nil)
+		w := httptest.NewRecorder()
+
+		router := mux.NewRouter()
+		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.ListMaintenance)
+		router.ServeHTTP(w, req)
+
+		suite.Assert().Equal(http.StatusOK, w.Code)
+
+		var response map[string]interface{}
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		suite.Require().NoError(err)
+
+		suite.Assert().Equal(float64(10), response["limit"])
+		suite.Assert().Equal(float64(20), response["offset"])
+		suite.Assert().Equal("work_order_date_desc", response["sort"])
+	})
+
+	suite.Run("should return 400 for invalid limit parameter", func() {
+		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance?limit=invalid", nil)
+		w := httptest.NewRecorder()
+
+		router := mux.NewRouter()
+		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.ListMaintenance)
+		router.ServeHTTP(w, req)
+
+		suite.Assert().Equal(http.StatusBadRequest, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Invalid limit parameter")
+	})
+
+	suite.Run("should return 400 for limit less than 1", func() {
+		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance?limit=0", nil)
+		w := httptest.NewRecorder()
+
+		router := mux.NewRouter()
+		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.ListMaintenance)
+		router.ServeHTTP(w, req)
+
+		suite.Assert().Equal(http.StatusBadRequest, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Invalid limit parameter")
+	})
+
+	suite.Run("should return 400 for limit greater than allowed", func() {
+		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance?limit=101", nil)
+		w := httptest.NewRecorder()
+
+		router := mux.NewRouter()
+		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.ListMaintenance)
+		router.ServeHTTP(w, req)
+
+		suite.Assert().Equal(http.StatusBadRequest, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Invalid limit parameter")
+	})
+
+	suite.Run("should return 400 for invalid offset parameter", func() {
+		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance?offset=invalid", nil)
+		w := httptest.NewRecorder()
+
+		router := mux.NewRouter()
+		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.ListMaintenance)
+		router.ServeHTTP(w, req)
+
+		suite.Assert().Equal(http.StatusBadRequest, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Invalid offset parameter")
+	})
+
+	suite.Run("should return 400 for negative offset parameter", func() {
+		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance?offset=-1", nil)
+		w := httptest.NewRecorder()
+
+		router := mux.NewRouter()
+		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.ListMaintenance)
+		router.ServeHTTP(w, req)
+
+		suite.Assert().Equal(http.StatusBadRequest, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Invalid offset parameter")
+	})
+
+	suite.Run("should return 400 for invalid sort parameter", func() {
+		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance?sort=invalid_sort", nil)
+		w := httptest.NewRecorder()
+
+		router := mux.NewRouter()
+		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.ListMaintenance)
+		router.ServeHTTP(w, req)
+
+		suite.Assert().Equal(http.StatusBadRequest, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Invalid sort parameter")
 	})
 
 	suite.Run("should return empty list when no maintenance found", func() {
-		suite.mockRepo.EXPECT().ListByMachine(gomock.Any(), "NOMAINTAINANCE").Return([]*maintenance.Maintenance{}, nil)
+		expectedOptions := &maintenance.ListOptions{
+			Limit:  50,
+			Offset: 0,
+			Sort:   maintenance.SortOrderWorkOrderDateDesc,
+		}
+
+		suite.mockRepo.EXPECT().ListByMachine(gomock.Any(), "NOMAINTAINANCE", expectedOptions).Return([]*maintenance.Maintenance{}, nil)
 
 		req := httptest.NewRequest("GET", "/machines/NOMAINTAINANCE/maintenance", nil)
 		w := httptest.NewRecorder()
@@ -150,14 +378,27 @@ func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
 
 		suite.Assert().Equal(http.StatusOK, w.Code)
 
-		var response []*maintenance.Maintenance
+		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		suite.Require().NoError(err)
-		suite.Assert().Empty(response)
+
+		suite.Assert().Equal(float64(0), response["count"])
+		suite.Assert().Equal(float64(50), response["limit"])
+		suite.Assert().Equal(float64(0), response["offset"])
+		suite.Assert().Equal("work_order_date_desc", response["sort"])
+
+		maintenanceList := response["maintenance"].([]interface{})
+		suite.Assert().Len(maintenanceList, 0)
 	})
 
 	suite.Run("should return 500 on repository error", func() {
-		suite.mockRepo.EXPECT().ListByMachine(gomock.Any(), "ERROR").Return(nil, fmt.Errorf("database error"))
+		expectedOptions := &maintenance.ListOptions{
+			Limit:  50,
+			Offset: 0,
+			Sort:   maintenance.SortOrderWorkOrderDateDesc,
+		}
+
+		suite.mockRepo.EXPECT().ListByMachine(gomock.Any(), "ERROR", expectedOptions).Return(nil, fmt.Errorf("database error"))
 
 		req := httptest.NewRequest("GET", "/machines/ERROR/maintenance", nil)
 		w := httptest.NewRecorder()

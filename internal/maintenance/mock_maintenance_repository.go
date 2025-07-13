@@ -78,18 +78,18 @@ func (mr *MockRepositoryMockRecorder) GetByWorkOrder(ctx, machineSerialNumber, w
 }
 
 // ListByMachine mocks base method.
-func (m *MockRepository) ListByMachine(ctx context.Context, machineSerialNumber string) ([]*Maintenance, error) {
+func (m *MockRepository) ListByMachine(ctx context.Context, machineSerialNumber string, options *ListOptions) ([]*Maintenance, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListByMachine", ctx, machineSerialNumber)
+	ret := m.ctrl.Call(m, "ListByMachine", ctx, machineSerialNumber, options)
 	ret0, _ := ret[0].([]*Maintenance)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ListByMachine indicates an expected call of ListByMachine.
-func (mr *MockRepositoryMockRecorder) ListByMachine(ctx, machineSerialNumber interface{}) *gomock.Call {
+func (mr *MockRepositoryMockRecorder) ListByMachine(ctx, machineSerialNumber, options interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByMachine", reflect.TypeOf((*MockRepository)(nil).ListByMachine), ctx, machineSerialNumber)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByMachine", reflect.TypeOf((*MockRepository)(nil).ListByMachine), ctx, machineSerialNumber, options)
 }
 
 // Update mocks base method.

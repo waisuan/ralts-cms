@@ -2,6 +2,7 @@ package maintenance_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -98,7 +99,7 @@ func (suite *MaintenanceRepositoryTestSuite) TestCreate() {
 		err = suite.repo.Create(ctx, maintenance2)
 		suite.Require().NoError(err)
 
-		retrieved, err := suite.repo.ListByMachine(ctx, "MACHINE005")
+		retrieved, err := suite.repo.ListByMachine(ctx, "MACHINE005", nil)
 		suite.Require().NoError(err)
 		suite.Assert().Len(retrieved, 2)
 		retrievedWorkOrders := make(map[string]bool)
@@ -182,7 +183,7 @@ func (suite *MaintenanceRepositoryTestSuite) TestListByMachine() {
 		suite.Require().NoError(err)
 
 		// List maintenance for the target machine
-		maintenanceList, err := suite.repo.ListByMachine(ctx, machineSerial)
+		maintenanceList, err := suite.repo.ListByMachine(ctx, machineSerial, nil)
 		suite.Require().NoError(err)
 		suite.Assert().Len(maintenanceList, 3)
 
@@ -202,7 +203,7 @@ func (suite *MaintenanceRepositoryTestSuite) TestListByMachine() {
 	})
 
 	suite.Run("should return empty list for machine with no maintenance", func() {
-		maintenanceList, err := suite.repo.ListByMachine(ctx, "NOMAINTAINANCE")
+		maintenanceList, err := suite.repo.ListByMachine(ctx, "NOMAINTAINANCE", nil)
 		suite.Require().NoError(err)
 		suite.Assert().Len(maintenanceList, 0)
 	})
@@ -222,7 +223,7 @@ func (suite *MaintenanceRepositoryTestSuite) TestListByMachine() {
 		err = suite.repo.Create(ctx, maintenance3)
 		suite.Require().NoError(err)
 
-		maintenanceList, err := suite.repo.ListByMachine(ctx, machineSerial)
+		maintenanceList, err := suite.repo.ListByMachine(ctx, machineSerial, nil)
 		suite.Require().NoError(err)
 		suite.Assert().Len(maintenanceList, 3)
 
@@ -234,6 +235,237 @@ func (suite *MaintenanceRepositoryTestSuite) TestListByMachine() {
 		suite.Assert().True(workOrders["WO013"])
 		suite.Assert().True(workOrders["WO014"])
 		suite.Assert().True(workOrders["WO015"])
+	})
+
+	suite.Run("should respect limit parameter", func() {
+		machineSerial := "MACHINE_LIMIT_TEST"
+
+		// Create 5 maintenance records
+		for i := 1; i <= 5; i++ {
+			maintenance := testutils.CreateMaintenance(machineSerial, fmt.Sprintf("WO%d", i))
+			err := suite.repo.Create(ctx, maintenance)
+			suite.Require().NoError(err)
+		}
+
+		// Test with limit of 3
+		options := &maintenance.ListOptions{
+			Limit:  3,
+			Offset: 0,
+			Sort:   maintenance.SortOrderCreatedAtDesc,
+		}
+
+		maintenanceList, err := suite.repo.ListByMachine(ctx, machineSerial, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(maintenanceList, 3)
+	})
+
+	suite.Run("should respect offset parameter", func() {
+		machineSerial := "MACHINE_OFFSET_TEST"
+
+		// Create 5 maintenance records
+		for i := 1; i <= 5; i++ {
+			maintenance := testutils.CreateMaintenance(machineSerial, fmt.Sprintf("WO%d", i))
+			err := suite.repo.Create(ctx, maintenance)
+			suite.Require().NoError(err)
+		}
+
+		// Get all records first to establish order
+		allRecords, err := suite.repo.ListByMachine(ctx, machineSerial, nil)
+		suite.Require().NoError(err)
+		suite.Require().Len(allRecords, 5)
+
+		// Test with offset of 2
+		options := &maintenance.ListOptions{
+			Limit:  10,
+			Offset: 2,
+			Sort:   maintenance.SortOrderCreatedAtDesc,
+		}
+
+		maintenanceList, err := suite.repo.ListByMachine(ctx, machineSerial, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(maintenanceList, 3) // Should return 3 records (5 total - 2 offset)
+
+		// Verify the returned records are the correct ones (skipping first 2)
+		for i, record := range maintenanceList {
+			suite.Assert().Equal(allRecords[i+2].WorkOrderNumber, record.WorkOrderNumber)
+		}
+	})
+
+	suite.Run("should sort by created_at in descending order by default", func() {
+		machineSerial := "MACHINE_SORT_DESC_TEST"
+
+		// Create 3 maintenance records
+		maintenance1 := testutils.CreateMaintenance(machineSerial, "WO001")
+		maintenance2 := testutils.CreateMaintenance(machineSerial, "WO002")
+		maintenance3 := testutils.CreateMaintenance(machineSerial, "WO003")
+
+		err := suite.repo.Create(ctx, maintenance1)
+		suite.Require().NoError(err)
+		err = suite.repo.Create(ctx, maintenance2)
+		suite.Require().NoError(err)
+		err = suite.repo.Create(ctx, maintenance3)
+		suite.Require().NoError(err)
+
+		// Test with default sort (descending)
+		options := &maintenance.ListOptions{
+			Limit:  10,
+			Offset: 0,
+			Sort:   maintenance.SortOrderCreatedAtDesc,
+		}
+
+		maintenanceList, err := suite.repo.ListByMachine(ctx, machineSerial, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(maintenanceList, 3)
+
+		// Verify descending order (most recent first)
+		suite.Assert().Equal("WO003", maintenanceList[0].WorkOrderNumber)
+		suite.Assert().Equal("WO002", maintenanceList[1].WorkOrderNumber)
+		suite.Assert().Equal("WO001", maintenanceList[2].WorkOrderNumber)
+	})
+
+	suite.Run("should sort by created_at in ascending order", func() {
+		machineSerial := "MACHINE_SORT_ASC_TEST"
+
+		// Create 3 maintenance records
+		maintenance1 := testutils.CreateMaintenance(machineSerial, "WO001")
+		maintenance2 := testutils.CreateMaintenance(machineSerial, "WO002")
+		maintenance3 := testutils.CreateMaintenance(machineSerial, "WO003")
+
+		err := suite.repo.Create(ctx, maintenance1)
+		suite.Require().NoError(err)
+		err = suite.repo.Create(ctx, maintenance2)
+		suite.Require().NoError(err)
+		err = suite.repo.Create(ctx, maintenance3)
+		suite.Require().NoError(err)
+
+		// Test with ascending sort
+		options := &maintenance.ListOptions{
+			Limit:  10,
+			Offset: 0,
+			Sort:   maintenance.SortOrderCreatedAtAsc,
+		}
+
+		maintenanceList, err := suite.repo.ListByMachine(ctx, machineSerial, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(maintenanceList, 3)
+
+		// Verify ascending order (oldest first)
+		suite.Assert().Equal("WO001", maintenanceList[0].WorkOrderNumber)
+		suite.Assert().Equal("WO002", maintenanceList[1].WorkOrderNumber)
+		suite.Assert().Equal("WO003", maintenanceList[2].WorkOrderNumber)
+	})
+
+	suite.Run("should handle pagination with limit and offset", func() {
+		machineSerial := "MACHINE_PAGINATION_TEST"
+
+		// Create 10 maintenance records
+		for i := 1; i <= 10; i++ {
+			maintenance := testutils.CreateMaintenance(machineSerial, fmt.Sprintf("WO%d", i))
+			err := suite.repo.Create(ctx, maintenance)
+			suite.Require().NoError(err)
+		}
+
+		// Test first page (limit 3, offset 0)
+		options1 := &maintenance.ListOptions{
+			Limit:  3,
+			Offset: 0,
+			Sort:   maintenance.SortOrderCreatedAtDesc,
+		}
+
+		page1, err := suite.repo.ListByMachine(ctx, machineSerial, options1)
+		suite.Require().NoError(err)
+		suite.Assert().Len(page1, 3)
+
+		// Test second page (limit 3, offset 3)
+		options2 := &maintenance.ListOptions{
+			Limit:  3,
+			Offset: 3,
+			Sort:   maintenance.SortOrderCreatedAtDesc,
+		}
+
+		page2, err := suite.repo.ListByMachine(ctx, machineSerial, options2)
+		suite.Require().NoError(err)
+		suite.Assert().Len(page2, 3)
+
+		// Test third page (limit 3, offset 6)
+		options3 := &maintenance.ListOptions{
+			Limit:  3,
+			Offset: 6,
+			Sort:   maintenance.SortOrderCreatedAtDesc,
+		}
+
+		page3, err := suite.repo.ListByMachine(ctx, machineSerial, options3)
+		suite.Require().NoError(err)
+		suite.Assert().Len(page3, 3)
+
+		// Test last page (limit 3, offset 9)
+		options4 := &maintenance.ListOptions{
+			Limit:  3,
+			Offset: 9,
+			Sort:   maintenance.SortOrderCreatedAtDesc,
+		}
+
+		page4, err := suite.repo.ListByMachine(ctx, machineSerial, options4)
+		suite.Require().NoError(err)
+		suite.Assert().Len(page4, 1) // Only 1 record left
+
+		// Verify no overlap between pages
+		allWorkOrders := make(map[string]bool)
+		for _, record := range append(append(append(page1, page2...), page3...), page4...) {
+			allWorkOrders[record.WorkOrderNumber] = true
+		}
+		suite.Assert().Len(allWorkOrders, 10) // All 10 records should be unique
+	})
+
+	suite.Run("should handle out of bounds offset and limit", func() {
+		machineSerial := "MACHINE_EDGE_CASES"
+
+		// Create 2 maintenance records
+		maintenance1 := testutils.CreateMaintenance(machineSerial, "WO001")
+		maintenance2 := testutils.CreateMaintenance(machineSerial, "WO002")
+
+		err := suite.repo.Create(ctx, maintenance1)
+		suite.Require().NoError(err)
+		err = suite.repo.Create(ctx, maintenance2)
+		suite.Require().NoError(err)
+
+		// Test offset beyond available records
+		options := &maintenance.ListOptions{
+			Limit:  10,
+			Offset: 5, // Beyond the 2 records we have
+			Sort:   maintenance.SortOrderCreatedAtDesc,
+		}
+
+		maintenanceList, err := suite.repo.ListByMachine(ctx, machineSerial, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(maintenanceList, 0) // Should return empty list
+
+		// Test with zero limit
+		optionsZero := &maintenance.ListOptions{
+			Limit:  0,
+			Offset: 0,
+			Sort:   maintenance.SortOrderCreatedAtDesc,
+		}
+
+		maintenanceListZero, err := suite.repo.ListByMachine(ctx, machineSerial, optionsZero)
+		suite.Require().NoError(err)
+		suite.Assert().Len(maintenanceListZero, 0) // Should return empty list
+	})
+
+	suite.Run("should use default options when nil is passed", func() {
+		machineSerial := "MACHINE_DEFAULT_OPTIONS"
+
+		// Create 3 maintenance records
+		for i := 1; i <= 3; i++ {
+			maintenance := testutils.CreateMaintenance(machineSerial, fmt.Sprintf("WO%d", i))
+			err := suite.repo.Create(ctx, maintenance)
+			suite.Require().NoError(err)
+		}
+
+		// Test with nil options (should use defaults)
+		maintenanceList, err := suite.repo.ListByMachine(ctx, machineSerial, nil)
+		suite.Require().NoError(err)
+		suite.Assert().Len(maintenanceList, 3) // Should return all records with default sorting
 	})
 }
 
@@ -380,7 +612,7 @@ func (suite *MaintenanceRepositoryTestSuite) TestDelete() {
 		suite.Require().NoError(err)
 
 		// Verify list still returns the remaining records
-		maintenanceList, err := suite.repo.ListByMachine(ctx, machineSerial)
+		maintenanceList, err := suite.repo.ListByMachine(ctx, machineSerial, nil)
 		suite.Require().NoError(err)
 		suite.Assert().Len(maintenanceList, 2)
 	})
