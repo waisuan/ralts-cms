@@ -33,6 +33,7 @@ func NewRouter(deps *deps.Dependencies) http.Handler {
 	api.HandleFunc("/machines", handler.NewMachineHandler(deps).CreateMachine).Methods(http.MethodPost)
 	api.HandleFunc("/machines", handler.NewMachineHandler(deps).UpdateMachine).Methods(http.MethodPut)
 	api.HandleFunc("/machines/{serial_number}", handler.NewMachineHandler(deps).DeleteMachine).Methods(http.MethodDelete)
+	api.HandleFunc("/machines/due-ppm", handler.NewMachineHandler(deps).GetDuePPM).Methods(http.MethodGet)
 
 	// Maintenance endpoints
 	api.HandleFunc("/machines/{serial_number}/maintenance", handler.NewMaintenanceHandler(deps).ListMaintenance).Methods(http.MethodGet)

@@ -604,6 +604,63 @@ func (suite *MachineHandlerTestSuite) TestListMachines() {
 	})
 }
 
+func (suite *MachineHandlerTestSuite) TestGetDuePPM() {
+	suite.Run("should return due PPM machines", func() {
+		machines := []*machine.Machine{
+			{SerialNumber: "DUEPPM001", Customer: "Customer 1", Status: "Operational"},
+		}
+
+		suite.mockRepo.EXPECT().DuePPM(gomock.Any()).Return(machines, nil)
+
+		req := httptest.NewRequest("GET", "/machines/due-ppm", nil)
+		w := httptest.NewRecorder()
+
+		suite.handler.GetDuePPM(w, req)
+
+		suite.Assert().Equal(http.StatusOK, w.Code)
+		suite.Assert().Equal("application/json", w.Header().Get("Content-Type"))
+
+		var response []*machine.Machine
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		suite.Require().NoError(err)
+
+		suite.Assert().Len(response, 1)
+		suite.Assert().Equal("DUEPPM001", response[0].SerialNumber)
+		suite.Assert().Equal("Customer 1", response[0].Customer)
+		suite.Assert().Equal("Operational", response[0].Status)
+	})
+
+	suite.Run("should return 500 on repository error", func() {
+		suite.mockRepo.EXPECT().DuePPM(gomock.Any()).Return(nil, fmt.Errorf("database error"))
+
+		req := httptest.NewRequest("GET", "/machines/due-ppm", nil)
+		w := httptest.NewRecorder()
+
+		suite.handler.GetDuePPM(w, req)
+
+		suite.Assert().Equal(http.StatusInternalServerError, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Failed to get due PPM machines")
+	})
+
+	suite.Run("should return empty list when no machines are due for PPM", func() {
+		suite.mockRepo.EXPECT().DuePPM(gomock.Any()).Return([]*machine.Machine{}, nil)
+
+		req := httptest.NewRequest("GET", "/machines/due-ppm", nil)
+		w := httptest.NewRecorder()
+
+		suite.handler.GetDuePPM(w, req)
+
+		suite.Assert().Equal(http.StatusOK, w.Code)
+		suite.Assert().Equal("application/json", w.Header().Get("Content-Type"))
+
+		var response []*machine.Machine
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		suite.Require().NoError(err)
+
+		suite.Assert().Len(response, 0)
+	})
+}
+
 // TestMachineHandlerTestSuite runs the test suite
 func TestMachineHandlerTestSuite(t *testing.T) {
 	suite.Run(t, new(MachineHandlerTestSuite))

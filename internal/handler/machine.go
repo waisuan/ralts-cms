@@ -205,3 +205,15 @@ func (h *MachineHandler) DeleteMachine(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// GetDuePPM handles GET /machines/due-ppm
+func (h *MachineHandler) GetDuePPM(w http.ResponseWriter, r *http.Request) {
+	machines, err := h.deps.MachineRepository.DuePPM(r.Context())
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to get due PPM machines: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(machines)
+}

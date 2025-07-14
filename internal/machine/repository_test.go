@@ -363,6 +363,56 @@ func (suite *MachineRepositoryTestSuite) TestDelete() {
 	})
 }
 
+func (suite *MachineRepositoryTestSuite) TestDuePPM() {
+	ctx := context.Background()
+
+	suite.Run("should return empty list when no machines are due for PPM", func() {
+		machines, err := suite.repo.DuePPM(ctx)
+		suite.Require().NoError(err)
+		suite.Assert().Empty(machines)
+	})
+
+	suite.Run("should return machines that are due for PPM", func() {
+		machine := testutils.CreateMachine("DUEPPM001")
+		machine.PpmDate = time.Now()
+		suite.Require().NoError(suite.repo.Create(ctx, machine))
+
+		machines, err := suite.repo.DuePPM(ctx)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machines, 1)
+	})
+
+	suite.Run("should return machines that are overdue for PPM", func() {
+		machine := testutils.CreateMachine("DUEPPM002")
+		machine.PpmDate = time.Now().AddDate(0, 0, -1)
+		suite.Require().NoError(suite.repo.Create(ctx, machine))
+
+		machines, err := suite.repo.DuePPM(ctx)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machines, 1)
+	})
+
+	suite.Run("should return machines that are due in 2 weeks for PPM", func() {
+		machine := testutils.CreateMachine("DUEPPM003")
+		machine.PpmDate = time.Now().AddDate(0, 0, 14)
+		suite.Require().NoError(suite.repo.Create(ctx, machine))
+
+		machines, err := suite.repo.DuePPM(ctx)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machines, 1)
+	})
+
+	suite.Run("should not return machines that are due in more than 2 weeks for PPM", func() {
+		machine := testutils.CreateMachine("DUEPPM004")
+		machine.PpmDate = time.Now().AddDate(0, 0, 30)
+		suite.Require().NoError(suite.repo.Create(ctx, machine))
+
+		machines, err := suite.repo.DuePPM(ctx)
+		suite.Require().NoError(err)
+		suite.Assert().Empty(machines)
+	})
+}
+
 // TestMachineRepositoryTestSuite runs the test suite
 func TestMachineRepositoryTestSuite(t *testing.T) {
 	suite.Run(t, new(MachineRepositoryTestSuite))
