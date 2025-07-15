@@ -15,11 +15,6 @@ type Config struct {
 	AppName string `env:"APP_NAME"`
 	Env     string `env:"APP_ENV" envDefault:"development"`
 
-	// DynamoDB Configuration
-	DynamoDBEndpoint string `env:"DYNAMODB_ENDPOINT" envDefault:"http://localhost:8000"`
-	DynamoDBRegion   string `env:"DYNAMODB_REGION" envDefault:"us-east-1"`
-	DynamoDBTable    string `env:"DYNAMODB_TABLE" envDefault:"ralts"`
-
 	// PostgreSQL Configuration
 	DATABASE_URL string `env:"DATABASE_URL" envDefault:"postgres://ralts_user:ralts_password@localhost:5432/ralts_cms"`
 
@@ -35,7 +30,10 @@ type Config struct {
 	JWTSecret string `env:"JWT_SECRET" envDefault:"your-jwt-secret-key"`
 
 	// API Configuration
-	DefaultMachineLimit int32 `env:"DEFAULT_MACHINE_LIMIT" envDefault:"50"`
+	DefaultMachinesLimit    int32 `env:"DEFAULT_MACHINE_LIMIT" envDefault:"50"`
+	MaxMachinesLimit        int64 `env:"MAX_MACHINE_LIMIT" envDefault:"100"`
+	DefaultMaintenanceLimit int32 `env:"DEFAULT_MAINTENANCE_LIMIT" envDefault:"50"`
+	MaxMaintenanceLimit     int64 `env:"MAX_MAINTENANCE_LIMIT" envDefault:"100"`
 }
 
 func LoadConfig() (*Config, error) {

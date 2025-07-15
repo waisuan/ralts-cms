@@ -6,6 +6,7 @@ import (
 
 	"ralts-cms/internal/machines"
 	"ralts-cms/internal/maintenance"
+	"ralts-cms/internal/users"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -16,8 +17,9 @@ type Dependencies struct {
 	PostgresClient *pgxpool.Pool
 
 	// Repositories
-	MachineRepository     machines.Repository
+	MachinesRepository    machines.Repository
 	MaintenanceRepository maintenance.Repository
+	UsersRepository       users.Repository
 }
 
 func Initialise() *Dependencies {
@@ -33,13 +35,15 @@ func Initialise() *Dependencies {
 	}
 
 	// Initialize repositories (update as needed to use pgPool)
-	machineRepo := machines.NewRepository(pgClient)
+	machinesRepo := machines.NewRepository(pgClient)
 	maintenanceRepo := maintenance.NewRepository(pgClient)
+	usersRepo := users.NewRepository(pgClient)
 
 	return &Dependencies{
 		Config:                cfg,
 		PostgresClient:        pgClient,
-		MachineRepository:     machineRepo,
+		MachinesRepository:    machinesRepo,
 		MaintenanceRepository: maintenanceRepo,
+		UsersRepository:       usersRepo,
 	}
 }

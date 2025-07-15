@@ -3,6 +3,7 @@ package testutils
 import (
 	"ralts-cms/internal/machines"
 	"ralts-cms/internal/maintenance"
+	"ralts-cms/internal/users"
 	"time"
 )
 
@@ -72,5 +73,41 @@ func CreateMinimalMaintenance(machineSerialNumber, workOrderNumber string) *main
 		WorkOrderNumber:     workOrderNumber,
 		ActionTaken:         "Minimal action",
 		ReportedBy:          "Minimal Tech",
+	}
+}
+
+// CreateUser creates a basic user with default values
+func CreateUser(email, password string) *users.User {
+	return &users.User{
+		Name:     "Test User",
+		Email:    email,
+		Password: password,
+		Role:     "", // Will be set to default by repository
+		Status:   "", // Will be set to default by repository
+		Avatar:   nil,
+	}
+}
+
+// CreateUserWithCustomFields creates a user with custom field values
+func CreateUserWithCustomFields(email, password, role, status string) *users.User {
+	user := CreateUser(email, password)
+	user.Role = role
+	user.Status = status
+	return user
+}
+
+// CreateUserWithAvatar creates a user with avatar
+func CreateUserWithAvatar(email, password string, avatar *string) *users.User {
+	user := CreateUser(email, password)
+	user.Avatar = avatar
+	return user
+}
+
+// CreateMinimalUser creates a user with only required fields
+func CreateMinimalUser(email, password string) *users.User {
+	return &users.User{
+		Name:     "Minimal User",
+		Email:    email,
+		Password: password,
 	}
 }

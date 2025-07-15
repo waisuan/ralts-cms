@@ -28,12 +28,12 @@ func NewRouter(deps *deps.Dependencies) http.Handler {
 	api := r.PathPrefix("/").Subrouter()
 
 	// Machine endpoints
-	api.HandleFunc("/machines", handler.NewMachineHandler(deps).ListMachines).Methods(http.MethodGet)
-	api.HandleFunc("/machines/{serial_number}", handler.NewMachineHandler(deps).GetMachine).Methods(http.MethodGet)
-	api.HandleFunc("/machines", handler.NewMachineHandler(deps).CreateMachine).Methods(http.MethodPost)
-	api.HandleFunc("/machines", handler.NewMachineHandler(deps).UpdateMachine).Methods(http.MethodPut)
-	api.HandleFunc("/machines/{serial_number}", handler.NewMachineHandler(deps).DeleteMachine).Methods(http.MethodDelete)
-	api.HandleFunc("/machines/due-ppm", handler.NewMachineHandler(deps).GetDuePPM).Methods(http.MethodGet)
+	api.HandleFunc("/machines", handler.NewMachinesHandler(deps).ListMachines).Methods(http.MethodGet)
+	api.HandleFunc("/machines/{serial_number}", handler.NewMachinesHandler(deps).GetMachine).Methods(http.MethodGet)
+	api.HandleFunc("/machines", handler.NewMachinesHandler(deps).CreateMachine).Methods(http.MethodPost)
+	api.HandleFunc("/machines", handler.NewMachinesHandler(deps).UpdateMachine).Methods(http.MethodPut)
+	api.HandleFunc("/machines/{serial_number}", handler.NewMachinesHandler(deps).DeleteMachine).Methods(http.MethodDelete)
+	api.HandleFunc("/machines/due-ppm", handler.NewMachinesHandler(deps).GetDuePPM).Methods(http.MethodGet)
 
 	// Maintenance endpoints
 	api.HandleFunc("/machines/{serial_number}/maintenance", handler.NewMaintenanceHandler(deps).ListMaintenance).Methods(http.MethodGet)

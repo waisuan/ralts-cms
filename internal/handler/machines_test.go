@@ -17,34 +17,35 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-// MachineHandlerTestSuite defines the test suite for machine handler
-type MachineHandlerTestSuite struct {
+// MachinesHandlerTestSuite defines the test suite for machine handler
+type MachinesHandlerTestSuite struct {
 	suite.Suite
 
-	handler  *handler.MachineHandler
+	handler  *handler.MachinesHandler
 	mockRepo *machines.MockRepository
 	ctrl     *gomock.Controller
 }
 
 // SetupTest sets up each test
-func (suite *MachineHandlerTestSuite) SetupTest() {
+func (suite *MachinesHandlerTestSuite) SetupTest() {
 	suite.ctrl = gomock.NewController(suite.T())
 	suite.mockRepo = machines.NewMockRepository(suite.ctrl)
 	deps := &deps.Dependencies{
-		MachineRepository: suite.mockRepo,
+		MachinesRepository: suite.mockRepo,
 		Config: &deps.Config{
-			DefaultMachineLimit: 50,
+			DefaultMachinesLimit: 50,
+			MaxMachinesLimit:     100,
 		},
 	}
-	suite.handler = handler.NewMachineHandler(deps)
+	suite.handler = handler.NewMachinesHandler(deps)
 }
 
 // TearDownTest cleans up after each test
-func (suite *MachineHandlerTestSuite) TearDownTest() {
+func (suite *MachinesHandlerTestSuite) TearDownTest() {
 	suite.ctrl.Finish()
 }
 
-func (suite *MachineHandlerTestSuite) TestGetMachine() {
+func (suite *MachinesHandlerTestSuite) TestGetMachine() {
 	suite.Run("should return machine when found", func() {
 		expectedMachine := &machines.Machine{
 			SerialNumber: "TEST123",
@@ -112,7 +113,7 @@ func (suite *MachineHandlerTestSuite) TestGetMachine() {
 	})
 }
 
-func (suite *MachineHandlerTestSuite) TestCreateMachine() {
+func (suite *MachinesHandlerTestSuite) TestCreateMachine() {
 	suite.Run("should create machine successfully", func() {
 		machineData := machines.Machine{
 			SerialNumber: "CREATE123",
@@ -209,7 +210,7 @@ func (suite *MachineHandlerTestSuite) TestCreateMachine() {
 	})
 }
 
-func (suite *MachineHandlerTestSuite) TestUpdateMachine() {
+func (suite *MachinesHandlerTestSuite) TestUpdateMachine() {
 	suite.Run("should update machine successfully", func() {
 		machineData := machines.Machine{
 			SerialNumber: "UPDATE123",
@@ -301,7 +302,7 @@ func (suite *MachineHandlerTestSuite) TestUpdateMachine() {
 	})
 }
 
-func (suite *MachineHandlerTestSuite) TestDeleteMachine() {
+func (suite *MachinesHandlerTestSuite) TestDeleteMachine() {
 	suite.Run("should delete machine successfully", func() {
 		// First, expect a check that the machine exists
 		suite.mockRepo.EXPECT().GetBySerialNumber(gomock.Any(), "DELETE123").Return(&machines.Machine{SerialNumber: "DELETE123"}, nil)
@@ -348,7 +349,7 @@ func (suite *MachineHandlerTestSuite) TestDeleteMachine() {
 	})
 }
 
-func (suite *MachineHandlerTestSuite) TestListMachines() {
+func (suite *MachinesHandlerTestSuite) TestListMachines() {
 	suite.Run("should list machines successfully with default parameters", func() {
 		expectedMachines := []*machines.Machine{
 			{SerialNumber: "MACHINE001", Customer: "Customer 1", Status: "Operational"},
@@ -604,7 +605,7 @@ func (suite *MachineHandlerTestSuite) TestListMachines() {
 	})
 }
 
-func (suite *MachineHandlerTestSuite) TestGetDuePPM() {
+func (suite *MachinesHandlerTestSuite) TestGetDuePPM() {
 	suite.Run("should return due PPM machines", func() {
 		m := []*machines.Machine{
 			{SerialNumber: "DUEPPM001", Customer: "Customer 1", Status: "Operational"},
@@ -661,7 +662,7 @@ func (suite *MachineHandlerTestSuite) TestGetDuePPM() {
 	})
 }
 
-// TestMachineHandlerTestSuite runs the test suite
-func TestMachineHandlerTestSuite(t *testing.T) {
-	suite.Run(t, new(MachineHandlerTestSuite))
+// TestMachinesHandlerTestSuite runs the test suite
+func TestMachinesHandlerTestSuite(t *testing.T) {
+	suite.Run(t, new(MachinesHandlerTestSuite))
 }

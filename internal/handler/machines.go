@@ -12,18 +12,18 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type MachineHandler struct {
+type MachinesHandler struct {
 	deps *deps.Dependencies
 }
 
-func NewMachineHandler(deps *deps.Dependencies) *MachineHandler {
-	return &MachineHandler{
+func NewMachinesHandler(deps *deps.Dependencies) *MachinesHandler {
+	return &MachinesHandler{
 		deps: deps,
 	}
 }
 
 // GetMachine handles GET /machines/{serial_number}
-func (h *MachineHandler) GetMachine(w http.ResponseWriter, r *http.Request) {
+func (h *MachinesHandler) GetMachine(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	serialNumber := vars["serial_number"]
 	if serialNumber == "" {
@@ -31,7 +31,7 @@ func (h *MachineHandler) GetMachine(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	machine, err := h.deps.MachineRepository.GetBySerialNumber(r.Context(), serialNumber)
+	machine, err := h.deps.MachinesRepository.GetBySerialNumber(r.Context(), serialNumber)
 	if err != nil {
 		if err.Error() == "machine not found" {
 			http.Error(w, "Machine not found", http.StatusNotFound)
@@ -46,19 +46,19 @@ func (h *MachineHandler) GetMachine(w http.ResponseWriter, r *http.Request) {
 }
 
 // ListMachines handles GET /machines
-func (h *MachineHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
+func (h *MachinesHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 	// Parse query parameters for pagination and sorting
 	limitStr := r.URL.Query().Get("limit")
 	offsetStr := r.URL.Query().Get("offset")
 	sortStr := r.URL.Query().Get("sort")
 
 	// Parse limit parameter
-	limit := h.deps.Config.DefaultMachineLimit
+	limit := h.deps.Config.DefaultMachinesLimit
 	if limitStr != "" {
-		if parsedLimit, err := strconv.ParseInt(limitStr, 10, 32); err == nil && parsedLimit > 0 && parsedLimit <= 100 {
+		if parsedLimit, err := strconv.ParseInt(limitStr, 10, 32); err == nil && parsedLimit > 0 && parsedLimit <= h.deps.Config.MaxMachinesLimit {
 			limit = int32(parsedLimit)
 		} else {
-			http.Error(w, "Invalid limit parameter. Must be between 1 and 100", http.StatusBadRequest)
+			http.Error(w, fmt.Sprintf("Invalid limit parameter. Must be between 1 and %d", h.deps.Config.MaxMachinesLimit), http.StatusBadRequest)
 			return
 		}
 	}
@@ -96,7 +96,7 @@ func (h *MachineHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get machines from repository
-	machines, err := h.deps.MachineRepository.List(r.Context(), options)
+	machines, err := h.deps.MachinesRepository.List(r.Context(), options)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to list machines: %v", err), http.StatusInternalServerError)
 		return
@@ -116,7 +116,7 @@ func (h *MachineHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 }
 
 // CreateMachine handles POST /machines
-func (h *MachineHandler) CreateMachine(w http.ResponseWriter, r *http.Request) {
+func (h *MachinesHandler) CreateMachine(w http.ResponseWriter, r *http.Request) {
 	var machine machines.Machine
 	if err := json.NewDecoder(r.Body).Decode(&machine); err != nil {
 		http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
@@ -128,7 +128,7 @@ func (h *MachineHandler) CreateMachine(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := h.deps.MachineRepository.Create(r.Context(), &machine)
+	err := h.deps.MachinesRepository.Create(r.Context(), &machine)
 	if err != nil {
 		if strings.Contains(err.Error(), "ConditionalCheckFailedException") {
 			http.Error(w, "Machine already exists", http.StatusConflict)
@@ -144,7 +144,7 @@ func (h *MachineHandler) CreateMachine(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateMachine handles PUT /machines
-func (h *MachineHandler) UpdateMachine(w http.ResponseWriter, r *http.Request) {
+func (h *MachinesHandler) UpdateMachine(w http.ResponseWriter, r *http.Request) {
 	var machine machines.Machine
 	if err := json.NewDecoder(r.Body).Decode(&machine); err != nil {
 		http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
@@ -157,7 +157,7 @@ func (h *MachineHandler) UpdateMachine(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if machine exists
-	_, err := h.deps.MachineRepository.GetBySerialNumber(r.Context(), machine.SerialNumber)
+	_, err := h.deps.MachinesRepository.GetBySerialNumber(r.Context(), machine.SerialNumber)
 	if err != nil {
 		if err.Error() == "machine not found" {
 			http.Error(w, "Machine not found", http.StatusNotFound)
@@ -167,7 +167,7 @@ func (h *MachineHandler) UpdateMachine(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.deps.MachineRepository.Update(r.Context(), &machine)
+	err = h.deps.MachinesRepository.Update(r.Context(), &machine)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to update machine: %v", err), http.StatusInternalServerError)
 		return
@@ -178,7 +178,7 @@ func (h *MachineHandler) UpdateMachine(w http.ResponseWriter, r *http.Request) {
 }
 
 // DeleteMachine handles DELETE /machines/{serial_number}
-func (h *MachineHandler) DeleteMachine(w http.ResponseWriter, r *http.Request) {
+func (h *MachinesHandler) DeleteMachine(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	serialNumber := vars["serial_number"]
 	if serialNumber == "" {
@@ -187,7 +187,7 @@ func (h *MachineHandler) DeleteMachine(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if machine exists
-	_, err := h.deps.MachineRepository.GetBySerialNumber(r.Context(), serialNumber)
+	_, err := h.deps.MachinesRepository.GetBySerialNumber(r.Context(), serialNumber)
 	if err != nil {
 		if err.Error() == "machine not found" {
 			http.Error(w, "Machine not found", http.StatusNotFound)
@@ -197,7 +197,7 @@ func (h *MachineHandler) DeleteMachine(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.deps.MachineRepository.Delete(r.Context(), serialNumber)
+	err = h.deps.MachinesRepository.Delete(r.Context(), serialNumber)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to delete machine: %v", err), http.StatusInternalServerError)
 		return
@@ -207,8 +207,8 @@ func (h *MachineHandler) DeleteMachine(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetDuePPM handles GET /machines/due-ppm
-func (h *MachineHandler) GetDuePPM(w http.ResponseWriter, r *http.Request) {
-	machines, err := h.deps.MachineRepository.DuePPM(r.Context())
+func (h *MachinesHandler) GetDuePPM(w http.ResponseWriter, r *http.Request) {
+	machines, err := h.deps.MachinesRepository.DuePPM(r.Context())
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to get due PPM machines: %v", err), http.StatusInternalServerError)
 		return

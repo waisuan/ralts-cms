@@ -32,6 +32,10 @@ func (suite *MaintenanceHandlerTestSuite) SetupTest() {
 
 	suite.mockRepo = maintenance.NewMockRepository(suite.ctrl)
 	deps := &deps.Dependencies{
+		Config: &deps.Config{
+			DefaultMaintenanceLimit: 50,
+			MaxMaintenanceLimit:     100,
+		},
 		MaintenanceRepository: suite.mockRepo,
 	}
 	suite.handler = handler.NewMaintenanceHandler(deps)

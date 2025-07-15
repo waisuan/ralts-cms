@@ -21,3 +21,5 @@ ui/.DS_Store
 ui/Thumbs.db
 ui/.idea/
 ui/.vscode/
+
+bin/

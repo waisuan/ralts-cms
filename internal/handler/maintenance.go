@@ -61,12 +61,12 @@ func (h *MaintenanceHandler) ListMaintenance(w http.ResponseWriter, r *http.Requ
 	sortStr := r.URL.Query().Get("sort")
 
 	// Parse limit parameter
-	limit := int32(50) // Default limit
+	limit := h.deps.Config.DefaultMaintenanceLimit
 	if limitStr != "" {
-		if parsedLimit, err := strconv.ParseInt(limitStr, 10, 32); err == nil && parsedLimit > 0 && parsedLimit <= 100 {
+		if parsedLimit, err := strconv.ParseInt(limitStr, 10, 32); err == nil && parsedLimit > 0 && parsedLimit <= h.deps.Config.MaxMaintenanceLimit {
 			limit = int32(parsedLimit)
 		} else {
-			http.Error(w, "Invalid limit parameter. Must be between 1 and 100", http.StatusBadRequest)
+			http.Error(w, fmt.Sprintf("Invalid limit parameter. Must be between 1 and %d", h.deps.Config.MaxMaintenanceLimit), http.StatusBadRequest)
 			return
 		}
 	}
