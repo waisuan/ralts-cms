@@ -1,14 +1,14 @@
 package testutils
 
 import (
-	"ralts-cms/internal/machine"
+	"ralts-cms/internal/machines"
 	"ralts-cms/internal/maintenance"
 	"time"
 )
 
 // CreateMachine creates a basic machine with default values
-func CreateMachine(serialNumber string) *machine.Machine {
-	return &machine.Machine{
+func CreateMachine(serialNumber string) *machines.Machine {
+	return &machines.Machine{
 		SerialNumber:    serialNumber,
 		Customer:        "Test Customer",
 		State:           "Active",
@@ -28,7 +28,7 @@ func CreateMachine(serialNumber string) *machine.Machine {
 }
 
 // CreateMachineWithCustomFields creates a machine with custom field values
-func CreateMachineWithCustomFields(serialNumber, customer, status string) *machine.Machine {
+func CreateMachineWithCustomFields(serialNumber, customer, status string) *machines.Machine {
 	machine := CreateMachine(serialNumber)
 	machine.Customer = customer
 	machine.Status = status
@@ -36,8 +36,8 @@ func CreateMachineWithCustomFields(serialNumber, customer, status string) *machi
 }
 
 // CreateMinimalMachine creates a machine with only required fields
-func CreateMinimalMachine(serialNumber string) *machine.Machine {
-	return &machine.Machine{
+func CreateMinimalMachine(serialNumber string) *machines.Machine {
+	return &machines.Machine{
 		SerialNumber: serialNumber,
 		Customer:     "Minimal Customer",
 		Status:       "Active",

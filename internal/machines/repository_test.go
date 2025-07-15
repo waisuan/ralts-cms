@@ -1,4 +1,4 @@
-package machine_test
+package machines_test
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"ralts-cms/internal/deps"
-	"ralts-cms/internal/machine"
+	"ralts-cms/internal/machines"
 	"ralts-cms/internal/testutils"
 
 	"github.com/stretchr/testify/require"
@@ -19,14 +19,14 @@ type MachineRepositoryTestSuite struct {
 	suite.Suite
 
 	deps *deps.Dependencies
-	repo machine.Repository
+	repo machines.Repository
 }
 
 // SetupTest sets up each test
 func (suite *MachineRepositoryTestSuite) SetupTest() {
 	deps := deps.Initialise()
 	suite.deps = deps
-	suite.repo = machine.NewRepository(deps.PostgresClient)
+	suite.repo = machines.NewRepository(deps.PostgresClient)
 }
 
 func (suite *MachineRepositoryTestSuite) TearDownSubTest() {
@@ -204,7 +204,7 @@ func (suite *MachineRepositoryTestSuite) TestList() {
 	ctx := context.Background()
 
 	suite.Run("should return empty list when no machines exist", func() {
-		options := machine.DefaultListOptions()
+		options := machines.DefaultListOptions()
 		machines, err := suite.repo.List(ctx, options)
 		suite.Require().NoError(err)
 		suite.Assert().Empty(machines)
@@ -219,7 +219,7 @@ func (suite *MachineRepositoryTestSuite) TestList() {
 		suite.Require().NoError(suite.repo.Create(ctx, machine2))
 		suite.Require().NoError(suite.repo.Create(ctx, machine3))
 
-		options := &machine.ListOptions{Limit: 50, Offset: 0, Sort: machine.SortOrderCreatedAtDesc}
+		options := &machines.ListOptions{Limit: 50, Offset: 0, Sort: machines.SortOrderCreatedAtDesc}
 		machines, err := suite.repo.List(ctx, options)
 		suite.Require().NoError(err)
 		suite.Assert().Len(machines, 3)
@@ -237,7 +237,7 @@ func (suite *MachineRepositoryTestSuite) TestList() {
 			m := testutils.CreateMachine(fmt.Sprintf("LIMIT%03d", i))
 			suite.Require().NoError(suite.repo.Create(ctx, m))
 		}
-		options := &machine.ListOptions{Limit: 3, Offset: 0, Sort: machine.SortOrderCreatedAtDesc}
+		options := &machines.ListOptions{Limit: 3, Offset: 0, Sort: machines.SortOrderCreatedAtDesc}
 		machines, err := suite.repo.List(ctx, options)
 		suite.Require().NoError(err)
 		suite.Assert().Len(machines, 3)
@@ -248,7 +248,7 @@ func (suite *MachineRepositoryTestSuite) TestList() {
 			m := testutils.CreateMachine(fmt.Sprintf("PAGE%03d", i))
 			suite.Require().NoError(suite.repo.Create(ctx, m))
 		}
-		options := &machine.ListOptions{Limit: 2, Offset: 0, Sort: machine.SortOrderCreatedAtDesc}
+		options := &machines.ListOptions{Limit: 2, Offset: 0, Sort: machines.SortOrderCreatedAtDesc}
 		machines, err := suite.repo.List(ctx, options)
 		suite.Require().NoError(err)
 		suite.Assert().Len(machines, 2)
@@ -284,7 +284,7 @@ func (suite *MachineRepositoryTestSuite) TestList() {
 		suite.Require().NoError(suite.repo.Create(ctx, machine2))
 		suite.Require().NoError(suite.repo.Create(ctx, machine3))
 
-		options := &machine.ListOptions{Limit: 10, Offset: 0, Sort: machine.SortOrderCreatedAtAsc}
+		options := &machines.ListOptions{Limit: 10, Offset: 0, Sort: machines.SortOrderCreatedAtAsc}
 		machines, err := suite.repo.List(ctx, options)
 		suite.Require().NoError(err)
 		suite.Assert().Len(machines, 3)
@@ -303,7 +303,7 @@ func (suite *MachineRepositoryTestSuite) TestList() {
 		suite.Require().NoError(suite.repo.Create(ctx, machine2))
 		suite.Require().NoError(suite.repo.Create(ctx, machine3))
 
-		options := &machine.ListOptions{Limit: 10, Offset: 0, Sort: machine.SortOrderCreatedAtDesc}
+		options := &machines.ListOptions{Limit: 10, Offset: 0, Sort: machines.SortOrderCreatedAtDesc}
 		machines, err := suite.repo.List(ctx, options)
 		suite.Require().NoError(err)
 		suite.Assert().Len(machines, 3)
@@ -326,7 +326,7 @@ func (suite *MachineRepositoryTestSuite) TestList() {
 		m := testutils.CreateMachine("INVALID001")
 		suite.Require().NoError(suite.repo.Create(ctx, m))
 
-		options := &machine.ListOptions{Limit: 10, Offset: 0, Sort: "invalid_sort"}
+		options := &machines.ListOptions{Limit: 10, Offset: 0, Sort: "invalid_sort"}
 		machines, err := suite.repo.List(ctx, options)
 		suite.Require().NoError(err)
 		suite.Assert().Len(machines, 1)

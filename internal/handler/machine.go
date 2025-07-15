@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"ralts-cms/internal/deps"
-	"ralts-cms/internal/machine"
+	"ralts-cms/internal/machines"
 	"strconv"
 	"strings"
 
@@ -75,13 +75,13 @@ func (h *MachineHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse sort parameter
-	sort := machine.SortOrderCreatedAtDesc // Default to newest first
+	sort := machines.SortOrderCreatedAtDesc // Default to newest first
 	if sortStr != "" {
 		switch sortStr {
 		case "created_at_desc":
-			sort = machine.SortOrderCreatedAtDesc
+			sort = machines.SortOrderCreatedAtDesc
 		case "created_at_asc":
-			sort = machine.SortOrderCreatedAtAsc
+			sort = machines.SortOrderCreatedAtAsc
 		default:
 			http.Error(w, "Invalid sort parameter. Must be 'created_at_desc' or 'created_at_asc'", http.StatusBadRequest)
 			return
@@ -89,7 +89,7 @@ func (h *MachineHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create list options
-	options := &machine.ListOptions{
+	options := &machines.ListOptions{
 		Limit:  limit,
 		Offset: offset,
 		Sort:   sort,
@@ -117,7 +117,7 @@ func (h *MachineHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 
 // CreateMachine handles POST /machines
 func (h *MachineHandler) CreateMachine(w http.ResponseWriter, r *http.Request) {
-	var machine machine.Machine
+	var machine machines.Machine
 	if err := json.NewDecoder(r.Body).Decode(&machine); err != nil {
 		http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
 		return
@@ -145,7 +145,7 @@ func (h *MachineHandler) CreateMachine(w http.ResponseWriter, r *http.Request) {
 
 // UpdateMachine handles PUT /machines
 func (h *MachineHandler) UpdateMachine(w http.ResponseWriter, r *http.Request) {
-	var machine machine.Machine
+	var machine machines.Machine
 	if err := json.NewDecoder(r.Body).Decode(&machine); err != nil {
 		http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
 		return

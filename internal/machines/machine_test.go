@@ -1,10 +1,9 @@
-package machine_test
+package machines_test
 
 import (
+	"ralts-cms/internal/machines"
 	"testing"
 	"time"
-
-	"ralts-cms/internal/machine"
 
 	"github.com/stretchr/testify/suite"
 )
@@ -16,7 +15,7 @@ type MachineTestSuite struct {
 
 func (suite *MachineTestSuite) TestSetTimestamps() {
 	suite.Run("new machine", func() {
-		machine := &machine.Machine{
+		machine := &machines.Machine{
 			SerialNumber: "TEST123",
 		}
 
@@ -36,7 +35,7 @@ func (suite *MachineTestSuite) TestSetTimestamps() {
 
 	suite.Run("existing machine", func() {
 		originalCreatedAt := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)
-		machine := &machine.Machine{
+		machine := &machines.Machine{
 			SerialNumber: "TEST123",
 			CreatedAt:    originalCreatedAt,
 			UpdatedAt:    originalCreatedAt,

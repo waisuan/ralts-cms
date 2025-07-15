@@ -2,11 +2,10 @@
 // Source: repository.go
 
 // Package machine is a generated GoMock package.
-package machine
+package machines
 
 import (
 	context "context"
-	machines "ralts-cms/internal/machines"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -36,7 +35,7 @@ func (m *MockRepository) EXPECT() *MockRepositoryMockRecorder {
 }
 
 // Create mocks base method.
-func (m *MockRepository) Create(ctx context.Context, machine *machines.Machine) error {
+func (m *MockRepository) Create(ctx context.Context, machine *Machine) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Create", ctx, machine)
 	ret0, _ := ret[0].(error)
@@ -64,10 +63,10 @@ func (mr *MockRepositoryMockRecorder) Delete(ctx, serialNumber interface{}) *gom
 }
 
 // DuePPM mocks base method.
-func (m *MockRepository) DuePPM(ctx context.Context) ([]*machines.Machine, error) {
+func (m *MockRepository) DuePPM(ctx context.Context) ([]*Machine, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DuePPM", ctx)
-	ret0, _ := ret[0].([]*machines.Machine)
+	ret0, _ := ret[0].([]*Machine)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -79,10 +78,10 @@ func (mr *MockRepositoryMockRecorder) DuePPM(ctx interface{}) *gomock.Call {
 }
 
 // GetBySerialNumber mocks base method.
-func (m *MockRepository) GetBySerialNumber(ctx context.Context, serialNumber string) (*machines.Machine, error) {
+func (m *MockRepository) GetBySerialNumber(ctx context.Context, serialNumber string) (*Machine, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetBySerialNumber", ctx, serialNumber)
-	ret0, _ := ret[0].(*machines.Machine)
+	ret0, _ := ret[0].(*Machine)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -94,10 +93,10 @@ func (mr *MockRepositoryMockRecorder) GetBySerialNumber(ctx, serialNumber interf
 }
 
 // List mocks base method.
-func (m *MockRepository) List(ctx context.Context, options *machines.ListOptions) ([]*machines.Machine, error) {
+func (m *MockRepository) List(ctx context.Context, options *ListOptions) ([]*Machine, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "List", ctx, options)
-	ret0, _ := ret[0].([]*machines.Machine)
+	ret0, _ := ret[0].([]*Machine)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -109,7 +108,7 @@ func (mr *MockRepositoryMockRecorder) List(ctx, options interface{}) *gomock.Cal
 }
 
 // Update mocks base method.
-func (m *MockRepository) Update(ctx context.Context, machine *machines.Machine) error {
+func (m *MockRepository) Update(ctx context.Context, machine *Machine) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Update", ctx, machine)
 	ret0, _ := ret[0].(error)

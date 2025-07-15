@@ -9,7 +9,7 @@ import (
 	"net/http/httptest"
 	"ralts-cms/internal/deps"
 	"ralts-cms/internal/handler"
-	"ralts-cms/internal/machine"
+	"ralts-cms/internal/machines"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -22,14 +22,14 @@ type MachineHandlerTestSuite struct {
 	suite.Suite
 
 	handler  *handler.MachineHandler
-	mockRepo *machine.MockRepository
+	mockRepo *machines.MockRepository
 	ctrl     *gomock.Controller
 }
 
 // SetupTest sets up each test
 func (suite *MachineHandlerTestSuite) SetupTest() {
 	suite.ctrl = gomock.NewController(suite.T())
-	suite.mockRepo = machine.NewMockRepository(suite.ctrl)
+	suite.mockRepo = machines.NewMockRepository(suite.ctrl)
 	deps := &deps.Dependencies{
 		MachineRepository: suite.mockRepo,
 		Config: &deps.Config{
@@ -46,7 +46,7 @@ func (suite *MachineHandlerTestSuite) TearDownTest() {
 
 func (suite *MachineHandlerTestSuite) TestGetMachine() {
 	suite.Run("should return machine when found", func() {
-		expectedMachine := &machine.Machine{
+		expectedMachine := &machines.Machine{
 			SerialNumber: "TEST123",
 			Customer:     "Test Customer",
 			State:        "Active",
@@ -65,7 +65,7 @@ func (suite *MachineHandlerTestSuite) TestGetMachine() {
 		suite.Assert().Equal(http.StatusOK, w.Code)
 		suite.Assert().Equal("application/json", w.Header().Get("Content-Type"))
 
-		var response machine.Machine
+		var response machines.Machine
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		suite.Require().NoError(err)
 		suite.Assert().Equal("TEST123", response.SerialNumber)
@@ -114,13 +114,13 @@ func (suite *MachineHandlerTestSuite) TestGetMachine() {
 
 func (suite *MachineHandlerTestSuite) TestCreateMachine() {
 	suite.Run("should create machine successfully", func() {
-		machineData := machine.Machine{
+		machineData := machines.Machine{
 			SerialNumber: "CREATE123",
 			Customer:     "Create Customer",
 			State:        "New",
 		}
 
-		suite.mockRepo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, m *machine.Machine) error {
+		suite.mockRepo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, m *machines.Machine) error {
 			suite.Assert().Equal("CREATE123", m.SerialNumber)
 			suite.Assert().Equal("Create Customer", m.Customer)
 			return nil
@@ -136,7 +136,7 @@ func (suite *MachineHandlerTestSuite) TestCreateMachine() {
 		suite.Assert().Equal(http.StatusCreated, w.Code)
 		suite.Assert().Equal("application/json", w.Header().Get("Content-Type"))
 
-		var response machine.Machine
+		var response machines.Machine
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		suite.Require().NoError(err)
 		suite.Assert().Equal("CREATE123", response.SerialNumber)
@@ -144,7 +144,7 @@ func (suite *MachineHandlerTestSuite) TestCreateMachine() {
 	})
 
 	suite.Run("should return 400 when serial number is missing", func() {
-		machineData := machine.Machine{
+		machineData := machines.Machine{
 			Customer: "Customer without serial",
 		}
 
@@ -171,7 +171,7 @@ func (suite *MachineHandlerTestSuite) TestCreateMachine() {
 	})
 
 	suite.Run("should return 409 when machine already exists", func() {
-		machineData := machine.Machine{
+		machineData := machines.Machine{
 			SerialNumber: "DUPLICATE123",
 			Customer:     "Duplicate Customer",
 		}
@@ -190,7 +190,7 @@ func (suite *MachineHandlerTestSuite) TestCreateMachine() {
 	})
 
 	suite.Run("should return 500 on repository error", func() {
-		machineData := machine.Machine{
+		machineData := machines.Machine{
 			SerialNumber: "ERROR123",
 			Customer:     "Error Customer",
 		}
@@ -211,16 +211,16 @@ func (suite *MachineHandlerTestSuite) TestCreateMachine() {
 
 func (suite *MachineHandlerTestSuite) TestUpdateMachine() {
 	suite.Run("should update machine successfully", func() {
-		machineData := machine.Machine{
+		machineData := machines.Machine{
 			SerialNumber: "UPDATE123",
 			Customer:     "Updated Customer",
 			State:        "Active",
 		}
 
 		// Mock the existence check
-		suite.mockRepo.EXPECT().GetBySerialNumber(gomock.Any(), "UPDATE123").Return(&machine.Machine{SerialNumber: "UPDATE123"}, nil)
+		suite.mockRepo.EXPECT().GetBySerialNumber(gomock.Any(), "UPDATE123").Return(&machines.Machine{SerialNumber: "UPDATE123"}, nil)
 		// Mock the update
-		suite.mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, m *machine.Machine) error {
+		suite.mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, m *machines.Machine) error {
 			suite.Assert().Equal("UPDATE123", m.SerialNumber)
 			suite.Assert().Equal("Updated Customer", m.Customer)
 			return nil
@@ -236,7 +236,7 @@ func (suite *MachineHandlerTestSuite) TestUpdateMachine() {
 		suite.Assert().Equal(http.StatusOK, w.Code)
 		suite.Assert().Equal("application/json", w.Header().Get("Content-Type"))
 
-		var response machine.Machine
+		var response machines.Machine
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		suite.Require().NoError(err)
 		suite.Assert().Equal("UPDATE123", response.SerialNumber)
@@ -244,7 +244,7 @@ func (suite *MachineHandlerTestSuite) TestUpdateMachine() {
 	})
 
 	suite.Run("should return 400 when serial number is missing", func() {
-		machineData := machine.Machine{
+		machineData := machines.Machine{
 			Customer: "Customer without serial",
 		}
 
@@ -260,7 +260,7 @@ func (suite *MachineHandlerTestSuite) TestUpdateMachine() {
 	})
 
 	suite.Run("should return 404 when machine not found", func() {
-		machineData := machine.Machine{
+		machineData := machines.Machine{
 			SerialNumber: "NOTFOUND123",
 			Customer:     "Not Found Customer",
 		}
@@ -279,13 +279,13 @@ func (suite *MachineHandlerTestSuite) TestUpdateMachine() {
 	})
 
 	suite.Run("should return 500 on update error", func() {
-		machineData := machine.Machine{
+		machineData := machines.Machine{
 			SerialNumber: "UPDATEERROR123",
 			Customer:     "Update Error Customer",
 		}
 
 		// Mock the existence check
-		suite.mockRepo.EXPECT().GetBySerialNumber(gomock.Any(), "UPDATEERROR123").Return(&machine.Machine{SerialNumber: "UPDATEERROR123"}, nil)
+		suite.mockRepo.EXPECT().GetBySerialNumber(gomock.Any(), "UPDATEERROR123").Return(&machines.Machine{SerialNumber: "UPDATEERROR123"}, nil)
 		// Mock the update error
 		suite.mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(fmt.Errorf("update error"))
 
@@ -304,7 +304,7 @@ func (suite *MachineHandlerTestSuite) TestUpdateMachine() {
 func (suite *MachineHandlerTestSuite) TestDeleteMachine() {
 	suite.Run("should delete machine successfully", func() {
 		// First, expect a check that the machine exists
-		suite.mockRepo.EXPECT().GetBySerialNumber(gomock.Any(), "DELETE123").Return(&machine.Machine{SerialNumber: "DELETE123"}, nil)
+		suite.mockRepo.EXPECT().GetBySerialNumber(gomock.Any(), "DELETE123").Return(&machines.Machine{SerialNumber: "DELETE123"}, nil)
 		// Then expect the delete operation
 		suite.mockRepo.EXPECT().Delete(gomock.Any(), "DELETE123").Return(nil)
 
@@ -333,7 +333,7 @@ func (suite *MachineHandlerTestSuite) TestDeleteMachine() {
 	})
 
 	suite.Run("should return 500 on delete error", func() {
-		suite.mockRepo.EXPECT().GetBySerialNumber(gomock.Any(), "ERROR").Return(&machine.Machine{SerialNumber: "ERROR"}, nil)
+		suite.mockRepo.EXPECT().GetBySerialNumber(gomock.Any(), "ERROR").Return(&machines.Machine{SerialNumber: "ERROR"}, nil)
 		suite.mockRepo.EXPECT().Delete(gomock.Any(), "ERROR").Return(fmt.Errorf("delete error"))
 
 		req := httptest.NewRequest("DELETE", "/machines/ERROR", nil)
@@ -350,15 +350,15 @@ func (suite *MachineHandlerTestSuite) TestDeleteMachine() {
 
 func (suite *MachineHandlerTestSuite) TestListMachines() {
 	suite.Run("should list machines successfully with default parameters", func() {
-		expectedMachines := []*machine.Machine{
+		expectedMachines := []*machines.Machine{
 			{SerialNumber: "MACHINE001", Customer: "Customer 1", Status: "Operational"},
 			{SerialNumber: "MACHINE002", Customer: "Customer 2", Status: "Maintenance"},
 		}
 
-		expectedOptions := &machine.ListOptions{
+		expectedOptions := &machines.ListOptions{
 			Limit:  50,
 			Offset: 0,
-			Sort:   machine.SortOrderCreatedAtDesc,
+			Sort:   machines.SortOrderCreatedAtDesc,
 		}
 
 		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
@@ -385,14 +385,14 @@ func (suite *MachineHandlerTestSuite) TestListMachines() {
 	})
 
 	suite.Run("should use custom limit when provided", func() {
-		expectedMachines := []*machine.Machine{
+		expectedMachines := []*machines.Machine{
 			{SerialNumber: "MACHINE001", Customer: "Customer 1", Status: "Operational"},
 		}
 
-		expectedOptions := &machine.ListOptions{
+		expectedOptions := &machines.ListOptions{
 			Limit:  25,
 			Offset: 0,
-			Sort:   machine.SortOrderCreatedAtDesc,
+			Sort:   machines.SortOrderCreatedAtDesc,
 		}
 
 		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
@@ -413,14 +413,14 @@ func (suite *MachineHandlerTestSuite) TestListMachines() {
 	})
 
 	suite.Run("should use custom offset when provided", func() {
-		expectedMachines := []*machine.Machine{
+		expectedMachines := []*machines.Machine{
 			{SerialNumber: "MACHINE003", Customer: "Customer 3", Status: "Operational"},
 		}
 
-		expectedOptions := &machine.ListOptions{
+		expectedOptions := &machines.ListOptions{
 			Limit:  50,
 			Offset: 10,
-			Sort:   machine.SortOrderCreatedAtDesc,
+			Sort:   machines.SortOrderCreatedAtDesc,
 		}
 
 		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
@@ -441,14 +441,14 @@ func (suite *MachineHandlerTestSuite) TestListMachines() {
 	})
 
 	suite.Run("should use custom sort when provided", func() {
-		expectedMachines := []*machine.Machine{
+		expectedMachines := []*machines.Machine{
 			{SerialNumber: "MACHINE001", Customer: "Customer 1", Status: "Operational"},
 		}
 
-		expectedOptions := &machine.ListOptions{
+		expectedOptions := &machines.ListOptions{
 			Limit:  50,
 			Offset: 0,
-			Sort:   machine.SortOrderCreatedAtAsc,
+			Sort:   machines.SortOrderCreatedAtAsc,
 		}
 
 		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
@@ -468,14 +468,14 @@ func (suite *MachineHandlerTestSuite) TestListMachines() {
 	})
 
 	suite.Run("should use all custom parameters together", func() {
-		expectedMachines := []*machine.Machine{
+		expectedMachines := []*machines.Machine{
 			{SerialNumber: "MACHINE005", Customer: "Customer 5", Status: "Operational"},
 		}
 
-		expectedOptions := &machine.ListOptions{
+		expectedOptions := &machines.ListOptions{
 			Limit:  10,
 			Offset: 20,
-			Sort:   machine.SortOrderCreatedAtDesc,
+			Sort:   machines.SortOrderCreatedAtDesc,
 		}
 
 		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
@@ -557,10 +557,10 @@ func (suite *MachineHandlerTestSuite) TestListMachines() {
 	})
 
 	suite.Run("should return 500 on repository error", func() {
-		expectedOptions := &machine.ListOptions{
+		expectedOptions := &machines.ListOptions{
 			Limit:  50,
 			Offset: 0,
-			Sort:   machine.SortOrderCreatedAtDesc,
+			Sort:   machines.SortOrderCreatedAtDesc,
 		}
 
 		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(nil, fmt.Errorf("database error"))
@@ -575,13 +575,13 @@ func (suite *MachineHandlerTestSuite) TestListMachines() {
 	})
 
 	suite.Run("should handle empty result set", func() {
-		expectedOptions := &machine.ListOptions{
+		expectedOptions := &machines.ListOptions{
 			Limit:  50,
 			Offset: 0,
-			Sort:   machine.SortOrderCreatedAtDesc,
+			Sort:   machines.SortOrderCreatedAtDesc,
 		}
 
-		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return([]*machine.Machine{}, nil)
+		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return([]*machines.Machine{}, nil)
 
 		req := httptest.NewRequest("GET", "/machines", nil)
 		w := httptest.NewRecorder()
@@ -606,11 +606,11 @@ func (suite *MachineHandlerTestSuite) TestListMachines() {
 
 func (suite *MachineHandlerTestSuite) TestGetDuePPM() {
 	suite.Run("should return due PPM machines", func() {
-		machines := []*machine.Machine{
+		m := []*machines.Machine{
 			{SerialNumber: "DUEPPM001", Customer: "Customer 1", Status: "Operational"},
 		}
 
-		suite.mockRepo.EXPECT().DuePPM(gomock.Any()).Return(machines, nil)
+		suite.mockRepo.EXPECT().DuePPM(gomock.Any()).Return(m, nil)
 
 		req := httptest.NewRequest("GET", "/machines/due-ppm", nil)
 		w := httptest.NewRecorder()
@@ -620,7 +620,7 @@ func (suite *MachineHandlerTestSuite) TestGetDuePPM() {
 		suite.Assert().Equal(http.StatusOK, w.Code)
 		suite.Assert().Equal("application/json", w.Header().Get("Content-Type"))
 
-		var response []*machine.Machine
+		var response []*machines.Machine
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		suite.Require().NoError(err)
 
@@ -643,7 +643,7 @@ func (suite *MachineHandlerTestSuite) TestGetDuePPM() {
 	})
 
 	suite.Run("should return empty list when no machines are due for PPM", func() {
-		suite.mockRepo.EXPECT().DuePPM(gomock.Any()).Return([]*machine.Machine{}, nil)
+		suite.mockRepo.EXPECT().DuePPM(gomock.Any()).Return([]*machines.Machine{}, nil)
 
 		req := httptest.NewRequest("GET", "/machines/due-ppm", nil)
 		w := httptest.NewRecorder()
@@ -653,7 +653,7 @@ func (suite *MachineHandlerTestSuite) TestGetDuePPM() {
 		suite.Assert().Equal(http.StatusOK, w.Code)
 		suite.Assert().Equal("application/json", w.Header().Get("Content-Type"))
 
-		var response []*machine.Machine
+		var response []*machines.Machine
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		suite.Require().NoError(err)
 

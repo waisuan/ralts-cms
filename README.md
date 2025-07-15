@@ -385,12 +385,13 @@ JWT tokens should contain the following claims:
 
 All endpoints except `/health` require authentication:
 
-- `GET /machines` - List machines
+- `GET /machines` - List machines with pagination and sorting
 - `GET /machines/{serial_number}` - Get specific machine
 - `POST /machines` - Create machine
 - `PUT /machines` - Update machine
 - `DELETE /machines/{serial_number}` - Delete machine
-- `GET /machines/{serial_number}/maintenance` - List maintenance records
+- `GET /machines/due-ppm` - Get machines due for PPM
+- `GET /machines/{serial_number}/maintenance` - List maintenance records with pagination and sorting
 - `GET /machines/{serial_number}/maintenance/{work_order_number}` - Get specific maintenance
 - `POST /machines/{serial_number}/maintenance` - Create maintenance record
 - `PUT /machines/{serial_number}/maintenance` - Update maintenance record
@@ -419,13 +420,17 @@ All endpoints except `/health` require authentication:
 ### Example with curl
 
 ```bash
-# List all machines
+# List all machines with pagination
 curl -H "Authorization: Bearer <your-jwt-token>" \
-     http://localhost:8080/machines
+     "http://localhost:8080/machines?limit=10&offset=0&sort=created_at_desc"
 
 # Get specific machine
 curl -H "Authorization: Bearer <your-jwt-token>" \
      http://localhost:8080/machines/MACHINE123
+
+# Get machines due for PPM
+curl -H "Authorization: Bearer <your-jwt-token>" \
+     http://localhost:8080/machines/due-ppm
 
 # Create a new machine
 curl -X POST \
@@ -433,6 +438,10 @@ curl -X POST \
      -H "Content-Type: application/json" \
      -d '{"serial_number":"MACHINE123","customer":"ACME Corp"}' \
      http://localhost:8080/machines
+
+# List maintenance records for a machine
+curl -H "Authorization: Bearer <your-jwt-token>" \
+     "http://localhost:8080/machines/MACHINE123/maintenance?limit=5&sort=work_order_date_desc"
 ```
 
 ### Generating JWT Tokens
@@ -482,19 +491,20 @@ For production deployment, the application uses PostgreSQL for data storage:
 
 ## API Endpoints
 
-All endpoints require Bearer Token authentication. The token is specified in the `JWT_SECRET` environment variable.
+All endpoints require Bearer Token authentication except for the health check endpoint. The token is specified in the `JWT_SECRET` environment variable.
 
 ### Machine Endpoints
 
-- `GET /machines` - List all machines
+- `GET /machines` - List all machines with pagination and sorting
 - `GET /machines/{serial_number}` - Get a machine by serial number
 - `POST /machines` - Create a new machine
 - `PUT /machines` - Update an existing machine
 - `DELETE /machines/{serial_number}` - Delete a machine
+- `GET /machines/due-ppm` - Get machines that are due for PPM (Preventive Planned Maintenance)
 
 ### Maintenance Endpoints
 
-- `GET /machines/{serial_number}/maintenance` - List maintenance records for a machine
+- `GET /machines/{serial_number}/maintenance` - List maintenance records for a machine with pagination and sorting
 - `GET /machines/{serial_number}/maintenance/{work_order_number}` - Get a specific maintenance record
 - `POST /machines/{serial_number}/maintenance` - Create a new maintenance record
 - `PUT /machines/{serial_number}/maintenance` - Update an existing maintenance record
@@ -504,12 +514,49 @@ All endpoints require Bearer Token authentication. The token is specified in the
 
 - `GET /health` - Health check endpoint (no authentication required)
 
+### Query Parameters
+
+#### Machine List Endpoint (`GET /machines`)
+
+- `limit` (optional): Number of machines to return (1-100, default: 50)
+- `offset` (optional): Number of machines to skip (default: 0)
+- `sort` (optional): Sort order
+  - `created_at_desc` (default): Newest first
+  - `created_at_asc`: Oldest first
+
+#### Maintenance List Endpoint (`GET /machines/{serial_number}/maintenance`)
+
+- `limit` (optional): Number of maintenance records to return (1-100, default: 50)
+- `offset` (optional): Number of maintenance records to skip (default: 0)
+- `sort` (optional): Sort order
+  - `work_order_date_desc` (default): Most recent work order first
+  - `work_order_date_asc`: Oldest work order first
+  - `created_at_desc`: Newest created first
+  - `created_at_asc`: Oldest created first
+
+### Example Requests
+
+```bash
+# List machines with pagination
+curl -H "Authorization: Bearer <your-jwt-token>" \
+     "http://localhost:8080/machines?limit=10&offset=0&sort=created_at_desc"
+
+# Get machines due for PPM
+curl -H "Authorization: Bearer <your-jwt-token>" \
+     http://localhost:8080/machines/due-ppm
+
+# List maintenance records for a machine
+curl -H "Authorization: Bearer <your-jwt-token>" \
+     "http://localhost:8080/machines/MACHINE123/maintenance?limit=5&sort=work_order_date_desc"
+```
+
 ## Data Models
 
 ### Machine
 
 ```json
 {
+  "id": 1,
   "serial_number": "string",
   "customer": "string",
   "state": "string",
@@ -523,10 +570,10 @@ All endpoints require Bearer Token authentication. The token is specified in the
   "additional_notes": "string",
   "attachment": "string",
   "ppm_status": "string",
-  "tnc_date": "string (ISO 8601)",
-  "ppm_date": "string (ISO 8601)",
-  "created_at": "string (ISO 8601)",
-  "updated_at": "string (ISO 8601)"
+  "tnc_date": "2024-01-01T00:00:00Z",
+  "ppm_date": "2024-01-01T00:00:00Z",
+  "created_at": "2024-01-01T00:00:00Z",
+  "updated_at": "2024-01-01T00:00:00Z"
 }
 ```
 
@@ -534,15 +581,30 @@ All endpoints require Bearer Token authentication. The token is specified in the
 
 ```json
 {
+  "id": 1,
   "machine_serial_number": "string",
   "work_order_number": "string",
-  "work_order_date": "string (ISO 8601)",
+  "work_order_date": "2024-01-01T00:00:00Z",
   "action_taken": "string",
   "reported_by": "string",
   "worker_order_type": "string",
   "attachment": "string",
-  "created_at": "string (ISO 8601)",
-  "updated_at": "string (ISO 8601)"
+  "created_at": "2024-01-01T00:00:00Z",
+  "updated_at": "2024-01-01T00:00:00Z"
+}
+```
+
+### List Response Format
+
+Both machine and maintenance list endpoints return responses in the following format:
+
+```json
+{
+  "machines": [...], // or "maintenance": [...] for maintenance endpoints
+  "count": 10,
+  "limit": 50,
+  "offset": 0,
+  "sort": "created_at_desc"
 }
 ```
 
@@ -615,8 +677,10 @@ ralts-cms/
 │       └── router.go        # HTTP routing
 ├── db/
 │   └── migrations/          # Database migrations
-│       ├── 000001_init_schema.up.sql
-│       └── 000001_init_schema.down.sql
+│       ├── 000001_add_machine_table.up.sql
+│       ├── 000001_add_machine_table.down.sql
+│       ├── 000002_add_maintenance_table.up.sql
+│       └── 000002_add_maintenance_table.down.sql
 ├── scripts/
 │   └── jwt/                 # JWT token generator
 ├── docker-compose.yml       # Local PostgreSQL setup
@@ -626,4 +690,4 @@ ralts-cms/
 
 ## License
 
-[Add your license information here] 
+[Add your license information here]
