@@ -1,6 +1,7 @@
 package auth_test
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -371,6 +372,133 @@ func TestPasswordHashingRoundTrip(t *testing.T) {
 			// The hashes should be different (bcrypt includes random salt)
 			if hash == hash2 {
 				t.Errorf("bcrypt hashes should be different due to internal salt")
+			}
+		})
+	}
+}
+
+func TestGenerateJWTToken(t *testing.T) {
+	tests := []struct {
+		name        string
+		entityID    int
+		secret      string
+		expectError bool
+	}{
+		{
+			name:        "should generate token successfully",
+			entityID:    1234567890,
+			secret:      "your-jwt-secret-key",
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			token, err := auth.GenerateJWTToken(tt.entityID, tt.secret)
+			if err != nil {
+				t.Errorf("failed to generate token: %v", err)
+				return
+			}
+
+			if token == "" {
+				t.Errorf("token should not be empty")
+			}
+		})
+	}
+}
+
+func TestValidateJWTToken(t *testing.T) {
+	tests := []struct {
+		name        string
+		entityID    int
+		secret      string
+		wrongSecret string
+		expectError bool
+	}{
+		{
+			name:        "should validate token successfully",
+			entityID:    1234567890,
+			secret:      "your-jwt-secret-key",
+			wrongSecret: "wrong-secret",
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Generate a valid token
+			token, err := auth.GenerateJWTToken(tt.entityID, tt.secret)
+			if err != nil {
+				t.Errorf("failed to generate token: %v", err)
+				return
+			}
+
+			// Validate the token with correct secret
+			claims, err := auth.ValidateJWTToken(token, tt.secret)
+			if err != nil {
+				t.Errorf("failed to validate token: %v", err)
+				return
+			}
+
+			// Check that claims contain expected data
+			if claims == nil {
+				t.Errorf("claims should not be nil")
+				return
+			}
+
+			entityID, ok := claims["entity_id"].(string)
+			if !ok {
+				t.Errorf("entity_id should be present in claims")
+				return
+			}
+
+			if entityID != strconv.Itoa(tt.entityID) {
+				t.Errorf("expected entity_id %d, got %s", tt.entityID, entityID)
+			}
+
+			// Test with wrong secret
+			_, err = auth.ValidateJWTToken(token, tt.wrongSecret)
+			if err == nil {
+				t.Errorf("expected error when validating with wrong secret")
+			}
+		})
+	}
+}
+
+func TestValidateJWTTokenWithInvalidToken(t *testing.T) {
+	tests := []struct {
+		name        string
+		token       string
+		secret      string
+		expectError bool
+	}{
+		{
+			name:        "should reject invalid token format",
+			token:       "invalid.token.format",
+			secret:      "your-jwt-secret-key",
+			expectError: true,
+		},
+		{
+			name:        "should reject empty token",
+			token:       "",
+			secret:      "your-jwt-secret-key",
+			expectError: true,
+		},
+		{
+			name:        "should reject malformed token",
+			token:       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.invalid.signature",
+			secret:      "your-jwt-secret-key",
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := auth.ValidateJWTToken(tt.token, tt.secret)
+			if tt.expectError && err == nil {
+				t.Errorf("expected error but got none")
+			} else if !tt.expectError && err != nil {
+				t.Errorf("unexpected error: %v", err)
 			}
 		})
 	}

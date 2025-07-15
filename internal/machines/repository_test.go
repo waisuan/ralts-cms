@@ -394,7 +394,7 @@ func (suite *MachineRepositoryTestSuite) TestDuePPM() {
 
 	suite.Run("should return machines that are due in 2 weeks for PPM", func() {
 		machine := testutils.CreateMachine("DUEPPM003")
-		machine.PpmDate = time.Now().AddDate(0, 0, 14)
+		machine.PpmDate = time.Now().AddDate(0, 0, 10)
 		suite.Require().NoError(suite.repo.Create(ctx, machine))
 
 		machines, err := suite.repo.DuePPM(ctx)
