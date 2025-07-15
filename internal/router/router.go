@@ -42,6 +42,9 @@ func NewRouter(deps *deps.Dependencies) http.Handler {
 	api.HandleFunc("/machines/{serial_number}/maintenance", handler.NewMaintenanceHandler(deps).UpdateMaintenance).Methods(http.MethodPut)
 	api.HandleFunc("/machines/{serial_number}/maintenance/{work_order_number}", handler.NewMaintenanceHandler(deps).DeleteMaintenance).Methods(http.MethodDelete)
 
+	// User endpoints
+	api.HandleFunc("/users", handler.NewUsersHandler(deps).CreateUser).Methods(http.MethodPost)
+
 	// Apply middleware to protected endpoints
 	api.Use(middleware.LoggingMiddleware)
 	api.Use(middleware.CORSMiddleware)
