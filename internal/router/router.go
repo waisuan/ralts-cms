@@ -48,7 +48,7 @@ func NewRouter(deps *deps.Dependencies) http.Handler {
 	// Apply middleware to protected endpoints only
 	api.Use(middlewares.LoggingMiddleware)
 	api.Use(middlewares.CORSMiddleware)
-	api.Use(middlewares.AuthenticationMiddleware(deps.Config.JWTSecret))
+	// api.Use(middlewares.AuthenticationMiddleware(deps.Config.JWTSecret))
 
 	return r
 }

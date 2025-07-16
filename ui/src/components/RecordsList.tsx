@@ -4,13 +4,15 @@ import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import RecordCard from './RecordCard';
 import MachineModal from './MachineModal';
-import { mockMachines } from '../data/mockMachines';
 import { mockMaintenanceRecords } from '../data/mockMaintenance';
 import { SearchOptions } from './SearchBar';
 import { isDateProperty } from '@/utils/constants';
 import { getPPMStatusLabel } from '@/utils/ppmUtils';
 import { useOverdueStats } from '../hooks/useOverdueStats';
+import { useMachines } from '../hooks/useMachines';
+import { useMachine } from '../hooks/useMachine';
 import { Machine } from '../types/machine';
+import { MachineFilters } from '../services/machineService';
 
 type FilterType = 'all' | 'overdue' | 'due';
 export type SortType = 'newest' | 'oldest';
@@ -33,13 +35,56 @@ export default function RecordsList({
   onSortChange,
 }: RecordsListProps) {
   const router = useRouter();
-  const [machines, setMachines] = useState(mockMachines);
   const [displayedCount, setDisplayedCount] = useState(ITEMS_PER_PAGE);
   const [isMachineModalOpen, setIsMachineModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [machineToDelete, setMachineToDelete] = useState<Machine | null>(null);
   const [machineToEdit, setMachineToEdit] = useState<Machine | null>(null);
+
+  // Convert search options to API filters
+  const apiFilters: MachineFilters = useMemo(() => {
+    const filters: MachineFilters = {};
+    
+    // Handle due_ppm filter based on filterType
+    if (filterType === 'due') {
+      filters.due_ppm = true;
+    }
+    
+    // Handle sorting
+    if (sortBy === 'newest') {
+      filters.sort = 'created_at_desc';
+    } else if (sortBy === 'oldest') {
+      filters.sort = 'created_at_asc';
+    }
+    
+    return filters;
+  }, [filterType, sortBy]);
+
+  // Use the machines API hook
+  const {
+    machines,
+    total,
+    loading,
+    error,
+    refetch,
+    setPage,
+    setLimit,
+    setFilters,
+  } = useMachines({
+    page: 1,
+    limit: 50, // Load more machines initially
+    filters: apiFilters,
+    autoFetch: true,
+  });
+
+  // Use individual machine hook for CRUD operations
+  const {
+    createMachine,
+    updateMachine,
+    deleteMachine,
+    clearError: clearMachineError,
+  } = useMachine();
 
   // Calculate overdue statistics
   const overdueStats = useOverdueStats(machines);
@@ -61,7 +106,7 @@ export default function RecordsList({
       filtered = overdueStats.dueMachines;
     }
 
-    // Then apply search filter
+    // Apply client-side filtering for properties not supported by API
     if (searchOptions.query.trim()) {
       const query = searchOptions.query.toLowerCase();
       const { property } = searchOptions;
@@ -114,10 +159,11 @@ export default function RecordsList({
   const displayedMachines = filteredMachines.slice(0, displayedCount);
   const hasMoreMachines = displayedCount < filteredMachines.length;
 
-  // Reset displayed count when search changes
+  // Update API filters when filter type or sort changes
   useEffect(() => {
+    setFilters(apiFilters);
     setDisplayedCount(ITEMS_PER_PAGE);
-  }, [searchOptions, filterType]);
+  }, [apiFilters, setFilters]);
 
   const handleLoadMore = () => {
     setDisplayedCount((prev) => Math.min(prev + ITEMS_PER_PAGE, filteredMachines.length));
@@ -144,14 +190,16 @@ export default function RecordsList({
     }
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (machineToDelete) {
-      setMachines(
-        machines.filter((machine) => machine.serial_number !== machineToDelete.serial_number)
-      );
-      setMachineToDelete(null);
+      const success = await deleteMachine(machineToDelete.serial_number);
+      if (success) {
+        setMachineToDelete(null);
+        setShowDeleteConfirm(false);
+        // Refresh the machines list
+        refetch();
+      }
     }
-    setShowDeleteConfirm(false);
   };
 
   const handleCancelDelete = () => {
@@ -159,23 +207,22 @@ export default function RecordsList({
     setShowDeleteConfirm(false);
   };
 
-  const handleAddMachine = (newMachine: Omit<Machine, 'created_at' | 'updated_at'>) => {
-    const machine: Machine = {
-      ...newMachine,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    setMachines([machine, ...machines]);
+  const handleAddMachine = async (newMachine: Omit<Machine, 'created_at' | 'updated_at'>) => {
+    const createdMachine = await createMachine(newMachine);
+    if (createdMachine) {
+      // Refresh the machines list
+      refetch();
+    }
   };
 
-  const handleEditMachine = (updatedMachine: Machine) => {
-    setMachines(
-      machines.map((machine) =>
-        machine.serial_number === updatedMachine.serial_number ? updatedMachine : machine
-      )
-    );
-    setMachineToEdit(null);
-    setIsMachineModalOpen(false);
+  const handleEditMachine = async (updatedMachine: Machine) => {
+    const updated = await updateMachine(updatedMachine.serial_number, updatedMachine);
+    if (updated) {
+      setMachineToEdit(null);
+      setIsMachineModalOpen(false);
+      // Refresh the machines list
+      refetch();
+    }
   };
 
   const handleOpenAddModal = () => {
@@ -233,6 +280,53 @@ export default function RecordsList({
 
   const emptyState = getEmptyStateMessage();
 
+  // Show loading state
+  if (loading && machines.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-center items-center py-12">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading machines...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800">
+                Error loading machines
+              </h3>
+              <div className="mt-2 text-sm text-red-700">
+                {error.message}
+              </div>
+              <div className="mt-4">
+                <button
+                  onClick={refetch}
+                  className="bg-red-100 text-red-800 px-3 py-2 rounded-md text-sm font-medium hover:bg-red-200"
+                >
+                  Try again
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -244,6 +338,7 @@ export default function RecordsList({
                 Showing {displayedMachines.length} of {filteredMachines.length} machine
                 {filteredMachines.length !== 1 ? 's' : ''}
                 {getFilterStatusText()}
+                {loading && ' (updating...)'}
               </p>
             </div>
 
