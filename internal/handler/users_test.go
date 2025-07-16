@@ -45,10 +45,13 @@ func (suite *UsersHandlerTestSuite) TearDownTest() {
 
 func (suite *UsersHandlerTestSuite) TestCreateUser() {
 	suite.Run("should create user successfully", func() {
-		userData := users.User{
+		userData := handler.CreateUserRequest{
 			Name:     "Test User",
 			Email:    "test@example.com",
 			Password: "mypassword123",
+			Role:     "user",
+			Status:   "active",
+			Avatar:   nil,
 		}
 
 		suite.mockRepo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, u *users.User) error {
@@ -88,7 +91,7 @@ func (suite *UsersHandlerTestSuite) TestCreateUser() {
 	})
 
 	suite.Run("should return 500 on repository error", func() {
-		userData := users.User{
+		userData := handler.CreateUserRequest{
 			Name:     "Error User",
 			Email:    "error@example.com",
 			Password: "mypassword123",
@@ -122,10 +125,7 @@ func (suite *UsersHandlerTestSuite) TestCreateUser() {
 
 func (suite *UsersHandlerTestSuite) TestLogin() {
 	suite.Run("should login successfully with valid credentials", func() {
-		loginRequest := struct {
-			Email    string `json:"email"`
-			Password string `json:"password"`
-		}{
+		loginRequest := handler.LoginRequest{
 			Email:    "test@example.com",
 			Password: "mypassword123",
 		}
@@ -186,10 +186,7 @@ func (suite *UsersHandlerTestSuite) TestLogin() {
 	})
 
 	suite.Run("should return 401 when user cannot be authenticated", func() {
-		loginRequest := struct {
-			Email    string `json:"email"`
-			Password string `json:"password"`
-		}{
+		loginRequest := handler.LoginRequest{
 			Email:    "nonexistent@example.com",
 			Password: "mypassword123",
 		}

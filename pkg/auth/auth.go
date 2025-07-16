@@ -2,6 +2,7 @@ package auth
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"fmt"
 	"strconv"
 	"time"
@@ -21,11 +22,15 @@ func GenerateSalt() (string, error) {
 
 // hashPassword hashes a password with the given salt using bcrypt
 func HashPassword(password, salt string) (string, error) {
-	// Combine password and salt
+	// Combine password and salt and hash with SHA-256 to avoid bcrypt's 72-byte limit
 	passwordWithSalt := password + salt
+	hashed := sha256.Sum256([]byte(passwordWithSalt))
+
+	// Convert to hex string for bcrypt
+	passwordForBcrypt := fmt.Sprintf("%x", hashed)
 
 	// Hash using bcrypt with cost factor 12 (good balance of security and performance)
-	hashedBytes, err := bcrypt.GenerateFromPassword([]byte(passwordWithSalt), 12)
+	hashedBytes, err := bcrypt.GenerateFromPassword([]byte(passwordForBcrypt), 12)
 	if err != nil {
 		return "", fmt.Errorf("failed to hash password: %w", err)
 	}
@@ -35,8 +40,14 @@ func HashPassword(password, salt string) (string, error) {
 
 // verifyPassword verifies a password against a stored hash and salt
 func VerifyPassword(password, hash, salt string) error {
+	// Combine password and salt and hash with SHA-256 to match the hashing process
 	passwordWithSalt := password + salt
-	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(passwordWithSalt))
+	hashed := sha256.Sum256([]byte(passwordWithSalt))
+
+	// Convert to hex string for bcrypt comparison
+	passwordForBcrypt := fmt.Sprintf("%x", hashed)
+
+	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(passwordForBcrypt))
 }
 
 func GenerateJWTToken(entityID int, secret string) (string, error) {

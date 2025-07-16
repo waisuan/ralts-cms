@@ -13,6 +13,20 @@ type UsersHandler struct {
 	deps *deps.Dependencies
 }
 
+type CreateUserRequest struct {
+	Name     string  `json:"name" validate:"required"`
+	Email    string  `json:"email" validate:"required,email"`
+	Password string  `json:"password" validate:"required,min=6"`
+	Role     string  `json:"role,omitempty"`
+	Status   string  `json:"status,omitempty"`
+	Avatar   *string `json:"avatar,omitempty"`
+}
+
+type LoginRequest struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
 func NewUsersHandler(deps *deps.Dependencies) *UsersHandler {
 	return &UsersHandler{
 		deps: deps,
@@ -20,13 +34,23 @@ func NewUsersHandler(deps *deps.Dependencies) *UsersHandler {
 }
 
 func (h *UsersHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
-	var user users.User
-	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+	var createUserRequest CreateUserRequest
+	if err := json.NewDecoder(r.Body).Decode(&createUserRequest); err != nil {
 		http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
 		return
 	}
 
-	if err := h.deps.UsersRepository.Create(r.Context(), &user); err != nil {
+	// Create user from request
+	user := &users.User{
+		Name:     createUserRequest.Name,
+		Email:    createUserRequest.Email,
+		Password: createUserRequest.Password,
+		Role:     createUserRequest.Role,
+		Status:   createUserRequest.Status,
+		Avatar:   createUserRequest.Avatar,
+	}
+
+	if err := h.deps.UsersRepository.Create(r.Context(), user); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to create user: %v", err), http.StatusInternalServerError)
 		return
 	}
@@ -37,11 +61,7 @@ func (h *UsersHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *UsersHandler) Login(w http.ResponseWriter, r *http.Request) {
-	var loginRequest struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
-
+	var loginRequest LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&loginRequest); err != nil {
 		http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
 		return
@@ -49,7 +69,7 @@ func (h *UsersHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.deps.UsersRepository.Login(r.Context(), loginRequest.Email, loginRequest.Password)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to login: %v", err), http.StatusUnauthorized)
+		http.Error(w, fmt.Sprintf("Failed to login"), http.StatusUnauthorized)
 		return
 	}
 

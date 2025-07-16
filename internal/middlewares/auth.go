@@ -10,7 +10,7 @@ import (
 
 // UserContext represents the user information extracted from JWT token
 type UserContext struct {
-	EntityID int `json:"entity_id"`
+	EntityID string `json:"entity_id"`
 }
 
 // contextKey is a custom type for context keys to avoid collisions
@@ -47,7 +47,7 @@ func AuthenticationMiddleware(jwtSecret string) func(http.Handler) http.Handler 
 			}
 
 			// Extract user information from claims
-			entityID, ok := claims["entity_id"].(int)
+			entityID, ok := claims["entity_id"].(string)
 			if !ok {
 				http.Error(w, "Invalid token: missing entity_id", http.StatusUnauthorized)
 				return

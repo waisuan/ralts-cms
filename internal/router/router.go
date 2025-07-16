@@ -25,11 +25,11 @@ func NewRouter(deps *deps.Dependencies) http.Handler {
 	})
 
 	// Public endpoints (no auth required)
-	r.HandleFunc("/users", handler.NewUsersHandler(deps).CreateUser).Methods(http.MethodPost)
-	r.HandleFunc("/users/login", handler.NewUsersHandler(deps).Login).Methods(http.MethodPost)
+	r.HandleFunc("/api/v1/users", handler.NewUsersHandler(deps).CreateUser).Methods(http.MethodPost)
+	r.HandleFunc("/api/v1/users/login", handler.NewUsersHandler(deps).Login).Methods(http.MethodPost)
 
 	// Subrouter for protected endpoints
-	api := r.PathPrefix("/").Subrouter()
+	api := r.PathPrefix("/api/v1/").Subrouter()
 
 	// Machine endpoints (protected)
 	api.HandleFunc("/machines", handler.NewMachinesHandler(deps).ListMachines).Methods(http.MethodGet)
