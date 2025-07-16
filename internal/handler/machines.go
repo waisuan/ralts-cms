@@ -51,6 +51,7 @@ func (h *MachinesHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 	limitStr := r.URL.Query().Get("limit")
 	offsetStr := r.URL.Query().Get("offset")
 	sortStr := r.URL.Query().Get("sort")
+	duePPM := r.URL.Query().Get("due_ppm")
 
 	// Parse limit parameter
 	limit := h.deps.Config.DefaultMachinesLimit
@@ -88,11 +89,23 @@ func (h *MachinesHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Parse due_ppm parameter
+	duePPMOnly := false
+	if duePPM != "" {
+		if duePPM == "true" {
+			duePPMOnly = true
+		} else if duePPM != "false" {
+			http.Error(w, "Invalid due_ppm parameter. Must be 'true' or 'false'", http.StatusBadRequest)
+			return
+		}
+	}
+
 	// Create list options
 	options := &machines.ListOptions{
-		Limit:  limit,
-		Offset: offset,
-		Sort:   sort,
+		Limit:      limit,
+		Offset:     offset,
+		Sort:       sort,
+		DuePPMOnly: duePPMOnly,
 	}
 
 	// Get machines from repository
@@ -204,16 +217,4 @@ func (h *MachinesHandler) DeleteMachine(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.WriteHeader(http.StatusNoContent)
-}
-
-// GetDuePPM handles GET /machines/due-ppm
-func (h *MachinesHandler) GetDuePPM(w http.ResponseWriter, r *http.Request) {
-	machines, err := h.deps.MachinesRepository.DuePPM(r.Context())
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to get due PPM machines: %v", err), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(machines)
 }

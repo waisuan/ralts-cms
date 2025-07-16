@@ -63,21 +63,6 @@ func (mr *MockRepositoryMockRecorder) Delete(ctx, serialNumber interface{}) *gom
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockRepository)(nil).Delete), ctx, serialNumber)
 }
 
-// DuePPM mocks base method.
-func (m *MockRepository) DuePPM(ctx context.Context) ([]*machines.Machine, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DuePPM", ctx)
-	ret0, _ := ret[0].([]*machines.Machine)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// DuePPM indicates an expected call of DuePPM.
-func (mr *MockRepositoryMockRecorder) DuePPM(ctx interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DuePPM", reflect.TypeOf((*MockRepository)(nil).DuePPM), ctx)
-}
-
 // GetBySerialNumber mocks base method.
 func (m *MockRepository) GetBySerialNumber(ctx context.Context, serialNumber string) (*machines.Machine, error) {
 	m.ctrl.T.Helper()

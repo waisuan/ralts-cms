@@ -332,6 +332,108 @@ func (suite *MachineRepositoryTestSuite) TestList() {
 		suite.Assert().Len(machines, 1)
 		suite.Assert().Equal("INVALID001", machines[0].SerialNumber)
 	})
+
+	suite.Run("should return empty list when no machines are due for PPM", func() {
+		options := &machines.ListOptions{Limit: 10, Offset: 0, DuePPMOnly: true}
+		machines, err := suite.repo.List(ctx, options)
+		suite.Require().NoError(err)
+		suite.Assert().Empty(machines)
+	})
+
+	suite.Run("should return machines that are due for PPM", func() {
+		machine := testutils.CreateMachine("DUEPPM001")
+		machine.PpmDate = time.Now()
+		suite.Require().NoError(suite.repo.Create(ctx, machine))
+
+		options := &machines.ListOptions{Limit: 10, Offset: 0, DuePPMOnly: true}
+		machines, err := suite.repo.List(ctx, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machines, 1)
+		suite.Assert().Equal("DUEPPM001", machines[0].SerialNumber)
+	})
+
+	suite.Run("should return machines that are overdue for PPM", func() {
+		machine := testutils.CreateMachine("DUEPPM002")
+		machine.PpmDate = time.Now().AddDate(0, 0, -1)
+		suite.Require().NoError(suite.repo.Create(ctx, machine))
+
+		options := &machines.ListOptions{Limit: 10, Offset: 0, DuePPMOnly: true}
+		machines, err := suite.repo.List(ctx, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machines, 1)
+		suite.Assert().Equal("DUEPPM002", machines[0].SerialNumber)
+	})
+
+	suite.Run("should return machines that are due in 2 weeks for PPM", func() {
+		machine := testutils.CreateMachine("DUEPPM003")
+		machine.PpmDate = time.Now().AddDate(0, 0, 10)
+		suite.Require().NoError(suite.repo.Create(ctx, machine))
+
+		options := &machines.ListOptions{Limit: 10, Offset: 0, DuePPMOnly: true}
+		machines, err := suite.repo.List(ctx, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machines, 1)
+		suite.Assert().Equal("DUEPPM003", machines[0].SerialNumber)
+	})
+
+	suite.Run("should not return machines that are due in more than 2 weeks for PPM", func() {
+		machine := testutils.CreateMachine("DUEPPM004")
+		machine.PpmDate = time.Now().AddDate(0, 0, 30)
+		suite.Require().NoError(suite.repo.Create(ctx, machine))
+
+		options := &machines.ListOptions{Limit: 10, Offset: 0, DuePPMOnly: true}
+		machines, err := suite.repo.List(ctx, options)
+		suite.Require().NoError(err)
+		suite.Assert().Empty(machines)
+	})
+
+	suite.Run("should return multiple machines due for PPM ordered by creation date", func() {
+		// Create machines with different PPM dates
+		machine1 := testutils.CreateMachine("DUEPPM005")
+		machine1.PpmDate = time.Now().AddDate(0, 0, 5) // Due in 5 days
+		suite.Require().NoError(suite.repo.Create(ctx, machine1))
+
+		machine2 := testutils.CreateMachine("DUEPPM006")
+		machine2.PpmDate = time.Now().AddDate(0, 0, -2) // Overdue by 2 days
+		suite.Require().NoError(suite.repo.Create(ctx, machine2))
+
+		machine3 := testutils.CreateMachine("DUEPPM007")
+		machine3.PpmDate = time.Now().AddDate(0, 0, 12) // Due in 12 days
+		suite.Require().NoError(suite.repo.Create(ctx, machine3))
+
+		options := &machines.ListOptions{Limit: 10, Offset: 0, DuePPMOnly: true}
+		machines, err := suite.repo.List(ctx, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machines, 3)
+
+		suite.Assert().Equal("DUEPPM007", machines[0].SerialNumber)
+		suite.Assert().Equal("DUEPPM006", machines[1].SerialNumber)
+		suite.Assert().Equal("DUEPPM005", machines[2].SerialNumber)
+	})
+
+	suite.Run("should respect limit and offset when filtering for PPM due", func() {
+		// Create multiple machines due for PPM
+		for i := 1; i <= 5; i++ {
+			machine := testutils.CreateMachine(fmt.Sprintf("DUEPPM%03d", i))
+			machine.PpmDate = time.Now().AddDate(0, 0, i)
+			suite.Require().NoError(suite.repo.Create(ctx, machine))
+		}
+
+		options := &machines.ListOptions{Limit: 2, Offset: 0, DuePPMOnly: true}
+		machines, err := suite.repo.List(ctx, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machines, 2)
+
+		options.Offset = 2
+		machines, err = suite.repo.List(ctx, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machines, 2)
+
+		options.Offset = 4
+		machines, err = suite.repo.List(ctx, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machines, 1)
+	})
 }
 
 func (suite *MachineRepositoryTestSuite) TestDelete() {
@@ -360,56 +462,6 @@ func (suite *MachineRepositoryTestSuite) TestDelete() {
 		err := suite.repo.Delete(ctx, "NONEXISTENT")
 		suite.Require().Error(err)
 		suite.Assert().Contains(err.Error(), "machine not found")
-	})
-}
-
-func (suite *MachineRepositoryTestSuite) TestDuePPM() {
-	ctx := context.Background()
-
-	suite.Run("should return empty list when no machines are due for PPM", func() {
-		machines, err := suite.repo.DuePPM(ctx)
-		suite.Require().NoError(err)
-		suite.Assert().Empty(machines)
-	})
-
-	suite.Run("should return machines that are due for PPM", func() {
-		machine := testutils.CreateMachine("DUEPPM001")
-		machine.PpmDate = time.Now()
-		suite.Require().NoError(suite.repo.Create(ctx, machine))
-
-		machines, err := suite.repo.DuePPM(ctx)
-		suite.Require().NoError(err)
-		suite.Assert().Len(machines, 1)
-	})
-
-	suite.Run("should return machines that are overdue for PPM", func() {
-		machine := testutils.CreateMachine("DUEPPM002")
-		machine.PpmDate = time.Now().AddDate(0, 0, -1)
-		suite.Require().NoError(suite.repo.Create(ctx, machine))
-
-		machines, err := suite.repo.DuePPM(ctx)
-		suite.Require().NoError(err)
-		suite.Assert().Len(machines, 1)
-	})
-
-	suite.Run("should return machines that are due in 2 weeks for PPM", func() {
-		machine := testutils.CreateMachine("DUEPPM003")
-		machine.PpmDate = time.Now().AddDate(0, 0, 10)
-		suite.Require().NoError(suite.repo.Create(ctx, machine))
-
-		machines, err := suite.repo.DuePPM(ctx)
-		suite.Require().NoError(err)
-		suite.Assert().Len(machines, 1)
-	})
-
-	suite.Run("should not return machines that are due in more than 2 weeks for PPM", func() {
-		machine := testutils.CreateMachine("DUEPPM004")
-		machine.PpmDate = time.Now().AddDate(0, 0, 30)
-		suite.Require().NoError(suite.repo.Create(ctx, machine))
-
-		machines, err := suite.repo.DuePPM(ctx)
-		suite.Require().NoError(err)
-		suite.Assert().Empty(machines)
 	})
 }
 

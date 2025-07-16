@@ -18,17 +18,19 @@ const (
 
 // ListOptions defines the options for listing machines
 type ListOptions struct {
-	Limit  int32     `json:"limit"`
-	Offset int32     `json:"offset"`
-	Sort   SortOrder `json:"sort"`
+	Limit      int32     `json:"limit"`
+	Offset     int32     `json:"offset"`
+	Sort       SortOrder `json:"sort"`
+	DuePPMOnly bool      `json:"due_ppm_only"`
 }
 
 // DefaultListOptions returns default list options
 func DefaultListOptions() *ListOptions {
 	return &ListOptions{
-		Limit:  50,
-		Offset: 0,
-		Sort:   SortOrderCreatedAtDesc,
+		Limit:      50,
+		Offset:     0,
+		Sort:       SortOrderCreatedAtDesc,
+		DuePPMOnly: false,
 	}
 }
 
@@ -39,7 +41,6 @@ type Repository interface {
 	Create(ctx context.Context, machine *Machine) error
 	Update(ctx context.Context, machine *Machine) error
 	Delete(ctx context.Context, serialNumber string) error
-	DuePPM(ctx context.Context) ([]*Machine, error)
 }
 
 type db struct {
@@ -85,6 +86,13 @@ func (r *db) List(ctx context.Context, options *ListOptions) ([]*Machine, error)
 		options = DefaultListOptions()
 	}
 
+	// Build the WHERE clause based on options
+	var whereClause string
+
+	if options.DuePPMOnly {
+		whereClause = "WHERE ppm_date <= CURRENT_DATE OR ppm_date <= CURRENT_DATE + INTERVAL '2 weeks'"
+	}
+
 	// Build the ORDER BY clause based on sort option
 	var orderByClause string
 	switch options.Sort {
@@ -102,8 +110,9 @@ func (r *db) List(ctx context.Context, options *ListOptions) ([]*Machine, error)
 		       ppm_status, tnc_date, ppm_date, created_at, updated_at
 		FROM machines 
 		%s
-		LIMIT $1 OFFSET $2
-	`, orderByClause)
+		%s
+		LIMIT $%d OFFSET $%d
+	`, whereClause, orderByClause, 1, 2)
 
 	rows, err := r.client.Query(ctx, query, options.Limit, options.Offset)
 	if err != nil {
@@ -205,45 +214,4 @@ func (r *db) Delete(ctx context.Context, serialNumber string) error {
 	}
 
 	return nil
-}
-
-func (r *db) DuePPM(ctx context.Context) ([]*Machine, error) {
-	// Machines that have PPM dates that are due today, overdue, or are less than 2 weeks away from being due.
-	query := `
-		SELECT id, serial_number, customer, state, account_type, model, status, brand,
-		       district, person_in_charge, reported_by, additional_notes, attachment,
-		       ppm_status, tnc_date, ppm_date, created_at, updated_at
-		FROM machines
-		WHERE ppm_date <= CURRENT_DATE
-		OR ppm_date <= CURRENT_DATE + INTERVAL '2 weeks'
-		ORDER BY ppm_date ASC
-	`
-
-	rows, err := r.client.Query(ctx, query)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query machines: %w", err)
-	}
-	defer rows.Close()
-
-	var machines []*Machine
-	for rows.Next() {
-		var machine Machine
-		err := rows.Scan(
-			&machine.ID, &machine.SerialNumber, &machine.Customer, &machine.State,
-			&machine.AccountType, &machine.Model, &machine.Status, &machine.Brand,
-			&machine.District, &machine.PersonInCharge, &machine.ReportedBy,
-			&machine.AdditionalNotes, &machine.Attachment, &machine.PpmStatus,
-			&machine.TncDate, &machine.PpmDate, &machine.CreatedAt, &machine.UpdatedAt,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan machine: %w", err)
-		}
-		machines = append(machines, &machine)
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating machines: %w", err)
-	}
-
-	return machines, nil
 }

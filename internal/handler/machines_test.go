@@ -603,62 +603,117 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		machines := response["machines"].([]interface{})
 		suite.Assert().Len(machines, 0)
 	})
-}
 
-func (suite *MachinesHandlerTestSuite) TestGetDuePPM() {
-	suite.Run("should return due PPM machines", func() {
-		m := []*machines.Machine{
+	suite.Run("should handle due_ppm=true parameter", func() {
+		expectedMachines := []*machines.Machine{
 			{SerialNumber: "DUEPPM001", Customer: "Customer 1", Status: "Operational"},
 		}
 
-		suite.mockRepo.EXPECT().DuePPM(gomock.Any()).Return(m, nil)
+		expectedOptions := &machines.ListOptions{
+			Limit:      50,
+			Offset:     0,
+			Sort:       machines.SortOrderCreatedAtDesc,
+			DuePPMOnly: true,
+		}
 
-		req := httptest.NewRequest("GET", "/machines/due-ppm", nil)
+		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
+
+		req := httptest.NewRequest("GET", "/machines?due_ppm=true", nil)
 		w := httptest.NewRecorder()
 
-		suite.handler.GetDuePPM(w, req)
+		suite.handler.ListMachines(w, req)
 
 		suite.Assert().Equal(http.StatusOK, w.Code)
-		suite.Assert().Equal("application/json", w.Header().Get("Content-Type"))
 
-		var response []*machines.Machine
+		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		suite.Require().NoError(err)
 
-		suite.Assert().Len(response, 1)
-		suite.Assert().Equal("DUEPPM001", response[0].SerialNumber)
-		suite.Assert().Equal("Customer 1", response[0].Customer)
-		suite.Assert().Equal("Operational", response[0].Status)
+		suite.Assert().Equal(float64(1), response["count"])
+		suite.Assert().Equal(float64(50), response["limit"])
+		suite.Assert().Equal(float64(0), response["offset"])
+		suite.Assert().Equal("created_at_desc", response["sort"])
+
+		machines := response["machines"].([]interface{})
+		suite.Assert().Len(machines, 1)
 	})
 
-	suite.Run("should return 500 on repository error", func() {
-		suite.mockRepo.EXPECT().DuePPM(gomock.Any()).Return(nil, fmt.Errorf("database error"))
+	suite.Run("should handle due_ppm=false parameter", func() {
+		expectedMachines := []*machines.Machine{
+			{SerialNumber: "MACHINE001", Customer: "Customer 1", Status: "Operational"},
+		}
 
-		req := httptest.NewRequest("GET", "/machines/due-ppm", nil)
+		expectedOptions := &machines.ListOptions{
+			Limit:      50,
+			Offset:     0,
+			Sort:       machines.SortOrderCreatedAtDesc,
+			DuePPMOnly: false,
+		}
+
+		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
+
+		req := httptest.NewRequest("GET", "/machines?due_ppm=false", nil)
 		w := httptest.NewRecorder()
 
-		suite.handler.GetDuePPM(w, req)
-
-		suite.Assert().Equal(http.StatusInternalServerError, w.Code)
-		suite.Assert().Contains(w.Body.String(), "Failed to get due PPM machines")
-	})
-
-	suite.Run("should return empty list when no machines are due for PPM", func() {
-		suite.mockRepo.EXPECT().DuePPM(gomock.Any()).Return([]*machines.Machine{}, nil)
-
-		req := httptest.NewRequest("GET", "/machines/due-ppm", nil)
-		w := httptest.NewRecorder()
-
-		suite.handler.GetDuePPM(w, req)
+		suite.handler.ListMachines(w, req)
 
 		suite.Assert().Equal(http.StatusOK, w.Code)
-		suite.Assert().Equal("application/json", w.Header().Get("Content-Type"))
 
-		var response []*machines.Machine
+		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		suite.Require().NoError(err)
 
-		suite.Assert().Len(response, 0)
+		suite.Assert().Equal(float64(1), response["count"])
+		suite.Assert().Equal(float64(50), response["limit"])
+		suite.Assert().Equal(float64(0), response["offset"])
+		suite.Assert().Equal("created_at_desc", response["sort"])
+
+		machines := response["machines"].([]interface{})
+		suite.Assert().Len(machines, 1)
+	})
+
+	suite.Run("should return 400 for invalid due_ppm parameter", func() {
+		req := httptest.NewRequest("GET", "/machines?due_ppm=invalid", nil)
+		w := httptest.NewRecorder()
+
+		suite.handler.ListMachines(w, req)
+
+		suite.Assert().Equal(http.StatusBadRequest, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Invalid due_ppm parameter")
+	})
+
+	suite.Run("should handle due_ppm with other parameters", func() {
+		expectedMachines := []*machines.Machine{
+			{SerialNumber: "DUEPPM001", Customer: "Customer 1", Status: "Operational"},
+		}
+
+		expectedOptions := &machines.ListOptions{
+			Limit:      10,
+			Offset:     20,
+			Sort:       machines.SortOrderCreatedAtAsc,
+			DuePPMOnly: true,
+		}
+
+		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
+
+		req := httptest.NewRequest("GET", "/machines?limit=10&offset=20&sort=created_at_asc&due_ppm=true", nil)
+		w := httptest.NewRecorder()
+
+		suite.handler.ListMachines(w, req)
+
+		suite.Assert().Equal(http.StatusOK, w.Code)
+
+		var response map[string]interface{}
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		suite.Require().NoError(err)
+
+		suite.Assert().Equal(float64(1), response["count"])
+		suite.Assert().Equal(float64(10), response["limit"])
+		suite.Assert().Equal(float64(20), response["offset"])
+		suite.Assert().Equal("created_at_asc", response["sort"])
+
+		machines := response["machines"].([]interface{})
+		suite.Assert().Len(machines, 1)
 	})
 }
 
