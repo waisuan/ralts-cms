@@ -25,7 +25,7 @@ interface RecordsListProps {
   onSortChange?: (sortBy: SortType) => void;
 }
 
-const ITEMS_PER_PAGE = 3; // Show 3 machines initially, then load more
+const ITEMS_PER_PAGE = 12; // Show 12 machines per page
 
 export default function RecordsList({
   searchOptions,
@@ -35,7 +35,6 @@ export default function RecordsList({
   onSortChange,
 }: RecordsListProps) {
   const router = useRouter();
-  const [displayedCount, setDisplayedCount] = useState(ITEMS_PER_PAGE);
   const [isMachineModalOpen, setIsMachineModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -61,19 +60,22 @@ export default function RecordsList({
     return filters;
   }, [filterType, sortBy]);
 
-  // Use the machines API hook
+  // Use the machines API hook with server-side pagination
   const {
     machines,
     total,
+    offset,
+    limit,
+    totalPages,
     loading,
     error,
     refetch,
-    setPage,
     setLimit,
     setFilters,
+    loadMore,
   } = useMachines({
     page: 1,
-    limit: 50, // Load more machines initially
+    limit: ITEMS_PER_PAGE,
     filters: apiFilters,
     autoFetch: true,
   });
@@ -95,16 +97,9 @@ export default function RecordsList({
       .length;
   };
 
-  // Filter and sort machines based on search options, filter type, and sort order
+  // Filter machines based on search options (client-side filtering for properties not supported by API)
   const filteredMachines = useMemo(() => {
     let filtered = machines;
-
-    // Apply filter type first if enabled
-    if (filterType === 'overdue') {
-      filtered = overdueStats.overdueMachines;
-    } else if (filterType === 'due') {
-      filtered = overdueStats.dueMachines;
-    }
 
     // Apply client-side filtering for properties not supported by API
     if (searchOptions.query.trim()) {
@@ -137,36 +132,16 @@ export default function RecordsList({
       });
     }
 
-    // Apply sorting
-    const sorted = [...filtered].sort((a, b) => {
-      const dateA = new Date(a.created_at).getTime();
-      const dateB = new Date(b.created_at).getTime();
-
-      return sortBy === 'newest' ? dateB - dateA : dateA - dateB;
-    });
-
-    return sorted;
-  }, [
-    machines,
-    searchOptions,
-    filterType,
-    sortBy,
-    overdueStats.overdueMachines,
-    overdueStats.dueMachines,
-  ]);
-
-  // Get machines to display (limited by displayedCount)
-  const displayedMachines = filteredMachines.slice(0, displayedCount);
-  const hasMoreMachines = displayedCount < filteredMachines.length;
+    return filtered;
+  }, [machines, searchOptions]);
 
   // Update API filters when filter type or sort changes
   useEffect(() => {
     setFilters(apiFilters);
-    setDisplayedCount(ITEMS_PER_PAGE);
   }, [apiFilters, setFilters]);
 
-  const handleLoadMore = () => {
-    setDisplayedCount((prev) => Math.min(prev + ITEMS_PER_PAGE, filteredMachines.length));
+  const handleLoadMore = async () => {
+    await loadMore();
   };
 
   const handleView = (serial_number: string) => {
@@ -247,8 +222,8 @@ export default function RecordsList({
   const getFilterStatusText = () => {
     if (filterType === 'overdue') return ' (overdue only)';
     if (filterType === 'due') return ' (due today only)';
-    if (searchOptions.query && filteredMachines.length !== machines.length) {
-      return ` (filtered from ${machines.length} total)`;
+    if (searchOptions.query.trim() && filteredMachines.length !== machines.length) {
+      return ` (filtered from ${machines.length} loaded)`;
     }
     return '';
   };
@@ -335,9 +310,19 @@ export default function RecordsList({
             <div>
               <h2 className="text-xl font-semibold text-gray-900">All Machines</h2>
               <p className="text-sm text-gray-500 mt-1">
-                Showing {displayedMachines.length} of {filteredMachines.length} machine
-                {filteredMachines.length !== 1 ? 's' : ''}
-                {getFilterStatusText()}
+                {searchOptions.query.trim() ? (
+                  <>
+                    Showing {filteredMachines.length} of {machines.length} loaded machine
+                    {machines.length !== 1 ? 's' : ''}
+                    {getFilterStatusText()}
+                  </>
+                ) : (
+                  <>
+                    Showing {machines.length} of {total} machine
+                    {total !== 1 ? 's' : ''}
+                    {getFilterStatusText()}
+                  </>
+                )}
                 {loading && ' (updating...)'}
               </p>
             </div>
@@ -428,7 +413,7 @@ export default function RecordsList({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {displayedMachines.map((machine) => (
+        {filteredMachines.map((machine) => (
           <RecordCard
             key={machine.serial_number}
             machine={machine}
@@ -440,13 +425,21 @@ export default function RecordsList({
       </div>
 
       {/* Load More Button */}
-      {hasMoreMachines && (
+      {offset + limit < total && (
         <div className="flex justify-center pt-4">
           <button
             onClick={handleLoadMore}
-            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-medium transition-colors"
+            disabled={loading}
+            className="bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-400 text-gray-700 px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
           >
-            Load More ({filteredMachines.length - displayedCount} remaining)
+            {loading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
+                Loading...
+              </>
+            ) : (
+              `Load More (${total - (offset + limit)} remaining)`
+            )}
           </button>
         </div>
       )}
