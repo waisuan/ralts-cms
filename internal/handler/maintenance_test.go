@@ -128,6 +128,7 @@ func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
 		}
 
 		suite.mockRepo.EXPECT().ListByMachine(gomock.Any(), "MACHINE123", expectedOptions).Return(expectedMaintenance, nil)
+		suite.mockRepo.EXPECT().Count(gomock.Any()).Return(2, nil)
 
 		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance", nil)
 		w := httptest.NewRecorder()
@@ -169,6 +170,7 @@ func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
 		}
 
 		suite.mockRepo.EXPECT().ListByMachine(gomock.Any(), "MACHINE123", expectedOptions).Return(expectedMaintenance, nil)
+		suite.mockRepo.EXPECT().Count(gomock.Any()).Return(1, nil)
 
 		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance?limit=25", nil)
 		w := httptest.NewRecorder()
@@ -204,6 +206,7 @@ func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
 		}
 
 		suite.mockRepo.EXPECT().ListByMachine(gomock.Any(), "MACHINE123", expectedOptions).Return(expectedMaintenance, nil)
+		suite.mockRepo.EXPECT().Count(gomock.Any()).Return(1, nil)
 
 		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance?offset=10", nil)
 		w := httptest.NewRecorder()
@@ -239,6 +242,7 @@ func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
 		}
 
 		suite.mockRepo.EXPECT().ListByMachine(gomock.Any(), "MACHINE123", expectedOptions).Return(expectedMaintenance, nil)
+		suite.mockRepo.EXPECT().Count(gomock.Any()).Return(1, nil)
 
 		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance?sort=created_at_desc", nil)
 		w := httptest.NewRecorder()
@@ -273,6 +277,7 @@ func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
 		}
 
 		suite.mockRepo.EXPECT().ListByMachine(gomock.Any(), "MACHINE123", expectedOptions).Return(expectedMaintenance, nil)
+		suite.mockRepo.EXPECT().Count(gomock.Any()).Return(1, nil)
 
 		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance?limit=10&offset=20&sort=work_order_date_desc", nil)
 		w := httptest.NewRecorder()
@@ -372,6 +377,7 @@ func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
 		}
 
 		suite.mockRepo.EXPECT().ListByMachine(gomock.Any(), "NOMAINTAINANCE", expectedOptions).Return([]*maintenance.Maintenance{}, nil)
+		suite.mockRepo.EXPECT().Count(gomock.Any()).Return(0, nil)
 
 		req := httptest.NewRequest("GET", "/machines/NOMAINTAINANCE/maintenance", nil)
 		w := httptest.NewRecorder()
@@ -413,6 +419,21 @@ func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
 
 		suite.Assert().Equal(http.StatusInternalServerError, w.Code)
 		suite.Assert().Contains(w.Body.String(), "Failed to list maintenance")
+	})
+
+	suite.Run("should return 500 on repository error when counting maintenance records", func() {
+		suite.mockRepo.EXPECT().ListByMachine(gomock.Any(), gomock.Any(), gomock.Any()).Return([]*maintenance.Maintenance{}, nil)
+		suite.mockRepo.EXPECT().Count(gomock.Any()).Return(0, fmt.Errorf("database error"))
+
+		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance", nil)
+		w := httptest.NewRecorder()
+
+		router := mux.NewRouter()
+		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.ListMaintenance)
+		router.ServeHTTP(w, req)
+
+		suite.Assert().Equal(http.StatusInternalServerError, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Failed to count maintenance")
 	})
 }
 

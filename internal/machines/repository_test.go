@@ -465,6 +465,26 @@ func (suite *MachineRepositoryTestSuite) TestDelete() {
 	})
 }
 
+func (suite *MachineRepositoryTestSuite) TestCount() {
+	ctx := context.Background()
+
+	suite.Run("should return count of machines", func() {
+		suite.repo.Create(ctx, testutils.CreateMachine("COUNT001"))
+		suite.repo.Create(ctx, testutils.CreateMachine("COUNT002"))
+		suite.repo.Create(ctx, testutils.CreateMachine("COUNT003"))
+
+		count, err := suite.repo.Count(ctx)
+		suite.Require().NoError(err)
+		suite.Assert().Equal(3, count)
+	})
+
+	suite.Run("should return 0 when no machines exist", func() {
+		count, err := suite.repo.Count(ctx)
+		suite.Require().NoError(err)
+		suite.Assert().Equal(0, count)
+	})
+}
+
 // TestMachineRepositoryTestSuite runs the test suite
 func TestMachineRepositoryTestSuite(t *testing.T) {
 	suite.Run(t, new(MachineRepositoryTestSuite))

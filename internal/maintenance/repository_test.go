@@ -618,6 +618,33 @@ func (suite *MaintenanceRepositoryTestSuite) TestDelete() {
 	})
 }
 
+func (suite *MaintenanceRepositoryTestSuite) TestCount() {
+	ctx := context.Background()
+
+	suite.Run("should return count of all maintenance", func() {
+		maintenance1 := testutils.CreateMaintenance("MACHINE016", "WO024")
+		maintenance2 := testutils.CreateMaintenance("MACHINE016", "WO025")
+		maintenance3 := testutils.CreateMaintenance("MACHINE016", "WO026")
+
+		err := suite.repo.Create(ctx, maintenance1)
+		suite.Require().NoError(err)
+		err = suite.repo.Create(ctx, maintenance2)
+		suite.Require().NoError(err)
+		err = suite.repo.Create(ctx, maintenance3)
+		suite.Require().NoError(err)
+
+		count, err := suite.repo.Count(ctx)
+		suite.Require().NoError(err)
+		suite.Assert().Equal(3, count)
+	})
+
+	suite.Run("should return 0 when no maintenance records exist", func() {
+		count, err := suite.repo.Count(ctx)
+		suite.Require().NoError(err)
+		suite.Assert().Equal(0, count)
+	})
+}
+
 // TestMaintenanceRepositoryTestSuite runs the test suite
 func TestMaintenanceRepositoryTestSuite(t *testing.T) {
 	suite.Run(t, new(MaintenanceRepositoryTestSuite))

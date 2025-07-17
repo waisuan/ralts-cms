@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"ralts-cms/internal/deps"
 	"ralts-cms/internal/users"
@@ -69,13 +70,15 @@ func (h *UsersHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.deps.UsersRepository.Login(r.Context(), loginRequest.Email, loginRequest.Password)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to login"), http.StatusUnauthorized)
+		log.Println("Failed to login: ", err)
+		http.Error(w, "Failed to login", http.StatusUnauthorized)
 		return
 	}
 
 	// Generate JWT token
 	tokenString, err := auth.GenerateJWTToken(user.ID, h.deps.Config.JWTSecret)
 	if err != nil {
+		log.Println("Failed to generate token: ", err)
 		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
 		return
 	}

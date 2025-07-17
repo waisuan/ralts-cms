@@ -41,6 +41,7 @@ type Repository interface {
 	Create(ctx context.Context, maintenance *Maintenance) error
 	Update(ctx context.Context, maintenance *Maintenance) error
 	Delete(ctx context.Context, machineSerialNumber, workOrderNumber string) error
+	Count(ctx context.Context) (int, error)
 }
 
 type db struct {
@@ -198,4 +199,16 @@ func (r *db) Delete(ctx context.Context, machineSerialNumber, workOrderNumber st
 	}
 
 	return nil
+}
+
+func (r *db) Count(ctx context.Context) (int, error) {
+	query := `SELECT COUNT(*) FROM maintenance`
+
+	var count int
+	err := r.client.QueryRow(ctx, query).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count maintenance records: %w", err)
+	}
+
+	return count, nil
 }

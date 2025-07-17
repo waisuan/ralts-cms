@@ -115,10 +115,16 @@ func (h *MachinesHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	count, err := h.deps.MachinesRepository.Count(r.Context())
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to count machines: %v", err), http.StatusInternalServerError)
+		return
+	}
+
 	// Build response
 	response := map[string]interface{}{
 		"machines": machines,
-		"count":    len(machines),
+		"count":    count,
 		"limit":    limit,
 		"offset":   offset,
 		"sort":     string(sort),

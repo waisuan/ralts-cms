@@ -113,10 +113,16 @@ func (h *MaintenanceHandler) ListMaintenance(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	count, err := h.deps.MaintenanceRepository.Count(r.Context())
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to count maintenance: %v", err), http.StatusInternalServerError)
+		return
+	}
+
 	// Build response
 	response := map[string]interface{}{
 		"maintenance": maintenanceList,
-		"count":       len(maintenanceList),
+		"count":       count,
 		"limit":       limit,
 		"offset":      offset,
 		"sort":        string(sort),

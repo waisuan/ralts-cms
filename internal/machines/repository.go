@@ -34,13 +34,14 @@ func DefaultListOptions() *ListOptions {
 	}
 }
 
-//go:generate mockgen -destination=../machine/mock_machines_repository.go -package=machine -source=repository.go
+//go:generate mockgen -destination=../machines/mock_machines_repository.go -package=machines -source=repository.go
 type Repository interface {
 	GetBySerialNumber(ctx context.Context, serialNumber string) (*Machine, error)
 	List(ctx context.Context, options *ListOptions) ([]*Machine, error)
 	Create(ctx context.Context, machine *Machine) error
 	Update(ctx context.Context, machine *Machine) error
 	Delete(ctx context.Context, serialNumber string) error
+	Count(ctx context.Context) (int, error)
 }
 
 type db struct {
@@ -214,4 +215,16 @@ func (r *db) Delete(ctx context.Context, serialNumber string) error {
 	}
 
 	return nil
+}
+
+func (r *db) Count(ctx context.Context) (int, error) {
+	query := `SELECT COUNT(*) FROM machines`
+
+	var count int
+	err := r.client.QueryRow(ctx, query).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count machines: %w", err)
+	}
+
+	return count, nil
 }
