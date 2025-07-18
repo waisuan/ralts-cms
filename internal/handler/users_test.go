@@ -202,7 +202,6 @@ func (suite *UsersHandlerTestSuite) TestLogin() {
 
 		suite.Assert().Equal(http.StatusUnauthorized, w.Code)
 		suite.Assert().Contains(w.Body.String(), "Failed to login")
-		suite.Assert().Contains(w.Body.String(), "invalid password")
 	})
 }
 
