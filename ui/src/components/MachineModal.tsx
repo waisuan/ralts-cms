@@ -141,6 +141,9 @@ export default function MachineModal({
     if (!formData.reported_by.trim()) {
       newErrors.reported_by = 'Reported by is required';
     }
+    if (!formData.tnc_date) {
+      newErrors.tnc_date = 'TNC date is required';
+    }
     if (!formData.ppm_date) {
       newErrors.ppm_date = 'PPM date is required';
     }
@@ -548,15 +551,18 @@ export default function MachineModal({
               {/* TNC Date */}
               <div>
                 <label htmlFor="tnc_date" className="block text-sm font-medium text-gray-700 mb-2">
-                  TNC Date
+                  TNC Date <span className="text-red-500">*</span>
                 </label>
                 <input
                   id="tnc_date"
                   type="date"
                   value={formData.tnc_date}
                   onChange={(e) => handleInputChange('tnc_date', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 ${
+                    errors.tnc_date ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 />
+                {errors.tnc_date && <p className="mt-1 text-sm text-red-600">{errors.tnc_date}</p>}
               </div>
 
               {/* PPM Date */}
