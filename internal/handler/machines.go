@@ -162,21 +162,28 @@ func (h *MachinesHandler) CreateMachine(w http.ResponseWriter, r *http.Request) 
 	json.NewEncoder(w).Encode(machine)
 }
 
-// UpdateMachine handles PUT /machines
+// UpdateMachine handles PUT /machines/{serial_number}
 func (h *MachinesHandler) UpdateMachine(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	serialNumber := vars["serial_number"]
+	if serialNumber == "" {
+		http.Error(w, "Serial number is required", http.StatusBadRequest)
+		return
+	}
+
 	var machine machines.Machine
 	if err := json.NewDecoder(r.Body).Decode(&machine); err != nil {
 		http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
 		return
 	}
 
-	if machine.SerialNumber == "" {
-		http.Error(w, "Serial number is required", http.StatusBadRequest)
+	if machine.SerialNumber != serialNumber {
+		http.Error(w, "Serial number in request body does not match URL path", http.StatusBadRequest)
 		return
 	}
 
 	// Check if machine exists
-	_, err := h.deps.MachinesRepository.GetBySerialNumber(r.Context(), machine.SerialNumber)
+	_, err := h.deps.MachinesRepository.GetBySerialNumber(r.Context(), serialNumber)
 	if err != nil {
 		if err.Error() == "machine not found" {
 			http.Error(w, "Machine not found", http.StatusNotFound)

@@ -228,11 +228,14 @@ func (suite *MachinesHandlerTestSuite) TestUpdateMachine() {
 		})
 
 		body, _ := json.Marshal(machineData)
-		req := httptest.NewRequest("PUT", "/machines", bytes.NewBuffer(body))
+		req := httptest.NewRequest("PUT", "/machines/UPDATE123", bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
-		suite.handler.UpdateMachine(w, req)
+		// Set up router for path parameters
+		router := mux.NewRouter()
+		router.HandleFunc("/machines/{serial_number}", suite.handler.UpdateMachine)
+		router.ServeHTTP(w, req)
 
 		suite.Assert().Equal(http.StatusOK, w.Code)
 		suite.Assert().Equal("application/json", w.Header().Get("Content-Type"))
@@ -244,20 +247,41 @@ func (suite *MachinesHandlerTestSuite) TestUpdateMachine() {
 		suite.Assert().Equal("Updated Customer", response.Customer)
 	})
 
-	suite.Run("should return 400 when serial number is missing", func() {
+	suite.Run("should return 400 when serial number in URL doesn't match request body", func() {
 		machineData := machines.Machine{
-			Customer: "Customer without serial",
+			SerialNumber: "BODY123",
+			Customer:     "Mismatch Customer",
 		}
 
 		body, _ := json.Marshal(machineData)
-		req := httptest.NewRequest("PUT", "/machines", bytes.NewBuffer(body))
+		req := httptest.NewRequest("PUT", "/machines/URL123", bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
-		suite.handler.UpdateMachine(w, req)
+		router := mux.NewRouter()
+		router.HandleFunc("/machines/{serial_number}", suite.handler.UpdateMachine)
+		router.ServeHTTP(w, req)
 
 		suite.Assert().Equal(http.StatusBadRequest, w.Code)
-		suite.Assert().Contains(w.Body.String(), "Serial number is required")
+		suite.Assert().Contains(w.Body.String(), "Serial number in request body does not match URL path")
+	})
+
+	suite.Run("should return 400 when serial number is missing from URL", func() {
+		machineData := machines.Machine{
+			SerialNumber: "TEST123",
+			Customer:     "Test Customer",
+		}
+
+		body, _ := json.Marshal(machineData)
+		req := httptest.NewRequest("PUT", "/machines/", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		router := mux.NewRouter()
+		router.HandleFunc("/machines/{serial_number}", suite.handler.UpdateMachine)
+		router.ServeHTTP(w, req)
+
+		suite.Assert().Equal(http.StatusNotFound, w.Code) // Router returns 404 for missing path param
 	})
 
 	suite.Run("should return 404 when machine not found", func() {
@@ -269,14 +293,29 @@ func (suite *MachinesHandlerTestSuite) TestUpdateMachine() {
 		suite.mockRepo.EXPECT().GetBySerialNumber(gomock.Any(), "NOTFOUND123").Return(nil, fmt.Errorf("machine not found"))
 
 		body, _ := json.Marshal(machineData)
-		req := httptest.NewRequest("PUT", "/machines", bytes.NewBuffer(body))
+		req := httptest.NewRequest("PUT", "/machines/NOTFOUND123", bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
-		suite.handler.UpdateMachine(w, req)
+		router := mux.NewRouter()
+		router.HandleFunc("/machines/{serial_number}", suite.handler.UpdateMachine)
+		router.ServeHTTP(w, req)
 
 		suite.Assert().Equal(http.StatusNotFound, w.Code)
 		suite.Assert().Contains(w.Body.String(), "Machine not found")
+	})
+
+	suite.Run("should return 400 when request body is invalid", func() {
+		req := httptest.NewRequest("PUT", "/machines/INVALID123", bytes.NewBufferString("invalid json"))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		router := mux.NewRouter()
+		router.HandleFunc("/machines/{serial_number}", suite.handler.UpdateMachine)
+		router.ServeHTTP(w, req)
+
+		suite.Assert().Equal(http.StatusBadRequest, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Invalid request body")
 	})
 
 	suite.Run("should return 500 on update error", func() {
@@ -291,14 +330,37 @@ func (suite *MachinesHandlerTestSuite) TestUpdateMachine() {
 		suite.mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(fmt.Errorf("update error"))
 
 		body, _ := json.Marshal(machineData)
-		req := httptest.NewRequest("PUT", "/machines", bytes.NewBuffer(body))
+		req := httptest.NewRequest("PUT", "/machines/UPDATEERROR123", bytes.NewBuffer(body))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 
-		suite.handler.UpdateMachine(w, req)
+		router := mux.NewRouter()
+		router.HandleFunc("/machines/{serial_number}", suite.handler.UpdateMachine)
+		router.ServeHTTP(w, req)
 
 		suite.Assert().Equal(http.StatusInternalServerError, w.Code)
 		suite.Assert().Contains(w.Body.String(), "Failed to update machine")
+	})
+
+	suite.Run("should return 500 on repository error during existence check", func() {
+		machineData := machines.Machine{
+			SerialNumber: "ERROR123",
+			Customer:     "Error Customer",
+		}
+
+		suite.mockRepo.EXPECT().GetBySerialNumber(gomock.Any(), "ERROR123").Return(nil, fmt.Errorf("database error"))
+
+		body, _ := json.Marshal(machineData)
+		req := httptest.NewRequest("PUT", "/machines/ERROR123", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		router := mux.NewRouter()
+		router.HandleFunc("/machines/{serial_number}", suite.handler.UpdateMachine)
+		router.ServeHTTP(w, req)
+
+		suite.Assert().Equal(http.StatusInternalServerError, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Failed to check machine existence")
 	})
 }
 
