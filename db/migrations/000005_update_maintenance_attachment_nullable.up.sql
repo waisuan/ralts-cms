@@ -1,0 +1,1 @@
+ALTER TABLE maintenance ALTER COLUMN attachment DROP NOT NULL;
