@@ -78,7 +78,8 @@ export class MachineService {
    * Fetch a single machine by serial number
    */
   static async getMachine(serialNumber: string): Promise<ApiResponse<Machine>> {
-    return apiClient.get<Machine>(`${this.BASE_PATH}/${serialNumber}`);
+    const encodedSerialNumber = encodeURIComponent(serialNumber);
+    return apiClient.get<Machine>(`${this.BASE_PATH}/${encodedSerialNumber}`);
   }
 
   /**
@@ -95,14 +96,16 @@ export class MachineService {
     serialNumber: string,
     data: UpdateMachineRequest
   ): Promise<ApiResponse<Machine>> {
-    return apiClient.put<Machine>(`${this.BASE_PATH}/${serialNumber}`, data);
+    const encodedSerialNumber = encodeURIComponent(serialNumber);
+    return apiClient.put<Machine>(`${this.BASE_PATH}/${encodedSerialNumber}`, data);
   }
 
   /**
    * Delete a machine
    */
   static async deleteMachine(serialNumber: string): Promise<ApiResponse<void>> {
-    return apiClient.delete<void>(`${this.BASE_PATH}/${serialNumber}`);
+    const encodedSerialNumber = encodeURIComponent(serialNumber);
+    return apiClient.delete<void>(`${this.BASE_PATH}/${encodedSerialNumber}`);
   }
 
   /**

@@ -50,7 +50,26 @@ export class ApiClient {
         );
       }
 
-      const responseData = await response.json();
+      // Handle responses with no body (like 204 No Content)
+      if (response.status === 204 || response.headers.get('content-length') === '0') {
+        return { data: undefined as T };
+      }
+
+      // For DELETE operations, don't try to parse JSON if status is 2xx
+      if (options.method === 'DELETE' && response.status >= 200 && response.status < 300) {
+        return { data: undefined as T };
+      }
+
+      // Try to parse JSON response
+      const responseData = await response.json().catch((jsonError) => {
+        console.warn('Failed to parse JSON response:', jsonError);
+        return null;
+      });
+      
+      if (responseData === null) {
+        // No JSON body, return empty response
+        return { data: undefined as T };
+      }
       
       // Handle both wrapped and unwrapped responses
       if (responseData.data !== undefined) {

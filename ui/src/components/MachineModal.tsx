@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Machine } from '../types/machine';
-import { MALAYSIAN_STATES, getDistrictsForState, MalaysianState } from '../utils/constants';
+import { MALAYSIAN_STATES, MalaysianState, getDistrictsForState } from '../utils/constants';
+import { backendDateToHtmlDate, htmlDateToBackendDate } from '../utils/dateUtils';
 
 type MachineModalMode = 'add' | 'edit';
 
@@ -62,8 +63,8 @@ export default function MachineModal({
         additional_notes: machine.additional_notes,
         attachment: machine.attachment,
         ppm_status: machine.ppm_status,
-        tnc_date: machine.tnc_date,
-        ppm_date: machine.ppm_date,
+        tnc_date: backendDateToHtmlDate(machine.tnc_date),
+        ppm_date: backendDateToHtmlDate(machine.ppm_date),
       });
     } else if (mode === 'add' && isOpen) {
       // Reset form for add mode
@@ -144,15 +145,6 @@ export default function MachineModal({
       newErrors.ppm_date = 'PPM date is required';
     }
 
-    // Date validation
-    if (formData.tnc_date && formData.ppm_date) {
-      const tncDate = new Date(formData.tnc_date);
-      const ppmDate = new Date(formData.ppm_date);
-      if (ppmDate < tncDate) {
-        newErrors.ppm_date = 'PPM date cannot be earlier than TNC date';
-      }
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -164,17 +156,24 @@ export default function MachineModal({
       return;
     }
 
+    // Convert HTML date format back to backend format
+    const submissionData = {
+      ...formData,
+      tnc_date: htmlDateToBackendDate(formData.tnc_date),
+      ppm_date: htmlDateToBackendDate(formData.ppm_date),
+    };
+
     if (mode === 'edit' && machine) {
       // Create updated machine with existing timestamps
       const updatedMachine: Machine = {
-        ...formData,
+        ...submissionData,
         created_at: machine.created_at,
         updated_at: new Date().toISOString(),
       };
       onSubmit(updatedMachine);
     } else {
       // Create new machine (timestamps will be added by parent)
-      onSubmit(formData);
+      onSubmit(submissionData);
     }
 
     handleClose();
@@ -257,7 +256,16 @@ export default function MachineModal({
       mode === 'edit'
         ? machine &&
           Object.keys(formData).some((key) => {
-            return formData[key as keyof typeof formData] !== machine[key as keyof Machine];
+            const formValue = formData[key as keyof typeof formData];
+            const machineValue = machine[key as keyof Machine];
+            
+            // Special handling for date fields - convert machine dates to HTML format for comparison
+            if (key === 'tnc_date' || key === 'ppm_date') {
+              const convertedMachineValue = backendDateToHtmlDate(machineValue as string);
+              return formValue !== convertedMachineValue;
+            }
+            
+            return formValue !== machineValue;
           })
         : Object.values(formData).some((value) => value !== '') || selectedFile;
 
@@ -347,9 +355,10 @@ export default function MachineModal({
                   type="text"
                   value={formData.serial_number}
                   onChange={(e) => handleInputChange('serial_number', e.target.value)}
+                  disabled={mode === 'edit'}
                   className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-600 text-gray-900 ${
                     errors.serial_number ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                  } ${mode === 'edit' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="Enter serial number"
                 />
                 {errors.serial_number && (

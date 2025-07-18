@@ -1613,7 +1613,8 @@ export default function MaintenanceHistory({
                       onChange={(e) =>
                         handleEditRecordInputChange('work_order_number', e.target.value)
                       }
-                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-600 text-gray-900 ${
+                      disabled={true}
+                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-600 text-gray-900 bg-gray-100 cursor-not-allowed ${
                         editRecordErrors.work_order_number ? 'border-red-500' : 'border-gray-300'
                       }`}
                       placeholder="Enter work order number"
