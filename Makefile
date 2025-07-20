@@ -1,6 +1,7 @@
-.PHONY: generate fmt build run test clean setup-env \
+.PHONY: generate fmt build run test clean setup-env dev \
 	db-dev-up db-dev-down db-test-up db-test-down db-clean \
-	test-with-db dev-with-db db-status db-logs
+	test-with-db dev-with-db db-status db-logs \
+	migrate-dev migrate-test migrate-up migrate-down
 
 generate:
 	go generate ./...
@@ -35,6 +36,15 @@ setup-env:
 	else \
 		echo ".env.test already exists."; \
 	fi
+
+# Development setup
+dev: setup-env db-up
+	@echo "Development environment setup complete!"
+	@echo ""
+	@echo "Next steps:"
+	@echo "1. Run migrations: make migrate-up"
+	@echo "2. Start development server: make run"
+	@echo "3. Or start with database: make dev-with-db"
 
 # Database Management Commands
 
@@ -129,3 +139,41 @@ db-dev-connect:
 db-test-connect:
 	@echo "Connecting to test database..."
 	docker compose -f docker-compose.test.yml exec postgres-test psql -U ralts_user -d ralts_cms_test
+
+# Migration Commands
+
+# Run migrations on development database
+migrate-dev:
+	@echo "Running migrations on development database..."
+	@echo "Waiting for development database to be ready..."
+	@until docker compose -f docker-compose.dev.yml exec -T postgres-dev pg_isready -U ralts_user -d ralts_cms_dev; do \
+		echo "Waiting for database..."; \
+		sleep 2; \
+	done
+	@echo "Database is ready! Running migrations..."
+	migrate -path ./db/migrations -database "postgresql://ralts_user:ralts_password@localhost:5432/ralts_cms_dev?sslmode=disable" up
+	@echo "Development database migrations completed!"
+
+# Run migrations on test database
+migrate-test:
+	@echo "Running migrations on test database..."
+	@echo "Waiting for test database to be ready..."
+	@until docker compose -f docker-compose.test.yml exec -T postgres-test pg_isready -U ralts_user -d ralts_cms_test; do \
+		echo "Waiting for database..."; \
+		sleep 2; \
+	done
+	@echo "Database is ready! Running migrations..."
+	migrate -path ./db/migrations -database "postgresql://ralts_user:ralts_password@localhost:5433/ralts_cms_test?sslmode=disable" up
+	@echo "Test database migrations completed!"
+
+# Run migrations on both databases
+migrate-up: migrate-dev migrate-test
+	@echo "All database migrations completed!"
+
+# Rollback migrations on both databases
+migrate-down:
+	@echo "Rolling back migrations on development database..."
+	migrate -path ./db/migrations -database "postgresql://ralts_user:ralts_password@localhost:5432/ralts_cms_dev?sslmode=disable" down
+	@echo "Rolling back migrations on test database..."
+	migrate -path ./db/migrations -database "postgresql://ralts_user:ralts_password@localhost:5433/ralts_cms_test?sslmode=disable" down
+	@echo "All database migrations rolled back!"

@@ -25,15 +25,33 @@ A web service built in Go for managing machines and their maintenance records. I
    cd ralts-cms
    ```
 
-2. **Setup and run the application**
+2. **Setup development environment**
    ```bash
    make dev
    ```
 
 This command will:
-- Start a local PostgreSQL instance
-- Create the required database schema
-- Start the web server on port 8080
+- Create environment files (`.env.development` and `.env.test`)
+- Start both development and test PostgreSQL databases
+
+3. **Run database migrations**
+   ```bash
+   make migrate-up
+   ```
+
+This will set up the database schema in both development and test databases.
+
+4. **Start the development server**
+   ```bash
+   make run
+   ```
+
+Or use the combined command:
+```bash
+make dev-with-db
+```
+
+This will start the development server with the database automatically.
 
 ## Database Setup
 
@@ -42,11 +60,14 @@ The project includes PostgreSQL support via Docker Compose for development and t
 ### Starting PostgreSQL
 
 ```bash
-# Start PostgreSQL only
-docker compose up postgres
+# Start development database
+make db-dev-up
 
-# Start all services
-docker compose up
+# Start test database
+make db-test-up
+
+# Start both databases
+make db-up
 ```
 
 ### Running Database Migrations
@@ -393,8 +414,15 @@ POSTGRES_PASSWORD=ralts_password
 - `make db-clean` - Remove all containers and volumes
 
 #### Development Workflow
+- `make dev` - Setup development environment (env files + databases)
 - `make dev-with-db` - Start development server with database
 - `make test-with-db` - Run tests with test database
+
+#### Migration Commands
+- `make migrate-dev` - Run migrations on development database
+- `make migrate-test` - Run migrations on test database
+- `make migrate-up` - Run migrations on both databases
+- `make migrate-down` - Rollback migrations on both databases
 
 ### Data Isolation
 
@@ -443,7 +471,6 @@ make db-up
 
 - `docker-compose.dev.yml` - Development database configuration
 - `docker-compose.test.yml` - Test database configuration
-- `docker-compose.yml` - Original configuration (kept for backward compatibility)
 
 ### Migration Scripts
 
@@ -789,28 +816,6 @@ make test
 make fmt
 ```
 
-## Scripts
-
-The `scripts/` directory contains utility scripts for development and testing:
-
-### JWT Token Generator
-
-- `scripts/jwt/` - JWT token generator for local testing
-
-Generate a valid JWT token for testing:
-
-```bash
-go run scripts/jwt/main.go
-```
-
-This generates a JWT token with:
-- **Secret**: Uses the default JWT secret from your config
-- **Subject**: `test-user`
-- **Expiration**: 24 hours from generation
-- **Algorithm**: HS256
-
-The script provides the complete Authorization header and example curl commands for testing API endpoints.
-
 ## Project Structure
 
 ```
@@ -844,7 +849,8 @@ ralts-cms/
 │       └── 000002_add_maintenance_table.down.sql
 ├── scripts/
 │   └── jwt/                 # JWT token generator
-├── docker-compose.yml       # Local PostgreSQL setup
+├── docker-compose.dev.yml   # Development PostgreSQL setup
+├── docker-compose.test.yml  # Test PostgreSQL setup
 ├── Makefile                 # Build and development commands
 └── README.md               # This file
 ```
