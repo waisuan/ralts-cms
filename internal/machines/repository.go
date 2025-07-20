@@ -28,19 +28,17 @@ const (
 
 // ListOptions defines the options for listing machines
 type ListOptions struct {
-	Limit      int32     `json:"limit"`
-	Offset     int32     `json:"offset"`
-	Sort       SortOrder `json:"sort"`
-	DuePPMOnly bool      `json:"due_ppm_only"`
+	Limit  int32     `json:"limit"`
+	Offset int32     `json:"offset"`
+	Sort   SortOrder `json:"sort"`
 }
 
 // DefaultListOptions returns default list options
 func DefaultListOptions() *ListOptions {
 	return &ListOptions{
-		Limit:      50,
-		Offset:     0,
-		Sort:       SortOrderCreatedAtDesc,
-		DuePPMOnly: false,
+		Limit:  50,
+		Offset: 0,
+		Sort:   SortOrderCreatedAtDesc,
 	}
 }
 
@@ -98,13 +96,6 @@ func (r *db) List(ctx context.Context, options *ListOptions) ([]*Machine, error)
 		options = DefaultListOptions()
 	}
 
-	// Build the WHERE clause based on options
-	var whereClause string
-
-	if options.DuePPMOnly {
-		whereClause = "WHERE ppm_date <= CURRENT_DATE OR ppm_date <= CURRENT_DATE + INTERVAL '2 weeks'"
-	}
-
 	// Build the ORDER BY clause based on sort option
 	var orderByClause string
 	switch options.Sort {
@@ -122,9 +113,8 @@ func (r *db) List(ctx context.Context, options *ListOptions) ([]*Machine, error)
 		       ppm_status, tnc_date, ppm_date, created_at, updated_at
 		FROM machines 
 		%s
-		%s
 		LIMIT $%d OFFSET $%d
-	`, whereClause, orderByClause, 1, 2)
+	`, orderByClause, 1, 2)
 
 	rows, err := r.client.Query(ctx, query, options.Limit, options.Offset)
 	if err != nil {

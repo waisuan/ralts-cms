@@ -14,6 +14,7 @@ import (
 
 type ListMachinesResponse struct {
 	Machines []*machines.Machine `json:"machines"`
+	DuePPM   []*machines.Machine `json:"due_ppm"`
 	Count    int32               `json:"count"`
 	Limit    int32               `json:"limit"`
 	Offset   int32               `json:"offset"`
@@ -59,7 +60,6 @@ func (h *MachinesHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 	limitStr := r.URL.Query().Get("limit")
 	offsetStr := r.URL.Query().Get("offset")
 	sortStr := r.URL.Query().Get("sort")
-	duePPM := r.URL.Query().Get("due_ppm")
 
 	// Parse limit parameter
 	limit := h.deps.Config.DefaultMachinesLimit
@@ -97,23 +97,11 @@ func (h *MachinesHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Parse due_ppm parameter
-	duePPMOnly := false
-	if duePPM != "" {
-		if duePPM == "true" {
-			duePPMOnly = true
-		} else if duePPM != "false" {
-			http.Error(w, "Invalid due_ppm parameter. Must be 'true' or 'false'", http.StatusBadRequest)
-			return
-		}
-	}
-
 	// Create list options
 	options := &machines.ListOptions{
-		Limit:      limit,
-		Offset:     offset,
-		Sort:       sort,
-		DuePPMOnly: duePPMOnly,
+		Limit:  limit,
+		Offset: offset,
+		Sort:   sort,
 	}
 
 	// Get machines from repository
@@ -129,9 +117,16 @@ func (h *MachinesHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	duePPMMachines, err := h.deps.MachinesRepository.DuePPM(r.Context())
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to get due PPM machines: %v", err), http.StatusInternalServerError)
+		return
+	}
+
 	// Build response
 	response := ListMachinesResponse{
 		Machines: machines,
+		DuePPM:   duePPMMachines,
 		Count:    int32(count),
 		Limit:    limit,
 		Offset:   offset,
