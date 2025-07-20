@@ -22,7 +22,7 @@ func CreateMachine(serialNumber string) *machines.Machine {
 		ReportedBy:      "Jane Smith",
 		AdditionalNotes: "Test notes",
 		Attachment:      "test.pdf",
-		PpmStatus:       "Scheduled",
+		PpmStatus:       string(machines.PPMStatusDue),
 		TncDate:         time.Now().UTC(),
 		PpmDate:         time.Now().AddDate(0, 1, 0).UTC(),
 	}

@@ -6,7 +6,7 @@ import { PPM_STATUSES } from '../utils/constants';
 export interface OverdueStats {
   overdueCount: number;
   dueCount: number;
-  dueSoonCount: number;
+  almostDueCount: number;
   totalCriticalCount: number; // overdue + due
   overdueMachines: Machine[];
   dueMachines: Machine[];
@@ -16,7 +16,7 @@ export function useOverdueStats(machines: Machine[]): OverdueStats {
   return useMemo(() => {
     let overdueCount = 0;
     let dueCount = 0;
-    let dueSoonCount = 0;
+    let almostDueCount = 0;
     const overdueMachines: Machine[] = [];
     const dueMachines: Machine[] = [];
 
@@ -32,8 +32,8 @@ export function useOverdueStats(machines: Machine[]): OverdueStats {
             dueCount++;
             dueMachines.push(machine);
             break;
-          case PPM_STATUSES.DUE_SOON:
-            dueSoonCount++;
+          case PPM_STATUSES.ALMOST_DUE:
+            almostDueCount++;
             break;
         }
       }
@@ -42,7 +42,7 @@ export function useOverdueStats(machines: Machine[]): OverdueStats {
     return {
       overdueCount,
       dueCount,
-      dueSoonCount,
+      almostDueCount,
       totalCriticalCount: overdueCount + dueCount,
       overdueMachines,
       dueMachines,

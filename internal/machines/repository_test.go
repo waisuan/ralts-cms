@@ -121,7 +121,7 @@ func (suite *MachineRepositoryTestSuite) TestGetBySerialNumber() {
 	suite.Run("should get machine with all fields populated", func() {
 		machine := testutils.CreateMachine("MACHINE006")
 		machine.AdditionalNotes = "Special notes for testing"
-		machine.PpmStatus = "Completed"
+		machine.PpmStatus = string(machines.PPMStatusDue)
 		machine.Attachment = "special-test.pdf"
 
 		err := suite.repo.Create(ctx, machine)
@@ -130,7 +130,7 @@ func (suite *MachineRepositoryTestSuite) TestGetBySerialNumber() {
 		retrieved, err := suite.repo.GetBySerialNumber(ctx, "MACHINE006")
 		suite.Require().NoError(err)
 		suite.Assert().Equal("Special notes for testing", retrieved.AdditionalNotes)
-		suite.Assert().Equal("Completed", retrieved.PpmStatus)
+		suite.Assert().Equal(string(machines.PPMStatusDue), retrieved.PpmStatus)
 		suite.Assert().Equal("special-test.pdf", retrieved.Attachment)
 	})
 }
@@ -482,6 +482,58 @@ func (suite *MachineRepositoryTestSuite) TestCount() {
 		count, err := suite.repo.Count(ctx)
 		suite.Require().NoError(err)
 		suite.Assert().Equal(0, count)
+	})
+}
+
+func (suite *MachineRepositoryTestSuite) TestDuePPM() {
+	ctx := context.Background()
+
+	suite.Run("should return machines that are overdue for PPM", func() {
+		machine := testutils.CreateMachine("DUEPPM001")
+		machine.PpmDate = time.Now().AddDate(0, 0, -1)
+		suite.Require().NoError(suite.repo.Create(ctx, machine))
+
+		machinesList, err := suite.repo.DuePPM(ctx)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machinesList, 1)
+		suite.Assert().Equal("DUEPPM001", machinesList[0].SerialNumber)
+		suite.Assert().Equal(string(machines.PPMStatusOverdue), machinesList[0].PpmStatus)
+	})
+
+	suite.Run("should return machines that are due for PPM", func() {
+		machine := testutils.CreateMachine("DUEPPM002")
+		machine.PpmDate = time.Now()
+		suite.Require().NoError(suite.repo.Create(ctx, machine))
+
+		machinesList, err := suite.repo.DuePPM(ctx)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machinesList, 1)
+		suite.Assert().Equal("DUEPPM002", machinesList[0].SerialNumber)
+		suite.Assert().Equal(string(machines.PPMStatusDue), machinesList[0].PpmStatus)
+	})
+
+	suite.Run("should return machines that are almost due for PPM", func() {
+		machine := testutils.CreateMachine("DUEPPM003")
+		machine.PpmDate = time.Now().AddDate(0, 0, 10)
+		suite.Require().NoError(suite.repo.Create(ctx, machine))
+
+		machinesList, err := suite.repo.DuePPM(ctx)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machinesList, 1)
+		suite.Assert().Equal("DUEPPM003", machinesList[0].SerialNumber)
+		suite.Assert().Equal(string(machines.PPMStatusAlmostDue), machinesList[0].PpmStatus)
+	})
+
+	suite.Run("should return empty list when no machines exist", func() {
+		machinesList, err := suite.repo.DuePPM(ctx)
+		suite.Require().NoError(err)
+		suite.Assert().Empty(machinesList)
+	})
+
+	suite.Run("should return empty list when no machines are due for PPM", func() {
+		machinesList, err := suite.repo.DuePPM(ctx)
+		suite.Require().NoError(err)
+		suite.Assert().Empty(machinesList)
 	})
 }
 

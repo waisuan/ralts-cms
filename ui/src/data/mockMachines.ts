@@ -1,29 +1,19 @@
 import { Machine } from '../types/machine';
 
-// Helper function to get dates for status examples
-const getDateForStatus = (status: 'overdue' | 'due' | 'due_soon' | 'future') => {
+// Helper function to get dates for different PPM statuses
+const getDateForStatus = (status: 'overdue' | 'due' | 'almost_due' | 'future') => {
   const today = new Date();
-  const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD format
-
   switch (status) {
     case 'overdue':
-      // 5 days ago
-      const overdue = new Date(today);
-      overdue.setDate(today.getDate() - 5);
-      return overdue.toISOString().split('T')[0];
+      return new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // 7 days ago
     case 'due':
-      // Today
-      return todayStr;
-    case 'due_soon':
-      // 3 days from now
-      const dueSoon = new Date(today);
-      dueSoon.setDate(today.getDate() + 3);
-      return dueSoon.toISOString().split('T')[0];
+      return today.toISOString().split('T')[0]; // Today
+    case 'almost_due':
+      return new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // 7 days from now
     case 'future':
-      // 30 days from now
-      const future = new Date(today);
-      future.setDate(today.getDate() + 30);
-      return future.toISOString().split('T')[0];
+      return new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // 30 days from now
+    default:
+      return today.toISOString().split('T')[0];
   }
 };
 
@@ -83,7 +73,7 @@ export const mockMachines: Machine[] = [
     attachment: 'maintenance_schedule.xlsx',
     ppm_status: '',
     tnc_date: '2024-06-01',
-    ppm_date: getDateForStatus('due_soon'), // Will show "Due Soon" (Yellow)
+    ppm_date: getDateForStatus('almost_due'), // Will show "Almost Due" (Yellow)
     created_at: '2024-03-01',
     updated_at: '2024-06-15',
   },
@@ -140,26 +130,26 @@ export const mockMachines: Machine[] = [
     attachment: '',
     ppm_status: '',
     tnc_date: '2024-07-15',
-    ppm_date: getDateForStatus('due_soon'), // Another "Due Soon" example
+    ppm_date: getDateForStatus('almost_due'), // Another "Almost Due" example
     created_at: '2024-06-01',
     updated_at: '2024-06-28',
   },
   {
     serial_number: 'SN-007',
-    customer: 'Golf Manufacturing',
-    state: 'OH',
-    account_type: 'Standard',
+    customer: 'Golf Technologies',
+    state: 'AZ',
+    account_type: 'Basic',
     model: 'D700',
     status: 'Active',
     brand: 'BrandG',
-    district: 'Midwest',
-    person_in_charge: 'Mike Chen',
-    reported_by: 'Nancy Davis',
-    additional_notes: 'Production line equipment - requires special handling procedures',
-    attachment: 'handling_procedures.docx',
+    district: 'Desert',
+    person_in_charge: 'Maya Patel',
+    reported_by: 'Noah Williams',
+    additional_notes: 'Desert environment requires special maintenance considerations',
+    attachment: 'desert_maintenance.pdf',
     ppm_status: '',
     tnc_date: '2024-07-25',
-    ppm_date: getDateForStatus('future'),
+    ppm_date: getDateForStatus('due'),
     created_at: '2024-06-05',
     updated_at: '2024-06-30',
   },
@@ -169,35 +159,35 @@ export const mockMachines: Machine[] = [
     state: 'NV',
     account_type: 'Premium',
     model: 'E800',
-    status: 'Active',
+    status: 'Maintenance',
     brand: 'BrandH',
-    district: 'Southwest',
+    district: 'Vegas',
     person_in_charge: 'Oscar Rodriguez',
-    reported_by: 'Patricia Wilson',
-    additional_notes: '24/7 operation - any downtime must be scheduled during maintenance windows',
-    attachment: '',
+    reported_by: 'Paula Garcia',
+    additional_notes: '24/7 operation requires frequent maintenance checks',
+    attachment: '24_7_schedule.pdf',
     ppm_status: '',
     tnc_date: '2024-08-05',
-    ppm_date: getDateForStatus('due_soon'),
+    ppm_date: getDateForStatus('overdue'),
     created_at: '2024-06-10',
     updated_at: '2024-07-01',
   },
   {
     serial_number: 'SN-009',
-    customer: 'India Tech',
-    state: 'GA',
+    customer: 'India Manufacturing',
+    state: 'OH',
     account_type: 'Enterprise',
     model: 'F900',
-    status: 'Maintenance',
+    status: 'Active',
     brand: 'BrandI',
-    district: 'Southeast',
-    person_in_charge: 'Quinn Taylor',
-    reported_by: '', // Empty reported_by
-    additional_notes: '', // Empty notes
-    attachment: 'calibration_cert.pdf',
+    district: 'Rust Belt',
+    person_in_charge: 'Quinn Anderson',
+    reported_by: 'Rachel Taylor',
+    additional_notes: 'Heavy industrial use - aggressive maintenance schedule required',
+    attachment: 'industrial_maintenance.pdf',
     ppm_status: '',
     tnc_date: '2024-07-30',
-    ppm_date: getDateForStatus('overdue'),
+    ppm_date: getDateForStatus('almost_due'),
     created_at: '2024-06-15',
     updated_at: '2024-07-02',
   },
@@ -254,7 +244,7 @@ export const mockMachines: Machine[] = [
     attachment: '',
     ppm_status: '',
     tnc_date: '2024-08-20',
-    ppm_date: getDateForStatus('due_soon'),
+    ppm_date: getDateForStatus('almost_due'),
     created_at: '2024-06-30',
     updated_at: '2024-07-05',
   },

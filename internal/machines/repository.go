@@ -3,9 +3,19 @@ package machines
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+// PPMStatus defines the PPM status values
+type PPMStatus string
+
+const (
+	PPMStatusOverdue   PPMStatus = "overdue"
+	PPMStatusDue       PPMStatus = "due"
+	PPMStatusAlmostDue PPMStatus = "almost_due"
 )
 
 // SortOrder defines the sorting order for machine listing
@@ -42,6 +52,7 @@ type Repository interface {
 	Update(ctx context.Context, machine *Machine) error
 	Delete(ctx context.Context, serialNumber string) error
 	Count(ctx context.Context) (int, error)
+	DuePPM(ctx context.Context) ([]*Machine, error)
 }
 
 type db struct {
@@ -227,4 +238,59 @@ func (r *db) Count(ctx context.Context) (int, error) {
 	}
 
 	return count, nil
+}
+
+func (r *db) DuePPM(ctx context.Context) ([]*Machine, error) {
+	query := `SELECT * FROM machines WHERE ppm_date <= CURRENT_DATE OR ppm_date <= CURRENT_DATE + INTERVAL '2 weeks'`
+
+	rows, err := r.client.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query machines: %w", err)
+	}
+
+	var machines []*Machine
+	for rows.Next() {
+		var machine Machine
+		err := rows.Scan(&machine.ID, &machine.SerialNumber, &machine.Customer, &machine.State,
+			&machine.AccountType, &machine.Model, &machine.Status, &machine.Brand,
+			&machine.District, &machine.PersonInCharge, &machine.ReportedBy,
+			&machine.AdditionalNotes, &machine.Attachment, &machine.PpmStatus,
+			&machine.TncDate, &machine.PpmDate, &machine.CreatedAt, &machine.UpdatedAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan machine: %w", err)
+		}
+
+		// Set PPM status based on the PPM date
+		machine.PpmStatus = string(r.calculatePPMStatus(machine.PpmDate))
+
+		machines = append(machines, &machine)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating machines: %w", err)
+	}
+
+	return machines, nil
+}
+
+// calculatePPMStatus determines the PPM status based on the PPM date
+func (r *db) calculatePPMStatus(ppmDate time.Time) PPMStatus {
+	now := time.Now().UTC()
+
+	// Remove time components for accurate day comparison
+	now = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	ppmDate = time.Date(ppmDate.Year(), ppmDate.Month(), ppmDate.Day(), 0, 0, 0, 0, time.UTC)
+
+	diffDays := int(ppmDate.Sub(now).Hours() / 24)
+
+	if diffDays < 0 {
+		return PPMStatusOverdue
+	} else if diffDays == 0 {
+		return PPMStatusDue
+	} else if diffDays <= 14 { // 2 weeks = 14 days
+		return PPMStatusAlmostDue
+	} else {
+		// More than 2 weeks in the future - return empty status
+		return ""
+	}
 }

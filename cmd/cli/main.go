@@ -68,7 +68,7 @@ func createMachines(deps *deps.Dependencies, count int) {
 		"Safety inspection required",
 	}
 	attachments := []string{"", "report.pdf", "manual.pdf", "specs.pdf", "maintenance.pdf", "inspection.pdf", "certificate.pdf", "warranty.pdf", "guide.pdf", "checklist.pdf", "protocol.pdf"}
-	ppmStatuses := []string{"", "Scheduled", "Completed", "Pending", "Overdue", "In Progress", "Cancelled", "Rescheduled", "Not Required"}
+	ppmStatuses := []string{"", string(machines.PPMStatusOverdue), string(machines.PPMStatusDue), string(machines.PPMStatusAlmostDue)}
 
 	maintenanceActions := []string{
 		"Routine maintenance performed",

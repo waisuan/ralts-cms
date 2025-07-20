@@ -435,17 +435,16 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.Assert().Equal(http.StatusOK, w.Code)
 		suite.Assert().Equal("application/json", w.Header().Get("Content-Type"))
 
-		var response map[string]interface{}
+		var response handler.ListMachinesResponse
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		suite.Require().NoError(err)
 
-		suite.Assert().Equal(float64(2), response["count"])
-		suite.Assert().Equal(float64(50), response["limit"])
-		suite.Assert().Equal(float64(0), response["offset"])
-		suite.Assert().Equal("created_at_desc", response["sort"])
+		suite.Assert().Equal(int32(2), response.Count)
+		suite.Assert().Equal(int32(50), response.Limit)
+		suite.Assert().Equal(int32(0), response.Offset)
+		suite.Assert().Equal("created_at_desc", response.Sort)
 
-		machines := response["machines"].([]interface{})
-		suite.Assert().Len(machines, 2)
+		suite.Assert().Len(response.Machines, 2)
 	})
 
 	suite.Run("should use custom limit when provided", func() {
@@ -469,12 +468,12 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 
 		suite.Assert().Equal(http.StatusOK, w.Code)
 
-		var response map[string]interface{}
+		var response handler.ListMachinesResponse
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		suite.Require().NoError(err)
 
-		suite.Assert().Equal(float64(25), response["limit"])
-		suite.Assert().Equal(float64(1), response["count"])
+		suite.Assert().Equal(int32(25), response.Limit)
+		suite.Assert().Equal(int32(1), response.Count)
 	})
 
 	suite.Run("should use custom offset when provided", func() {
@@ -498,12 +497,12 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 
 		suite.Assert().Equal(http.StatusOK, w.Code)
 
-		var response map[string]interface{}
+		var response handler.ListMachinesResponse
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		suite.Require().NoError(err)
 
-		suite.Assert().Equal(float64(10), response["offset"])
-		suite.Assert().Equal(float64(1), response["count"])
+		suite.Assert().Equal(int32(10), response.Offset)
+		suite.Assert().Equal(int32(1), response.Count)
 	})
 
 	suite.Run("should use custom sort when provided", func() {
@@ -527,11 +526,11 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 
 		suite.Assert().Equal(http.StatusOK, w.Code)
 
-		var response map[string]interface{}
+		var response handler.ListMachinesResponse
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		suite.Require().NoError(err)
 
-		suite.Assert().Equal("created_at_asc", response["sort"])
+		suite.Assert().Equal("created_at_asc", response.Sort)
 	})
 
 	suite.Run("should use all custom parameters together", func() {
@@ -555,13 +554,13 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 
 		suite.Assert().Equal(http.StatusOK, w.Code)
 
-		var response map[string]interface{}
+		var response handler.ListMachinesResponse
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		suite.Require().NoError(err)
 
-		suite.Assert().Equal(float64(10), response["limit"])
-		suite.Assert().Equal(float64(20), response["offset"])
-		suite.Assert().Equal("created_at_desc", response["sort"])
+		suite.Assert().Equal(int32(10), response.Limit)
+		suite.Assert().Equal(int32(20), response.Offset)
+		suite.Assert().Equal("created_at_desc", response.Sort)
 	})
 
 	suite.Run("should return 400 for invalid limit parameter", func() {
@@ -659,17 +658,16 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 
 		suite.Assert().Equal(http.StatusOK, w.Code)
 
-		var response map[string]interface{}
+		var response handler.ListMachinesResponse
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		suite.Require().NoError(err)
 
-		suite.Assert().Equal(float64(0), response["count"])
-		suite.Assert().Equal(float64(50), response["limit"])
-		suite.Assert().Equal(float64(0), response["offset"])
-		suite.Assert().Equal("created_at_desc", response["sort"])
+		suite.Assert().Equal(int32(0), response.Count)
+		suite.Assert().Equal(int32(50), response.Limit)
+		suite.Assert().Equal(int32(0), response.Offset)
+		suite.Assert().Equal("created_at_desc", response.Sort)
 
-		machines := response["machines"].([]interface{})
-		suite.Assert().Len(machines, 0)
+		suite.Assert().Len(response.Machines, 0)
 	})
 
 	suite.Run("should handle due_ppm=true parameter", func() {
@@ -694,17 +692,16 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 
 		suite.Assert().Equal(http.StatusOK, w.Code)
 
-		var response map[string]interface{}
+		var response handler.ListMachinesResponse
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		suite.Require().NoError(err)
 
-		suite.Assert().Equal(float64(1), response["count"])
-		suite.Assert().Equal(float64(50), response["limit"])
-		suite.Assert().Equal(float64(0), response["offset"])
-		suite.Assert().Equal("created_at_desc", response["sort"])
+		suite.Assert().Equal(int32(1), response.Count)
+		suite.Assert().Equal(int32(50), response.Limit)
+		suite.Assert().Equal(int32(0), response.Offset)
+		suite.Assert().Equal("created_at_desc", response.Sort)
 
-		machines := response["machines"].([]interface{})
-		suite.Assert().Len(machines, 1)
+		suite.Assert().Len(response.Machines, 1)
 	})
 
 	suite.Run("should handle due_ppm=false parameter", func() {
@@ -729,17 +726,16 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 
 		suite.Assert().Equal(http.StatusOK, w.Code)
 
-		var response map[string]interface{}
+		var response handler.ListMachinesResponse
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		suite.Require().NoError(err)
 
-		suite.Assert().Equal(float64(1), response["count"])
-		suite.Assert().Equal(float64(50), response["limit"])
-		suite.Assert().Equal(float64(0), response["offset"])
-		suite.Assert().Equal("created_at_desc", response["sort"])
+		suite.Assert().Equal(int32(1), response.Count)
+		suite.Assert().Equal(int32(50), response.Limit)
+		suite.Assert().Equal(int32(0), response.Offset)
+		suite.Assert().Equal("created_at_desc", response.Sort)
 
-		machines := response["machines"].([]interface{})
-		suite.Assert().Len(machines, 1)
+		suite.Assert().Len(response.Machines, 1)
 	})
 
 	suite.Run("should return 400 for invalid due_ppm parameter", func() {
@@ -774,17 +770,16 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 
 		suite.Assert().Equal(http.StatusOK, w.Code)
 
-		var response map[string]interface{}
+		var response handler.ListMachinesResponse
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		suite.Require().NoError(err)
 
-		suite.Assert().Equal(float64(1), response["count"])
-		suite.Assert().Equal(float64(10), response["limit"])
-		suite.Assert().Equal(float64(20), response["offset"])
-		suite.Assert().Equal("created_at_asc", response["sort"])
+		suite.Assert().Equal(int32(1), response.Count)
+		suite.Assert().Equal(int32(10), response.Limit)
+		suite.Assert().Equal(int32(20), response.Offset)
+		suite.Assert().Equal("created_at_asc", response.Sort)
 
-		machines := response["machines"].([]interface{})
-		suite.Assert().Len(machines, 1)
+		suite.Assert().Len(response.Machines, 1)
 	})
 
 	suite.Run("should return 500 on repository error when counting machines", func() {

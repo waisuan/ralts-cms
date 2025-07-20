@@ -30,17 +30,14 @@ export function getPPMStatus(ppm_date: string): PPMStatusInfo | null {
       label: PPM_STATUSES.DUE,
       color: PPM_STATUS_COLORS[PPM_STATUSES.DUE],
     };
-  } else if (diffDays > 0 && diffDays <= 7) {
+  } else if (diffDays > 0 && diffDays <= 14) { // 2 weeks = 14 days
     return {
-      label: PPM_STATUSES.DUE_SOON,
-      color: PPM_STATUS_COLORS[PPM_STATUSES.DUE_SOON],
+      label: PPM_STATUSES.ALMOST_DUE,
+      color: PPM_STATUS_COLORS[PPM_STATUSES.ALMOST_DUE],
     };
   } else {
-    // More than 7 days in future - show "Upcoming" status
-    return {
-      label: PPM_STATUSES.UPCOMING,
-      color: PPM_STATUS_COLORS[PPM_STATUSES.UPCOMING],
-    };
+    // More than 2 weeks in future - no status
+    return null;
   }
 }
 

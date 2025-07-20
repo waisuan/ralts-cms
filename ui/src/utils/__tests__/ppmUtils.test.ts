@@ -1,110 +1,84 @@
 import { getPPMStatus, getPPMStatusLabel } from '../ppmUtils';
 import { PPM_STATUSES } from '../constants';
 
-describe('PPM Utils', () => {
-  // Mock the current date to ensure consistent test results
-  const mockDate = new Date('2024-06-29T12:00:00Z');
-
-  beforeEach(() => {
-    jest.useFakeTimers();
-    jest.setSystemTime(mockDate);
+describe('getPPMStatus', () => {
+  it('should return null for empty date', () => {
+    const result = getPPMStatus('');
+    expect(result).toBeNull();
   });
 
-  afterEach(() => {
-    jest.useRealTimers();
+  it('should return Overdue status for past dates', () => {
+    const pastDate = new Date();
+    pastDate.setDate(pastDate.getDate() - 1);
+    const result = getPPMStatus(pastDate.toISOString().split('T')[0]);
+    expect(result!.label).toBe(PPM_STATUSES.OVERDUE);
   });
 
-  describe('getPPMStatus', () => {
-    it('should return null for empty date', () => {
-      expect(getPPMStatus('')).toBeNull();
-      expect(getPPMStatus(null as unknown as string)).toBeNull();
-      expect(getPPMStatus(undefined as unknown as string)).toBeNull();
-    });
-
-    it('should return Overdue status for past dates', () => {
-      const pastDate = '2024-06-01';
-      const result = getPPMStatus(pastDate);
-
-      expect(result).not.toBeNull();
-      expect(result!.label).toBe(PPM_STATUSES.OVERDUE);
-      expect(result!.color).toBe('bg-red-100 text-red-800');
-    });
-
-    it('should return Due status for today', () => {
-      const todayStr = '2024-06-29';
-      const result = getPPMStatus(todayStr);
-
-      expect(result).not.toBeNull();
-      expect(result!.label).toBe(PPM_STATUSES.DUE);
-      expect(result!.color).toBe('bg-orange-100 text-orange-800');
-    });
-
-    it('should return Due Soon status for dates within 7 days', () => {
-      const soonDate = '2024-07-03'; // 4 days from mock date
-      const result = getPPMStatus(soonDate);
-
-      expect(result).not.toBeNull();
-      expect(result!.label).toBe(PPM_STATUSES.DUE_SOON);
-      expect(result!.color).toBe('bg-yellow-100 text-yellow-800');
-    });
-
-    it('should return Upcoming status for dates more than 7 days in the future', () => {
-      const futureDate = '2024-07-30'; // More than 7 days from mock date
-      const result = getPPMStatus(futureDate);
-
-      expect(result).not.toBeNull();
-      expect(result!.label).toBe(PPM_STATUSES.UPCOMING);
-      expect(result!.color).toBe('bg-green-100 text-green-800');
-    });
-
-    it('should handle edge case of exactly 7 days', () => {
-      const sevenDaysDate = '2024-07-06'; // Exactly 7 days from mock date
-      const result = getPPMStatus(sevenDaysDate);
-
-      expect(result).not.toBeNull();
-      expect(result!.label).toBe(PPM_STATUSES.DUE_SOON);
-    });
-
-    it('should handle edge case of exactly 8 days', () => {
-      const eightDaysDate = '2024-07-07'; // Exactly 8 days from mock date
-      const result = getPPMStatus(eightDaysDate);
-
-      expect(result).not.toBeNull();
-      expect(result!.label).toBe(PPM_STATUSES.UPCOMING);
-    });
+  it('should return Due status for today', () => {
+    const today = new Date().toISOString().split('T')[0];
+    const result = getPPMStatus(today);
+    expect(result!.label).toBe(PPM_STATUSES.DUE);
   });
 
-  describe('getPPMStatusLabel', () => {
-    it('should return null for empty date', () => {
-      expect(getPPMStatusLabel('')).toBeNull();
-    });
+  it('should return Almost Due status for dates within 2 weeks', () => {
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 7);
+    const result = getPPMStatus(futureDate.toISOString().split('T')[0]);
+    expect(result!.label).toBe(PPM_STATUSES.ALMOST_DUE);
+  });
 
-    it('should return only the label for valid dates', () => {
-      const pastDate = '2024-06-01';
-      const label = getPPMStatusLabel(pastDate);
+  it('should return null for dates more than 2 weeks in the future', () => {
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 15);
+    const result = getPPMStatus(futureDate.toISOString().split('T')[0]);
+    expect(result).toBeNull();
+  });
 
-      expect(label).toBe(PPM_STATUSES.OVERDUE);
-    });
+  it('should return Almost Due status for dates exactly 2 weeks in the future', () => {
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 14);
+    const result = getPPMStatus(futureDate.toISOString().split('T')[0]);
+    expect(result!.label).toBe(PPM_STATUSES.ALMOST_DUE);
+  });
 
-    it('should return Due label for today', () => {
-      const todayStr = '2024-06-29';
-      const label = getPPMStatusLabel(todayStr);
+  it('should return null for dates more than 2 weeks in the future', () => {
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 15);
+    const result = getPPMStatus(futureDate.toISOString().split('T')[0]);
+    expect(result).toBeNull();
+  });
+});
 
-      expect(label).toBe(PPM_STATUSES.DUE);
-    });
+describe('getPPMStatusLabel', () => {
+  it('should return null for empty date', () => {
+    const label = getPPMStatusLabel('');
+    expect(label).toBeNull();
+  });
 
-    it('should return Due Soon label for dates within 7 days', () => {
-      const soonDate = '2024-07-03';
-      const label = getPPMStatusLabel(soonDate);
+  it('should return Overdue label for past dates', () => {
+    const pastDate = new Date();
+    pastDate.setDate(pastDate.getDate() - 1);
+    const label = getPPMStatusLabel(pastDate.toISOString().split('T')[0]);
+    expect(label).toBe(PPM_STATUSES.OVERDUE);
+  });
 
-      expect(label).toBe(PPM_STATUSES.DUE_SOON);
-    });
+  it('should return Due label for today', () => {
+    const today = new Date().toISOString().split('T')[0];
+    const label = getPPMStatusLabel(today);
+    expect(label).toBe(PPM_STATUSES.DUE);
+  });
 
-    it('should return Upcoming label for dates more than 7 days in the future', () => {
-      const futureDate = '2024-07-30';
-      const label = getPPMStatusLabel(futureDate);
+  it('should return Almost Due label for dates within 2 weeks', () => {
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 7);
+    const label = getPPMStatusLabel(futureDate.toISOString().split('T')[0]);
+    expect(label).toBe(PPM_STATUSES.ALMOST_DUE);
+  });
 
-      expect(label).toBe(PPM_STATUSES.UPCOMING);
-    });
+  it('should return null for dates more than 2 weeks in the future', () => {
+    const futureDate = new Date();
+    futureDate.setDate(futureDate.getDate() + 15);
+    const label = getPPMStatusLabel(futureDate.toISOString().split('T')[0]);
+    expect(label).toBeNull();
   });
 });

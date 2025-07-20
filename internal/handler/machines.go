@@ -12,6 +12,14 @@ import (
 	"github.com/gorilla/mux"
 )
 
+type ListMachinesResponse struct {
+	Machines []*machines.Machine `json:"machines"`
+	Count    int32               `json:"count"`
+	Limit    int32               `json:"limit"`
+	Offset   int32               `json:"offset"`
+	Sort     string              `json:"sort"`
+}
+
 type MachinesHandler struct {
 	deps *deps.Dependencies
 }
@@ -122,12 +130,12 @@ func (h *MachinesHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build response
-	response := map[string]interface{}{
-		"machines": machines,
-		"count":    count,
-		"limit":    limit,
-		"offset":   offset,
-		"sort":     string(sort),
+	response := ListMachinesResponse{
+		Machines: machines,
+		Count:    int32(count),
+		Limit:    limit,
+		Offset:   offset,
+		Sort:     string(sort),
 	}
 
 	w.Header().Set("Content-Type", "application/json")

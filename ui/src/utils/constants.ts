@@ -26,25 +26,22 @@ export const PPM_STATUS_PROPERTY = 'ppm_status' as const;
 
 // PPM Status constants
 export const PPM_STATUSES = {
-  OVERDUE: 'Overdue',
-  DUE: 'Due',
-  DUE_SOON: 'Due Soon',
-  UPCOMING: 'Upcoming',
+  OVERDUE: 'overdue',
+  DUE: 'due',
+  ALMOST_DUE: 'almost_due',
 } as const;
 
 export const PPM_STATUS_COLORS = {
   [PPM_STATUSES.OVERDUE]: 'bg-red-100 text-red-800',
   [PPM_STATUSES.DUE]: 'bg-orange-100 text-orange-800',
-  [PPM_STATUSES.DUE_SOON]: 'bg-yellow-100 text-yellow-800',
-  [PPM_STATUSES.UPCOMING]: 'bg-green-100 text-green-800',
+  [PPM_STATUSES.ALMOST_DUE]: 'bg-yellow-100 text-yellow-800',
 } as const;
 
 // Available PPM statuses for search (only ones that actually appear in the UI)
 export const SEARCHABLE_PPM_STATUSES = [
-  { value: PPM_STATUSES.OVERDUE, label: PPM_STATUSES.OVERDUE },
-  { value: PPM_STATUSES.DUE, label: PPM_STATUSES.DUE },
-  { value: PPM_STATUSES.DUE_SOON, label: PPM_STATUSES.DUE_SOON },
-  { value: PPM_STATUSES.UPCOMING, label: PPM_STATUSES.UPCOMING },
+  { value: PPM_STATUSES.OVERDUE, label: 'Overdue' },
+  { value: PPM_STATUSES.DUE, label: 'Due' },
+  { value: PPM_STATUSES.ALMOST_DUE, label: 'Almost Due' },
 ] as const;
 
 // Type for search property values
