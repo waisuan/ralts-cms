@@ -13,12 +13,14 @@ import (
 )
 
 type ListMachinesResponse struct {
-	Machines []*machines.Machine `json:"machines"`
-	DuePPM   []*machines.Machine `json:"due_ppm"`
-	Count    int32               `json:"count"`
-	Limit    int32               `json:"limit"`
-	Offset   int32               `json:"offset"`
-	Sort     string              `json:"sort"`
+	Machines       []*machines.Machine `json:"machines"`
+	OverdueCount   int32               `json:"overdue_count"`
+	DueCount       int32               `json:"due_count"`
+	AlmostDueCount int32               `json:"almost_due_count"`
+	Count          int32               `json:"count"`
+	Limit          int32               `json:"limit"`
+	Offset         int32               `json:"offset"`
+	Sort           string              `json:"sort"`
 }
 
 type MachinesHandler struct {
@@ -60,6 +62,7 @@ func (h *MachinesHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 	limitStr := r.URL.Query().Get("limit")
 	offsetStr := r.URL.Query().Get("offset")
 	sortStr := r.URL.Query().Get("sort")
+	duePPMOnlyStr := r.URL.Query().Get("due_ppm_only")
 
 	// Parse limit parameter
 	limit := h.deps.Config.DefaultMachinesLimit
@@ -97,11 +100,26 @@ func (h *MachinesHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Parse due_ppm_only parameter
+	var duePPMOnly bool = false
+	if duePPMOnlyStr != "" {
+		switch duePPMOnlyStr {
+		case "true":
+			duePPMOnly = true
+		case "false":
+			duePPMOnly = false
+		default:
+			http.Error(w, "Invalid due_ppm_only parameter. Must be 'true' or 'false'", http.StatusBadRequest)
+			return
+		}
+	}
+
 	// Create list options
 	options := &machines.ListOptions{
-		Limit:  limit,
-		Offset: offset,
-		Sort:   sort,
+		Limit:      limit,
+		Offset:     offset,
+		Sort:       sort,
+		DuePPMOnly: duePPMOnly,
 	}
 
 	// Get machines from repository
@@ -117,20 +135,22 @@ func (h *MachinesHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	duePPMMachines, err := h.deps.MachinesRepository.DuePPM(r.Context())
+	overdueCount, dueCount, almostDueCount, err := h.deps.MachinesRepository.CountByStatus(r.Context())
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to get due PPM machines: %v", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to count machines by status: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	// Build response
 	response := ListMachinesResponse{
-		Machines: machines,
-		DuePPM:   duePPMMachines,
-		Count:    int32(count),
-		Limit:    limit,
-		Offset:   offset,
-		Sort:     string(sort),
+		Machines:       machines,
+		OverdueCount:   overdueCount,
+		DueCount:       dueCount,
+		AlmostDueCount: almostDueCount,
+		Count:          int32(count),
+		Limit:          limit,
+		Offset:         offset,
+		Sort:           string(sort),
 	}
 
 	w.Header().Set("Content-Type", "application/json")

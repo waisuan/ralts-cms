@@ -3,7 +3,6 @@ package machines
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -28,17 +27,19 @@ const (
 
 // ListOptions defines the options for listing machines
 type ListOptions struct {
-	Limit  int32     `json:"limit"`
-	Offset int32     `json:"offset"`
-	Sort   SortOrder `json:"sort"`
+	Limit      int32     `json:"limit"`
+	Offset     int32     `json:"offset"`
+	Sort       SortOrder `json:"sort"`
+	DuePPMOnly bool      `json:"due_ppm_only"`
 }
 
 // DefaultListOptions returns default list options
 func DefaultListOptions() *ListOptions {
 	return &ListOptions{
-		Limit:  50,
-		Offset: 0,
-		Sort:   SortOrderCreatedAtDesc,
+		Limit:      50,
+		Offset:     0,
+		Sort:       SortOrderCreatedAtDesc,
+		DuePPMOnly: false,
 	}
 }
 
@@ -50,7 +51,7 @@ type Repository interface {
 	Update(ctx context.Context, machine *Machine) error
 	Delete(ctx context.Context, serialNumber string) error
 	Count(ctx context.Context) (int, error)
-	DuePPM(ctx context.Context) ([]*Machine, error)
+	CountByStatus(ctx context.Context) (int32, int32, int32, error)
 }
 
 type db struct {
@@ -107,16 +108,29 @@ func (r *db) List(ctx context.Context, options *ListOptions) ([]*Machine, error)
 		orderByClause = "ORDER BY created_at DESC" // Default to most recent first
 	}
 
+	// Build WHERE clause for DuePPMOnly option
+	var whereClause string
+	var args []interface{}
+	argIndex := 1
+
+	if options.DuePPMOnly {
+		whereClause = "WHERE ppm_date <= CURRENT_DATE OR ppm_date <= CURRENT_DATE + INTERVAL '2 weeks'"
+	}
+
 	query := fmt.Sprintf(`
 		SELECT id, serial_number, customer, state, account_type, model, status, brand, 
 		       district, person_in_charge, reported_by, additional_notes, attachment, 
 		       ppm_status, tnc_date, ppm_date, created_at, updated_at
 		FROM machines 
 		%s
+		%s
 		LIMIT $%d OFFSET $%d
-	`, orderByClause, 1, 2)
+	`, whereClause, orderByClause, argIndex, argIndex+1)
 
-	rows, err := r.client.Query(ctx, query, options.Limit, options.Offset)
+	// Add limit and offset to args
+	args = append(args, options.Limit, options.Offset)
+
+	rows, err := r.client.Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query machines: %w", err)
 	}
@@ -230,57 +244,20 @@ func (r *db) Count(ctx context.Context) (int, error) {
 	return count, nil
 }
 
-func (r *db) DuePPM(ctx context.Context) ([]*Machine, error) {
-	query := `SELECT * FROM machines WHERE ppm_date <= CURRENT_DATE OR ppm_date <= CURRENT_DATE + INTERVAL '2 weeks'`
+func (r *db) CountByStatus(ctx context.Context) (int32, int32, int32, error) {
+	query := `
+		SELECT 
+			COUNT(CASE WHEN ppm_date < CURRENT_DATE THEN 1 END) as overdue_count,
+			COUNT(CASE WHEN ppm_date = CURRENT_DATE THEN 1 END) as due_count,
+			COUNT(CASE WHEN ppm_date > CURRENT_DATE AND ppm_date <= CURRENT_DATE + INTERVAL '2 weeks' THEN 1 END) as almost_due_count
+		FROM machines
+	`
 
-	rows, err := r.client.Query(ctx, query)
+	var overdueCount, dueCount, almostDueCount int32
+	err := r.client.QueryRow(ctx, query).Scan(&overdueCount, &dueCount, &almostDueCount)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query machines: %w", err)
+		return 0, 0, 0, fmt.Errorf("failed to count machines by status: %w", err)
 	}
 
-	var machines []*Machine
-	for rows.Next() {
-		var machine Machine
-		err := rows.Scan(&machine.ID, &machine.SerialNumber, &machine.Customer, &machine.State,
-			&machine.AccountType, &machine.Model, &machine.Status, &machine.Brand,
-			&machine.District, &machine.PersonInCharge, &machine.ReportedBy,
-			&machine.AdditionalNotes, &machine.Attachment, &machine.PpmStatus,
-			&machine.TncDate, &machine.PpmDate, &machine.CreatedAt, &machine.UpdatedAt)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan machine: %w", err)
-		}
-
-		// Set PPM status based on the PPM date
-		machine.PpmStatus = string(r.calculatePPMStatus(machine.PpmDate))
-
-		machines = append(machines, &machine)
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating machines: %w", err)
-	}
-
-	return machines, nil
-}
-
-// calculatePPMStatus determines the PPM status based on the PPM date
-func (r *db) calculatePPMStatus(ppmDate time.Time) PPMStatus {
-	now := time.Now().UTC()
-
-	// Remove time components for accurate day comparison
-	now = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
-	ppmDate = time.Date(ppmDate.Year(), ppmDate.Month(), ppmDate.Day(), 0, 0, 0, 0, time.UTC)
-
-	diffDays := int(ppmDate.Sub(now).Hours() / 24)
-
-	if diffDays < 0 {
-		return PPMStatusOverdue
-	} else if diffDays == 0 {
-		return PPMStatusDue
-	} else if diffDays <= 14 { // 2 weeks = 14 days
-		return PPMStatusAlmostDue
-	} else {
-		// More than 2 weeks in the future - return empty status
-		return ""
-	}
+	return overdueCount, dueCount, almostDueCount, nil
 }

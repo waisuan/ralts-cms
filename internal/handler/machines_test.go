@@ -418,19 +418,16 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 			{SerialNumber: "MACHINE002", Customer: "Customer 2", Status: "Maintenance"},
 		}
 
-		expectedDuePPMMachines := []*machines.Machine{
-			{SerialNumber: "DUEPPM001", Customer: "Customer 3", Status: "Overdue"},
-		}
-
 		expectedOptions := &machines.ListOptions{
-			Limit:  50,
-			Offset: 0,
-			Sort:   machines.SortOrderCreatedAtDesc,
+			Limit:      50,
+			Offset:     0,
+			Sort:       machines.SortOrderCreatedAtDesc,
+			DuePPMOnly: false,
 		}
 
 		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
 		suite.mockRepo.EXPECT().Count(gomock.Any()).Return(2, nil)
-		suite.mockRepo.EXPECT().DuePPM(gomock.Any()).Return(expectedDuePPMMachines, nil)
+		suite.mockRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(1), int32(2), int32(3), nil)
 
 		req := httptest.NewRequest("GET", "/machines", nil)
 		w := httptest.NewRecorder()
@@ -448,10 +445,11 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.Assert().Equal(int32(50), response.Limit)
 		suite.Assert().Equal(int32(0), response.Offset)
 		suite.Assert().Equal("created_at_desc", response.Sort)
+		suite.Assert().Equal(int32(1), response.OverdueCount)
+		suite.Assert().Equal(int32(2), response.DueCount)
+		suite.Assert().Equal(int32(3), response.AlmostDueCount)
 
 		suite.Assert().Len(response.Machines, 2)
-		suite.Assert().Len(response.DuePPM, 1)
-		suite.Assert().Equal("DUEPPM001", response.DuePPM[0].SerialNumber)
 	})
 
 	suite.Run("should use custom limit when provided", func() {
@@ -459,17 +457,16 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 			{SerialNumber: "MACHINE001", Customer: "Customer 1", Status: "Operational"},
 		}
 
-		expectedDuePPMMachines := []*machines.Machine{}
-
 		expectedOptions := &machines.ListOptions{
-			Limit:  25,
-			Offset: 0,
-			Sort:   machines.SortOrderCreatedAtDesc,
+			Limit:      25,
+			Offset:     0,
+			Sort:       machines.SortOrderCreatedAtDesc,
+			DuePPMOnly: false,
 		}
 
 		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
 		suite.mockRepo.EXPECT().Count(gomock.Any()).Return(1, nil)
-		suite.mockRepo.EXPECT().DuePPM(gomock.Any()).Return(expectedDuePPMMachines, nil)
+		suite.mockRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
 
 		req := httptest.NewRequest("GET", "/machines?limit=25", nil)
 		w := httptest.NewRecorder()
@@ -484,7 +481,9 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 
 		suite.Assert().Equal(int32(25), response.Limit)
 		suite.Assert().Equal(int32(1), response.Count)
-		suite.Assert().Len(response.DuePPM, 0)
+		suite.Assert().Equal(int32(0), response.OverdueCount)
+		suite.Assert().Equal(int32(0), response.DueCount)
+		suite.Assert().Equal(int32(0), response.AlmostDueCount)
 	})
 
 	suite.Run("should use custom offset when provided", func() {
@@ -492,17 +491,16 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 			{SerialNumber: "MACHINE003", Customer: "Customer 3", Status: "Operational"},
 		}
 
-		expectedDuePPMMachines := []*machines.Machine{}
-
 		expectedOptions := &machines.ListOptions{
-			Limit:  50,
-			Offset: 10,
-			Sort:   machines.SortOrderCreatedAtDesc,
+			Limit:      50,
+			Offset:     10,
+			Sort:       machines.SortOrderCreatedAtDesc,
+			DuePPMOnly: false,
 		}
 
 		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
 		suite.mockRepo.EXPECT().Count(gomock.Any()).Return(1, nil)
-		suite.mockRepo.EXPECT().DuePPM(gomock.Any()).Return(expectedDuePPMMachines, nil)
+		suite.mockRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
 
 		req := httptest.NewRequest("GET", "/machines?offset=10", nil)
 		w := httptest.NewRecorder()
@@ -517,7 +515,9 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 
 		suite.Assert().Equal(int32(10), response.Offset)
 		suite.Assert().Equal(int32(1), response.Count)
-		suite.Assert().Len(response.DuePPM, 0)
+		suite.Assert().Equal(int32(0), response.OverdueCount)
+		suite.Assert().Equal(int32(0), response.DueCount)
+		suite.Assert().Equal(int32(0), response.AlmostDueCount)
 	})
 
 	suite.Run("should use custom sort when provided", func() {
@@ -525,17 +525,16 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 			{SerialNumber: "MACHINE001", Customer: "Customer 1", Status: "Operational"},
 		}
 
-		expectedDuePPMMachines := []*machines.Machine{}
-
 		expectedOptions := &machines.ListOptions{
-			Limit:  50,
-			Offset: 0,
-			Sort:   machines.SortOrderCreatedAtAsc,
+			Limit:      50,
+			Offset:     0,
+			Sort:       machines.SortOrderCreatedAtAsc,
+			DuePPMOnly: false,
 		}
 
 		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
 		suite.mockRepo.EXPECT().Count(gomock.Any()).Return(1, nil)
-		suite.mockRepo.EXPECT().DuePPM(gomock.Any()).Return(expectedDuePPMMachines, nil)
+		suite.mockRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
 
 		req := httptest.NewRequest("GET", "/machines?sort=created_at_asc", nil)
 		w := httptest.NewRecorder()
@@ -549,7 +548,9 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.Require().NoError(err)
 
 		suite.Assert().Equal("created_at_asc", response.Sort)
-		suite.Assert().Len(response.DuePPM, 0)
+		suite.Assert().Equal(int32(0), response.OverdueCount)
+		suite.Assert().Equal(int32(0), response.DueCount)
+		suite.Assert().Equal(int32(0), response.AlmostDueCount)
 	})
 
 	suite.Run("should use all custom parameters together", func() {
@@ -557,17 +558,16 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 			{SerialNumber: "MACHINE005", Customer: "Customer 5", Status: "Operational"},
 		}
 
-		expectedDuePPMMachines := []*machines.Machine{}
-
 		expectedOptions := &machines.ListOptions{
-			Limit:  10,
-			Offset: 20,
-			Sort:   machines.SortOrderCreatedAtDesc,
+			Limit:      10,
+			Offset:     20,
+			Sort:       machines.SortOrderCreatedAtDesc,
+			DuePPMOnly: false,
 		}
 
 		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
 		suite.mockRepo.EXPECT().Count(gomock.Any()).Return(1, nil)
-		suite.mockRepo.EXPECT().DuePPM(gomock.Any()).Return(expectedDuePPMMachines, nil)
+		suite.mockRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
 
 		req := httptest.NewRequest("GET", "/machines?limit=10&offset=20&sort=created_at_desc", nil)
 		w := httptest.NewRecorder()
@@ -583,29 +583,26 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.Assert().Equal(int32(10), response.Limit)
 		suite.Assert().Equal(int32(20), response.Offset)
 		suite.Assert().Equal("created_at_desc", response.Sort)
-		suite.Assert().Len(response.DuePPM, 0)
+		suite.Assert().Equal(int32(0), response.OverdueCount)
+		suite.Assert().Equal(int32(0), response.DueCount)
+		suite.Assert().Equal(int32(0), response.AlmostDueCount)
 	})
 
-	suite.Run("should include due PPM machines in response", func() {
+	suite.Run("should include PPM counts in response", func() {
 		expectedMachines := []*machines.Machine{
 			{SerialNumber: "MACHINE001", Customer: "Customer 1", Status: "Operational"},
 		}
 
-		expectedDuePPMMachines := []*machines.Machine{
-			{SerialNumber: "DUEPPM001", Customer: "Customer 2", Status: "Overdue", PpmStatus: "overdue"},
-			{SerialNumber: "DUEPPM002", Customer: "Customer 3", Status: "Due", PpmStatus: "due"},
-			{SerialNumber: "DUEPPM003", Customer: "Customer 4", Status: "Almost Due", PpmStatus: "almost_due"},
-		}
-
 		expectedOptions := &machines.ListOptions{
-			Limit:  50,
-			Offset: 0,
-			Sort:   machines.SortOrderCreatedAtDesc,
+			Limit:      50,
+			Offset:     0,
+			Sort:       machines.SortOrderCreatedAtDesc,
+			DuePPMOnly: false,
 		}
 
 		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
 		suite.mockRepo.EXPECT().Count(gomock.Any()).Return(1, nil)
-		suite.mockRepo.EXPECT().DuePPM(gomock.Any()).Return(expectedDuePPMMachines, nil)
+		suite.mockRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(5), int32(3), int32(2), nil)
 
 		req := httptest.NewRequest("GET", "/machines", nil)
 		w := httptest.NewRecorder()
@@ -619,15 +616,9 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.Require().NoError(err)
 
 		suite.Assert().Len(response.Machines, 1)
-		suite.Assert().Len(response.DuePPM, 3)
-
-		// Verify due PPM machines have correct status
-		suite.Assert().Equal("DUEPPM001", response.DuePPM[0].SerialNumber)
-		suite.Assert().Equal("overdue", response.DuePPM[0].PpmStatus)
-		suite.Assert().Equal("DUEPPM002", response.DuePPM[1].SerialNumber)
-		suite.Assert().Equal("due", response.DuePPM[1].PpmStatus)
-		suite.Assert().Equal("DUEPPM003", response.DuePPM[2].SerialNumber)
-		suite.Assert().Equal("almost_due", response.DuePPM[2].PpmStatus)
+		suite.Assert().Equal(int32(5), response.OverdueCount)
+		suite.Assert().Equal(int32(3), response.DueCount)
+		suite.Assert().Equal(int32(2), response.AlmostDueCount)
 	})
 
 	suite.Run("should return 400 for invalid limit parameter", func() {
@@ -692,9 +683,10 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 
 	suite.Run("should return 500 on repository error", func() {
 		expectedOptions := &machines.ListOptions{
-			Limit:  50,
-			Offset: 0,
-			Sort:   machines.SortOrderCreatedAtDesc,
+			Limit:      50,
+			Offset:     0,
+			Sort:       machines.SortOrderCreatedAtDesc,
+			DuePPMOnly: false,
 		}
 
 		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(nil, fmt.Errorf("database error"))
@@ -710,14 +702,15 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 
 	suite.Run("should handle empty result set", func() {
 		expectedOptions := &machines.ListOptions{
-			Limit:  50,
-			Offset: 0,
-			Sort:   machines.SortOrderCreatedAtDesc,
+			Limit:      50,
+			Offset:     0,
+			Sort:       machines.SortOrderCreatedAtDesc,
+			DuePPMOnly: false,
 		}
 
 		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return([]*machines.Machine{}, nil)
 		suite.mockRepo.EXPECT().Count(gomock.Any()).Return(0, nil)
-		suite.mockRepo.EXPECT().DuePPM(gomock.Any()).Return([]*machines.Machine{}, nil)
+		suite.mockRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
 
 		req := httptest.NewRequest("GET", "/machines", nil)
 		w := httptest.NewRecorder()
@@ -736,7 +729,9 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.Assert().Equal("created_at_desc", response.Sort)
 
 		suite.Assert().Len(response.Machines, 0)
-		suite.Assert().Len(response.DuePPM, 0)
+		suite.Assert().Equal(int32(0), response.OverdueCount)
+		suite.Assert().Equal(int32(0), response.DueCount)
+		suite.Assert().Equal(int32(0), response.AlmostDueCount)
 	})
 
 	suite.Run("should return 500 on repository error when counting machines", func() {
@@ -752,10 +747,10 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.Assert().Contains(w.Body.String(), "Failed to count machines")
 	})
 
-	suite.Run("should return 500 on repository error when getting due PPM machines", func() {
+	suite.Run("should return 500 on repository error when counting by status", func() {
 		suite.mockRepo.EXPECT().List(gomock.Any(), gomock.Any()).Return([]*machines.Machine{}, nil)
 		suite.mockRepo.EXPECT().Count(gomock.Any()).Return(0, nil)
-		suite.mockRepo.EXPECT().DuePPM(gomock.Any()).Return(nil, fmt.Errorf("database error"))
+		suite.mockRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), fmt.Errorf("database error"))
 
 		req := httptest.NewRequest("GET", "/machines", nil)
 		w := httptest.NewRecorder()
@@ -763,7 +758,153 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.handler.ListMachines(w, req)
 
 		suite.Assert().Equal(http.StatusInternalServerError, w.Code)
-		suite.Assert().Contains(w.Body.String(), "Failed to get due PPM machines")
+		suite.Assert().Contains(w.Body.String(), "Failed to count machines by status")
+	})
+
+	suite.Run("should use DuePPMOnly=true when provided", func() {
+		expectedMachines := []*machines.Machine{
+			{SerialNumber: "DUEPPM001", Customer: "Customer 1", Status: "Overdue"},
+			{SerialNumber: "DUEPPM002", Customer: "Customer 2", Status: "Due"},
+		}
+
+		expectedOptions := &machines.ListOptions{
+			Limit:      50,
+			Offset:     0,
+			Sort:       machines.SortOrderCreatedAtDesc,
+			DuePPMOnly: true,
+		}
+
+		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
+		suite.mockRepo.EXPECT().Count(gomock.Any()).Return(2, nil)
+		suite.mockRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(1), int32(1), int32(0), nil)
+
+		req := httptest.NewRequest("GET", "/machines?due_ppm_only=true", nil)
+		w := httptest.NewRecorder()
+
+		suite.handler.ListMachines(w, req)
+
+		suite.Assert().Equal(http.StatusOK, w.Code)
+
+		var response handler.ListMachinesResponse
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		suite.Require().NoError(err)
+
+		suite.Assert().Len(response.Machines, 2)
+		suite.Assert().Equal(int32(1), response.OverdueCount)
+		suite.Assert().Equal(int32(1), response.DueCount)
+		suite.Assert().Equal(int32(0), response.AlmostDueCount)
+	})
+
+	suite.Run("should use DuePPMOnly=false when provided", func() {
+		expectedMachines := []*machines.Machine{
+			{SerialNumber: "MACHINE001", Customer: "Customer 1", Status: "Operational"},
+		}
+
+		expectedOptions := &machines.ListOptions{
+			Limit:      50,
+			Offset:     0,
+			Sort:       machines.SortOrderCreatedAtDesc,
+			DuePPMOnly: false,
+		}
+
+		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
+		suite.mockRepo.EXPECT().Count(gomock.Any()).Return(1, nil)
+		suite.mockRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
+
+		req := httptest.NewRequest("GET", "/machines?due_ppm_only=false", nil)
+		w := httptest.NewRecorder()
+
+		suite.handler.ListMachines(w, req)
+
+		suite.Assert().Equal(http.StatusOK, w.Code)
+
+		var response handler.ListMachinesResponse
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		suite.Require().NoError(err)
+
+		suite.Assert().Len(response.Machines, 1)
+		suite.Assert().Equal(int32(0), response.OverdueCount)
+		suite.Assert().Equal(int32(0), response.DueCount)
+		suite.Assert().Equal(int32(0), response.AlmostDueCount)
+	})
+
+	suite.Run("should combine DuePPMOnly with other parameters", func() {
+		expectedMachines := []*machines.Machine{
+			{SerialNumber: "DUEPPM003", Customer: "Customer 3", Status: "Almost Due"},
+		}
+
+		expectedOptions := &machines.ListOptions{
+			Limit:      10,
+			Offset:     5,
+			Sort:       machines.SortOrderCreatedAtAsc,
+			DuePPMOnly: true,
+		}
+
+		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
+		suite.mockRepo.EXPECT().Count(gomock.Any()).Return(1, nil)
+		suite.mockRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(1), nil)
+
+		req := httptest.NewRequest("GET", "/machines?limit=10&offset=5&sort=created_at_asc&due_ppm_only=true", nil)
+		w := httptest.NewRecorder()
+
+		suite.handler.ListMachines(w, req)
+
+		suite.Assert().Equal(http.StatusOK, w.Code)
+
+		var response handler.ListMachinesResponse
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		suite.Require().NoError(err)
+
+		suite.Assert().Len(response.Machines, 1)
+		suite.Assert().Equal(int32(10), response.Limit)
+		suite.Assert().Equal(int32(5), response.Offset)
+		suite.Assert().Equal("created_at_asc", response.Sort)
+		suite.Assert().Equal(int32(0), response.OverdueCount)
+		suite.Assert().Equal(int32(0), response.DueCount)
+		suite.Assert().Equal(int32(1), response.AlmostDueCount)
+	})
+
+	suite.Run("should return 400 for invalid due_ppm_only parameter", func() {
+		req := httptest.NewRequest("GET", "/machines?due_ppm_only=invalid", nil)
+		w := httptest.NewRecorder()
+
+		suite.handler.ListMachines(w, req)
+
+		suite.Assert().Equal(http.StatusBadRequest, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Invalid due_ppm_only parameter")
+	})
+
+	suite.Run("should default to false when due_ppm_only is not provided", func() {
+		expectedMachines := []*machines.Machine{
+			{SerialNumber: "MACHINE001", Customer: "Customer 1", Status: "Operational"},
+		}
+
+		expectedOptions := &machines.ListOptions{
+			Limit:      50,
+			Offset:     0,
+			Sort:       machines.SortOrderCreatedAtDesc,
+			DuePPMOnly: false,
+		}
+
+		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
+		suite.mockRepo.EXPECT().Count(gomock.Any()).Return(1, nil)
+		suite.mockRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
+
+		req := httptest.NewRequest("GET", "/machines", nil)
+		w := httptest.NewRecorder()
+
+		suite.handler.ListMachines(w, req)
+
+		suite.Assert().Equal(http.StatusOK, w.Code)
+
+		var response handler.ListMachinesResponse
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		suite.Require().NoError(err)
+
+		suite.Assert().Len(response.Machines, 1)
+		suite.Assert().Equal(int32(0), response.OverdueCount)
+		suite.Assert().Equal(int32(0), response.DueCount)
+		suite.Assert().Equal(int32(0), response.AlmostDueCount)
 	})
 }
 

@@ -333,6 +333,147 @@ func (suite *MachineRepositoryTestSuite) TestList() {
 		suite.Assert().Equal("INVALID001", machines[0].SerialNumber)
 	})
 
+	suite.Run("should return only due PPM machines when DuePPMOnly is true", func() {
+		// Create machines with different PPM dates
+		overdueMachine := testutils.CreateMachine("DUEPPM001")
+		overdueMachine.PpmDate = time.Now().AddDate(0, 0, -1) // Yesterday (overdue)
+		suite.Require().NoError(suite.repo.Create(ctx, overdueMachine))
+
+		dueMachine := testutils.CreateMachine("DUEPPM002")
+		dueMachine.PpmDate = time.Now() // Today (due)
+		suite.Require().NoError(suite.repo.Create(ctx, dueMachine))
+
+		almostDueMachine := testutils.CreateMachine("DUEPPM003")
+		almostDueMachine.PpmDate = time.Now().AddDate(0, 0, 10) // 10 days from now (almost due)
+		suite.Require().NoError(suite.repo.Create(ctx, almostDueMachine))
+
+		futureMachine := testutils.CreateMachine("DUEPPM004")
+		futureMachine.PpmDate = time.Now().AddDate(0, 0, 30) // 30 days from now (not due)
+		suite.Require().NoError(suite.repo.Create(ctx, futureMachine))
+
+		options := &machines.ListOptions{
+			Limit:      50,
+			Offset:     0,
+			Sort:       machines.SortOrderCreatedAtDesc,
+			DuePPMOnly: true,
+		}
+
+		machines, err := suite.repo.List(ctx, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machines, 3) // Should return overdue, due, and almost due machines
+
+		// Verify we got the expected machines
+		serialNumbers := make(map[string]bool)
+		for _, m := range machines {
+			serialNumbers[m.SerialNumber] = true
+		}
+		suite.Assert().True(serialNumbers["DUEPPM001"])
+		suite.Assert().True(serialNumbers["DUEPPM002"])
+		suite.Assert().True(serialNumbers["DUEPPM003"])
+		suite.Assert().False(serialNumbers["DUEPPM004"]) // Should not be included
+	})
+
+	suite.Run("should return empty list when no machines are due and DuePPMOnly is true", func() {
+		futureMachine := testutils.CreateMachine("DUEPPM005")
+		futureMachine.PpmDate = time.Now().AddDate(0, 0, 30) // 30 days from now
+		suite.Require().NoError(suite.repo.Create(ctx, futureMachine))
+
+		options := &machines.ListOptions{
+			Limit:      50,
+			Offset:     0,
+			Sort:       machines.SortOrderCreatedAtDesc,
+			DuePPMOnly: true,
+		}
+
+		machines, err := suite.repo.List(ctx, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machines, 0)
+	})
+
+	suite.Run("should return all machines when DuePPMOnly is false", func() {
+		// Create machines with different PPM dates
+		overdueMachine := testutils.CreateMachine("DUEPPM006")
+		overdueMachine.PpmDate = time.Now().AddDate(0, 0, -1)
+		suite.Require().NoError(suite.repo.Create(ctx, overdueMachine))
+
+		futureMachine := testutils.CreateMachine("DUEPPM007")
+		futureMachine.PpmDate = time.Now().AddDate(0, 0, 30)
+		suite.Require().NoError(suite.repo.Create(ctx, futureMachine))
+
+		options := &machines.ListOptions{
+			Limit:      50,
+			Offset:     0,
+			Sort:       machines.SortOrderCreatedAtDesc,
+			DuePPMOnly: false,
+		}
+
+		machines, err := suite.repo.List(ctx, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machines, 2) // Should return both machines
+
+		serialNumbers := make(map[string]bool)
+		for _, m := range machines {
+			serialNumbers[m.SerialNumber] = true
+		}
+		suite.Assert().True(serialNumbers["DUEPPM006"])
+		suite.Assert().True(serialNumbers["DUEPPM007"])
+	})
+
+	suite.Run("should respect pagination with DuePPMOnly", func() {
+		// Create multiple due machines
+		for i := 1; i <= 5; i++ {
+			machine := testutils.CreateMachine(fmt.Sprintf("DUEPPM%03d", i+10))
+			machine.PpmDate = time.Now().AddDate(0, 0, i-3) // Mix of overdue, due, and almost due
+			suite.Require().NoError(suite.repo.Create(ctx, machine))
+		}
+
+		options := &machines.ListOptions{
+			Limit:      2,
+			Offset:     0,
+			Sort:       machines.SortOrderCreatedAtDesc,
+			DuePPMOnly: true,
+		}
+
+		machines, err := suite.repo.List(ctx, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machines, 2) // Should respect limit
+
+		options.Offset = 2
+		machines, err = suite.repo.List(ctx, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machines, 2) // Should respect offset
+
+		options.Offset = 4
+		machines, err = suite.repo.List(ctx, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machines, 1) // Should return remaining due machines
+	})
+
+	suite.Run("should combine DuePPMOnly with sorting", func() {
+		// Create machines with different PPM dates and creation times
+		overdueMachine1 := testutils.CreateMachine("DUEPPM020")
+		overdueMachine1.PpmDate = time.Now().AddDate(0, 0, -1)
+		suite.Require().NoError(suite.repo.Create(ctx, overdueMachine1))
+		time.Sleep(10 * time.Millisecond)
+
+		overdueMachine2 := testutils.CreateMachine("DUEPPM021")
+		overdueMachine2.PpmDate = time.Now().AddDate(0, 0, -2)
+		suite.Require().NoError(suite.repo.Create(ctx, overdueMachine2))
+
+		options := &machines.ListOptions{
+			Limit:      50,
+			Offset:     0,
+			Sort:       machines.SortOrderCreatedAtDesc,
+			DuePPMOnly: true,
+		}
+
+		machines, err := suite.repo.List(ctx, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machines, 2)
+		// Should be sorted by creation time descending (newest first)
+		suite.Assert().Equal("DUEPPM021", machines[0].SerialNumber)
+		suite.Assert().Equal("DUEPPM020", machines[1].SerialNumber)
+	})
 }
 
 func (suite *MachineRepositoryTestSuite) TestDelete() {
@@ -384,55 +525,74 @@ func (suite *MachineRepositoryTestSuite) TestCount() {
 	})
 }
 
-func (suite *MachineRepositoryTestSuite) TestDuePPM() {
+func (suite *MachineRepositoryTestSuite) TestCountByStatus() {
 	ctx := context.Background()
 
-	suite.Run("should return machines that are overdue for PPM", func() {
-		machine := testutils.CreateMachine("DUEPPM001")
-		machine.PpmDate = time.Now().AddDate(0, 0, -1)
-		suite.Require().NoError(suite.repo.Create(ctx, machine))
+	suite.Run("should return correct counts for different PPM statuses", func() {
+		// Create machines with different PPM dates
+		overdueMachine := testutils.CreateMachine("OVERDUE001")
+		overdueMachine.PpmDate = time.Now().AddDate(0, 0, -1) // Yesterday (overdue)
+		suite.Require().NoError(suite.repo.Create(ctx, overdueMachine))
 
-		machinesList, err := suite.repo.DuePPM(ctx)
+		dueMachine := testutils.CreateMachine("DUE001")
+		dueMachine.PpmDate = time.Now() // Today (due)
+		suite.Require().NoError(suite.repo.Create(ctx, dueMachine))
+
+		almostDueMachine := testutils.CreateMachine("ALMOSTDUE001")
+		almostDueMachine.PpmDate = time.Now().AddDate(0, 0, 10) // 10 days from now (almost due)
+		suite.Require().NoError(suite.repo.Create(ctx, almostDueMachine))
+
+		futureMachine := testutils.CreateMachine("FUTURE001")
+		futureMachine.PpmDate = time.Now().AddDate(0, 0, 30) // 30 days from now (not due)
+		suite.Require().NoError(suite.repo.Create(ctx, futureMachine))
+
+		overdueCount, dueCount, almostDueCount, err := suite.repo.CountByStatus(ctx)
 		suite.Require().NoError(err)
-		suite.Assert().Len(machinesList, 1)
-		suite.Assert().Equal("DUEPPM001", machinesList[0].SerialNumber)
-		suite.Assert().Equal(string(machines.PPMStatusOverdue), machinesList[0].PpmStatus)
+		suite.Assert().Equal(int32(1), overdueCount)
+		suite.Assert().Equal(int32(1), dueCount)
+		suite.Assert().Equal(int32(1), almostDueCount)
 	})
 
-	suite.Run("should return machines that are due for PPM", func() {
-		machine := testutils.CreateMachine("DUEPPM002")
-		machine.PpmDate = time.Now()
-		suite.Require().NoError(suite.repo.Create(ctx, machine))
-
-		machinesList, err := suite.repo.DuePPM(ctx)
+	suite.Run("should return zero counts when no machines exist", func() {
+		overdueCount, dueCount, almostDueCount, err := suite.repo.CountByStatus(ctx)
 		suite.Require().NoError(err)
-		suite.Assert().Len(machinesList, 1)
-		suite.Assert().Equal("DUEPPM002", machinesList[0].SerialNumber)
-		suite.Assert().Equal(string(machines.PPMStatusDue), machinesList[0].PpmStatus)
+		suite.Assert().Equal(int32(0), overdueCount)
+		suite.Assert().Equal(int32(0), dueCount)
+		suite.Assert().Equal(int32(0), almostDueCount)
 	})
 
-	suite.Run("should return machines that are almost due for PPM", func() {
-		machine := testutils.CreateMachine("DUEPPM003")
-		machine.PpmDate = time.Now().AddDate(0, 0, 10)
-		suite.Require().NoError(suite.repo.Create(ctx, machine))
+	suite.Run("should return zero counts when no machines are due", func() {
+		futureMachine := testutils.CreateMachine("FUTURE002")
+		futureMachine.PpmDate = time.Now().AddDate(0, 0, 30) // 30 days from now
+		suite.Require().NoError(suite.repo.Create(ctx, futureMachine))
 
-		machinesList, err := suite.repo.DuePPM(ctx)
+		overdueCount, dueCount, almostDueCount, err := suite.repo.CountByStatus(ctx)
 		suite.Require().NoError(err)
-		suite.Assert().Len(machinesList, 1)
-		suite.Assert().Equal("DUEPPM003", machinesList[0].SerialNumber)
-		suite.Assert().Equal(string(machines.PPMStatusAlmostDue), machinesList[0].PpmStatus)
+		suite.Assert().Equal(int32(0), overdueCount)
+		suite.Assert().Equal(int32(0), dueCount)
+		suite.Assert().Equal(int32(0), almostDueCount)
 	})
 
-	suite.Run("should return empty list when no machines exist", func() {
-		machinesList, err := suite.repo.DuePPM(ctx)
-		suite.Require().NoError(err)
-		suite.Assert().Empty(machinesList)
-	})
+	suite.Run("should handle multiple machines with same status", func() {
+		// Create multiple overdue machines
+		for i := 1; i <= 3; i++ {
+			machine := testutils.CreateMachine(fmt.Sprintf("OVERDUE%03d", i))
+			machine.PpmDate = time.Now().AddDate(0, 0, -i) // Different overdue dates
+			suite.Require().NoError(suite.repo.Create(ctx, machine))
+		}
 
-	suite.Run("should return empty list when no machines are due for PPM", func() {
-		machinesList, err := suite.repo.DuePPM(ctx)
+		// Create multiple due machines
+		for i := 1; i <= 2; i++ {
+			machine := testutils.CreateMachine(fmt.Sprintf("DUE%03d", i))
+			machine.PpmDate = time.Now() // All due today
+			suite.Require().NoError(suite.repo.Create(ctx, machine))
+		}
+
+		overdueCount, dueCount, almostDueCount, err := suite.repo.CountByStatus(ctx)
 		suite.Require().NoError(err)
-		suite.Assert().Empty(machinesList)
+		suite.Assert().Equal(int32(3), overdueCount)
+		suite.Assert().Equal(int32(2), dueCount)
+		suite.Assert().Equal(int32(0), almostDueCount)
 	})
 }
 

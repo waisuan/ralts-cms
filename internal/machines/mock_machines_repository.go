@@ -49,6 +49,23 @@ func (mr *MockRepositoryMockRecorder) Count(ctx interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Count", reflect.TypeOf((*MockRepository)(nil).Count), ctx)
 }
 
+// CountByStatus mocks base method.
+func (m *MockRepository) CountByStatus(ctx context.Context) (int32, int32, int32, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CountByStatus", ctx)
+	ret0, _ := ret[0].(int32)
+	ret1, _ := ret[1].(int32)
+	ret2, _ := ret[2].(int32)
+	ret3, _ := ret[3].(error)
+	return ret0, ret1, ret2, ret3
+}
+
+// CountByStatus indicates an expected call of CountByStatus.
+func (mr *MockRepositoryMockRecorder) CountByStatus(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountByStatus", reflect.TypeOf((*MockRepository)(nil).CountByStatus), ctx)
+}
+
 // Create mocks base method.
 func (m *MockRepository) Create(ctx context.Context, machine *Machine) error {
 	m.ctrl.T.Helper()
@@ -75,21 +92,6 @@ func (m *MockRepository) Delete(ctx context.Context, serialNumber string) error 
 func (mr *MockRepositoryMockRecorder) Delete(ctx, serialNumber interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockRepository)(nil).Delete), ctx, serialNumber)
-}
-
-// DuePPM mocks base method.
-func (m *MockRepository) DuePPM(ctx context.Context) ([]*Machine, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DuePPM", ctx)
-	ret0, _ := ret[0].([]*Machine)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// DuePPM indicates an expected call of DuePPM.
-func (mr *MockRepositoryMockRecorder) DuePPM(ctx interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DuePPM", reflect.TypeOf((*MockRepository)(nil).DuePPM), ctx)
 }
 
 // GetBySerialNumber mocks base method.
