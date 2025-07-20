@@ -288,6 +288,167 @@ docker volume ls | grep postgres_data
 docker volume inspect ralts-cms_postgres_data
 ```
 
+## Database Setup Guide
+
+This project uses PostgreSQL with Docker for both development and testing environments. The databases are completely isolated to prevent data conflicts.
+
+### Quick Start
+
+#### Development Database
+```bash
+# Start development database
+make db-dev-up
+
+# Start development server with database
+make dev-with-db
+
+# Stop development database
+make db-dev-down
+```
+
+#### Test Database
+```bash
+# Start test database and run tests
+make test-with-db
+
+# Start test database only
+make db-test-up
+
+# Stop test database
+make db-test-down
+```
+
+#### Combined Commands
+```bash
+# Start both databases
+make db-up
+
+# Stop both databases
+make db-down
+
+# Check database status
+make db-status
+
+# Clean up all databases and volumes
+make db-clean
+```
+
+### Database Configuration
+
+#### Development Database
+- **Port**: 5432
+- **Database**: `ralts_cms_dev`
+- **User**: `ralts_user`
+- **Password**: `ralts_password`
+- **Container**: `postgres-dev`
+- **Volume**: `postgres_dev_data`
+
+#### Test Database
+- **Port**: 5433
+- **Database**: `ralts_cms_test`
+- **User**: `ralts_user`
+- **Password**: `ralts_password`
+- **Container**: `postgres-test`
+- **Volume**: `postgres_test_data`
+
+### Environment Variables
+
+For your application to connect to the databases, set these environment variables:
+
+#### Development
+```bash
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+POSTGRES_DB=ralts_cms_dev
+POSTGRES_USER=ralts_user
+POSTGRES_PASSWORD=ralts_password
+```
+
+#### Testing
+```bash
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5433
+POSTGRES_DB=ralts_cms_test
+POSTGRES_USER=ralts_user
+POSTGRES_PASSWORD=ralts_password
+```
+
+### Available Make Commands
+
+#### Database Management
+- `make db-dev-up` - Start development database
+- `make db-dev-down` - Stop development database
+- `make db-dev-logs` - View development database logs
+- `make db-dev-connect` - Connect to development database via psql
+
+- `make db-test-up` - Start test database
+- `make db-test-down` - Stop test database
+- `make db-test-logs` - View test database logs
+- `make db-test-connect` - Connect to test database via psql
+
+#### Combined Commands
+- `make db-up` - Start both databases
+- `make db-down` - Stop both databases
+- `make db-status` - Check status of all databases
+- `make db-clean` - Remove all containers and volumes
+
+#### Development Workflow
+- `make dev-with-db` - Start development server with database
+- `make test-with-db` - Run tests with test database
+
+### Data Isolation
+
+The databases are completely isolated:
+
+1. **Separate Containers**: Each environment has its own container
+2. **Separate Volumes**: Data is stored in different Docker volumes
+3. **Separate Ports**: Development uses port 5432, testing uses port 5433
+4. **Separate Database Names**: `ralts_cms_dev` vs `ralts_cms_test`
+
+### Troubleshooting
+
+#### Database Won't Start
+```bash
+# Check if port is already in use
+lsof -i :5432
+lsof -i :5433
+
+# Clean up and restart
+make db-clean
+make db-up
+```
+
+#### Connection Issues
+```bash
+# Check database status
+make db-status
+
+# View logs
+make db-dev-logs
+make db-test-logs
+
+# Test connection
+make db-dev-connect
+make db-test-connect
+```
+
+#### Reset Database
+```bash
+# Remove all data and start fresh
+make db-clean
+make db-up
+```
+
+### Docker Compose Files
+
+- `docker-compose.dev.yml` - Development database configuration
+- `docker-compose.test.yml` - Test database configuration
+- `docker-compose.yml` - Original configuration (kept for backward compatibility)
+
+### Migration Scripts
+
+Database initialization scripts should be placed in the `init-scripts/` directory. These will be automatically executed when the containers start for the first time.
+
 ## Manual Setup
 
 If you prefer to set up manually:

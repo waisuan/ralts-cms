@@ -16,7 +16,7 @@ type Config struct {
 	Env     string `env:"APP_ENV" envDefault:"development"`
 
 	// PostgreSQL Configuration
-	DATABASE_URL string `env:"DATABASE_URL" envDefault:"postgres://ralts_user:ralts_password@localhost:5432/ralts_cms"`
+	DATABASE_URL string `env:"DATABASE_URL"`
 
 	// Server Configuration
 	ServerPort string `env:"SERVER_PORT" envDefault:"8080"`
