@@ -18,6 +18,12 @@ interface SearchBarProps {
   searchOptions: SearchOptions;
 }
 
+// Helper function to convert internal PPM status to consumer-facing text
+function getPPMStatusDisplayText(internalValue: string): string {
+  const statusOption = SEARCHABLE_PPM_STATUSES.find(status => status.value === internalValue);
+  return statusOption ? statusOption.label : internalValue;
+}
+
 export default function SearchBar({ onSearch, searchOptions }: SearchBarProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
@@ -186,7 +192,7 @@ export default function SearchBar({ onSearch, searchOptions }: SearchBarProps) {
             ) : isPPMStatusPropertyValue ? (
               <>
                 Filtering by <span className="font-medium">{currentProperty?.label}</span>:{' '}
-                <span className="font-medium">{searchOptions.query}</span>
+                <span className="font-medium">{getPPMStatusDisplayText(searchOptions.query)}</span>
               </>
             ) : (
               <>

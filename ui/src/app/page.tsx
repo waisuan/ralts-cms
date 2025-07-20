@@ -5,8 +5,7 @@ import RecordsList, { SortType } from '@/components/RecordsList';
 import SearchBar, { SearchOptions } from '@/components/SearchBar';
 import OverdueAlert from '@/components/OverdueAlert';
 import { DEFAULT_SEARCH_PROPERTY } from '@/utils/constants';
-import { mockMachines } from '@/data/mockMachines';
-import { useOverdueStats } from '@/hooks/useOverdueStats';
+import { useMachines } from '@/hooks/useMachines';
 
 type FilterType = 'all' | 'overdue' | 'due';
 
@@ -20,8 +19,12 @@ export default function Home() {
   const [isOverdueDismissed, setIsOverdueDismissed] = useState(false);
   const [isDueDismissed, setIsDueDismissed] = useState(false);
 
-  // Calculate overdue statistics for the alert banner
-  const overdueStats = useOverdueStats(mockMachines);
+  // Get count values from backend for the alert banner
+  const { overdueCount, dueCount } = useMachines({
+    page: 1,
+    limit: 1, // We only need the counts, not the machines
+    autoFetch: true,
+  });
 
   const handleShowOverdue = () => {
     // Clear any existing search and show only overdue machines
@@ -62,7 +65,8 @@ export default function Home() {
       <div className="mb-8">
         {/* Overdue Alert Banner */}
         <OverdueAlert
-          stats={overdueStats}
+          overdueCount={overdueCount}
+          dueCount={dueCount}
           onShowOverdue={handleShowOverdue}
           onShowDue={handleShowDue}
           onDismissOverdue={handleDismissOverdue}

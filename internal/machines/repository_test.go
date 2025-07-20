@@ -112,26 +112,20 @@ func (suite *MachineRepositoryTestSuite) TestGetBySerialNumber() {
 		suite.Assert().NotEmpty(retrieved.UpdatedAt)
 	})
 
+	suite.Run("should return machine with PPM status", func() {
+		machine := testutils.CreateMachine("MACHINE006")
+		machine.PpmDate = time.Now().AddDate(0, 0, -1)
+		suite.Require().NoError(suite.repo.Create(ctx, machine))
+
+		retrieved, err := suite.repo.GetBySerialNumber(ctx, "MACHINE006")
+		suite.Require().NoError(err)
+		suite.Assert().Equal(string(machines.PPMStatusOverdue), retrieved.PpmStatus)
+	})
+
 	suite.Run("should return error for non-existent machine", func() {
 		_, err := suite.repo.GetBySerialNumber(ctx, "NONEXISTENT")
 		suite.Require().Error(err)
 		suite.Assert().Contains(err.Error(), "machine not found")
-	})
-
-	suite.Run("should get machine with all fields populated", func() {
-		machine := testutils.CreateMachine("MACHINE006")
-		machine.AdditionalNotes = "Special notes for testing"
-		machine.PpmStatus = string(machines.PPMStatusDue)
-		machine.Attachment = "special-test.pdf"
-
-		err := suite.repo.Create(ctx, machine)
-		suite.Require().NoError(err)
-
-		retrieved, err := suite.repo.GetBySerialNumber(ctx, "MACHINE006")
-		suite.Require().NoError(err)
-		suite.Assert().Equal("Special notes for testing", retrieved.AdditionalNotes)
-		suite.Assert().Equal(string(machines.PPMStatusDue), retrieved.PpmStatus)
-		suite.Assert().Equal("special-test.pdf", retrieved.Attachment)
 	})
 }
 
@@ -230,6 +224,28 @@ func (suite *MachineRepositoryTestSuite) TestList() {
 		suite.Assert().True(serialNumbers["LIST001"])
 		suite.Assert().True(serialNumbers["LIST002"])
 		suite.Assert().True(serialNumbers["LIST003"])
+	})
+
+	suite.Run("should return machines with PPM status", func() {
+		machine1 := testutils.CreateMachine("LIST004")
+		machine1.PpmDate = time.Now().AddDate(0, 0, -1)
+		suite.Require().NoError(suite.repo.Create(ctx, machine1))
+
+		machine2 := testutils.CreateMachine("LIST005")
+		machine2.PpmDate = time.Now()
+		suite.Require().NoError(suite.repo.Create(ctx, machine2))
+
+		machine3 := testutils.CreateMachine("LIST006")
+		machine3.PpmDate = time.Now().AddDate(0, 0, 10)
+		suite.Require().NoError(suite.repo.Create(ctx, machine3))
+
+		options := &machines.ListOptions{Limit: 50, Offset: 0, Sort: machines.SortOrderCreatedAtAsc}
+		machinesList, err := suite.repo.List(ctx, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machinesList, 3)
+		suite.Assert().Equal(string(machines.PPMStatusOverdue), machinesList[0].PpmStatus)
+		suite.Assert().Equal(string(machines.PPMStatusDue), machinesList[1].PpmStatus)
+		suite.Assert().Equal(string(machines.PPMStatusAlmostDue), machinesList[2].PpmStatus)
 	})
 
 	suite.Run("should respect limit parameter", func() {

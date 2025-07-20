@@ -2,8 +2,8 @@
 
 import { useState, useMemo } from 'react';
 import { Machine } from '../types/machine';
-import { getPPMStatus } from '../utils/ppmUtils';
 import { mockMaintenanceRecords } from '../data/mockMaintenance';
+import { PPM_STATUSES, PPM_STATUS_COLORS } from '../utils/constants';
 
 interface RecordCardProps {
   machine: Machine;
@@ -12,9 +12,34 @@ interface RecordCardProps {
   onDelete: (serial_number: string) => void;
 }
 
+// Helper function to get PPM status styling based on backend ppm_status field
+function getPPMStatusDisplay(ppmStatus: string) {
+  if (!ppmStatus) return null;
+  
+  switch (ppmStatus) {
+    case 'overdue':
+      return {
+        label: 'Overdue',
+        color: PPM_STATUS_COLORS[PPM_STATUSES.OVERDUE],
+      };
+    case 'due':
+      return {
+        label: 'Due',
+        color: PPM_STATUS_COLORS[PPM_STATUSES.DUE],
+      };
+    case 'almost_due':
+      return {
+        label: 'Upcoming',
+        color: PPM_STATUS_COLORS[PPM_STATUSES.ALMOST_DUE],
+      };
+    default:
+      return null;
+  }
+}
+
 export default function RecordCard({ machine, onView, onEdit, onDelete }: RecordCardProps) {
   const [showNotesModal, setShowNotesModal] = useState(false);
-  const status = getPPMStatus(machine.ppm_date);
+  const status = getPPMStatusDisplay(machine.ppm_status);
 
   // Count maintenance records for this machine
   const maintenanceCount = useMemo(() => {

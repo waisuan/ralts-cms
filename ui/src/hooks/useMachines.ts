@@ -19,6 +19,9 @@ export interface UseMachinesReturn {
   totalPages: number;
   loading: boolean;
   error: ApiError | null;
+  overdueCount: number;
+  dueCount: number;
+  almostDueCount: number;
   refetch: () => Promise<void>;
   setLimit: (limit: number) => void;
   setFilters: (filters: MachineFilters) => void;
@@ -41,6 +44,9 @@ export function useMachines(options: UseMachinesOptions = {}): UseMachinesReturn
   const [filters, setFilters] = useState<MachineFilters>(initialFilters);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
+  const [overdueCount, setOverdueCount] = useState(0);
+  const [dueCount, setDueCount] = useState(0);
+  const [almostDueCount, setAlmostDueCount] = useState(0);
 
   // Use refs to avoid stale closures
   const offsetRef = useRef(offset);
@@ -100,6 +106,9 @@ export function useMachines(options: UseMachinesOptions = {}): UseMachinesReturn
         setTotal(0);
         setOffset(0);
         setLimit(data.limit || currentLimit);
+        setOverdueCount(0);
+        setDueCount(0);
+        setAlmostDueCount(0);
         return;
       }
       
@@ -114,6 +123,9 @@ export function useMachines(options: UseMachinesOptions = {}): UseMachinesReturn
       setTotal(data.count);
       setOffset(data.offset);
       setLimit(data.limit);
+      setOverdueCount(data.overdue_count || 0);
+      setDueCount(data.due_count || 0);
+      setAlmostDueCount(data.almost_due_count || 0);
     } catch (err) {
       const apiError = handleApiError(err);
       logApiError('/api/v1/machines', apiError);
@@ -155,6 +167,9 @@ export function useMachines(options: UseMachinesOptions = {}): UseMachinesReturn
     setFilters(initialFilters);
     setLoading(false);
     setError(null);
+    setOverdueCount(0);
+    setDueCount(0);
+    setAlmostDueCount(0);
   }, [initialLimit, initialFilters]);
 
   const handleSetLimit = useCallback((newLimit: number) => {
@@ -177,6 +192,9 @@ export function useMachines(options: UseMachinesOptions = {}): UseMachinesReturn
     totalPages: Math.ceil(total / limit),
     loading,
     error,
+    overdueCount,
+    dueCount,
+    almostDueCount,
     refetch,
     setLimit: handleSetLimit,
     setFilters: handleSetFilters,

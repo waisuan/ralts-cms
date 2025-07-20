@@ -2,17 +2,16 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import RecordCard from './RecordCard';
-import MachineModal from './MachineModal';
-import { mockMaintenanceRecords } from '../data/mockMaintenance';
-import { SearchOptions } from './SearchBar';
-import { isDateProperty } from '@/utils/constants';
-import { getPPMStatusLabel } from '@/utils/ppmUtils';
-import { useOverdueStats } from '../hooks/useOverdueStats';
+import { Machine } from '../types/machine';
+import { MachineService, MachineFilters } from '../services/machineService';
 import { useMachines } from '../hooks/useMachines';
 import { useMachine } from '../hooks/useMachine';
-import { Machine } from '../types/machine';
-import { MachineFilters } from '../services/machineService';
+import { mockMaintenanceRecords } from '../data/mockMaintenance';
+import { SearchOptions } from './SearchBar';
+import { isDateProperty } from '../utils/constants';
+import RecordCard from './RecordCard';
+import MachineModal from './MachineModal';
+import LoadingSpinner from './LoadingSpinner';
 
 type FilterType = 'all' | 'overdue' | 'due';
 export type SortType = 'newest' | 'oldest';
@@ -73,6 +72,9 @@ export default function RecordsList({
     setLimit,
     setFilters,
     loadMore,
+    overdueCount,
+    dueCount,
+    almostDueCount,
   } = useMachines({
     page: 1,
     limit: ITEMS_PER_PAGE,
@@ -87,9 +89,6 @@ export default function RecordsList({
     deleteMachine,
     clearError: clearMachineError,
   } = useMachine();
-
-  // Calculate overdue statistics
-  const overdueStats = useOverdueStats(machines);
 
   // Count maintenance records for a machine
   const getMaintenanceCount = (serialNumber: string) => {
@@ -118,12 +117,12 @@ export default function RecordsList({
 
           return machineDate === searchDate;
         } else if (property === 'ppm_status') {
-          // Handle PPM status search by calculating status from ppm_date
-          const calculatedStatus = getPPMStatusLabel(machine.ppm_date);
-          if (!calculatedStatus) return false;
+          // Handle PPM status search using backend ppm_status field
+          const backendStatus = machine.ppm_status;
+          if (!backendStatus) return false;
 
           // Use exact matching for PPM status since user selects from dropdown
-          return calculatedStatus === searchOptions.query;
+          return backendStatus === searchOptions.query;
         } else {
           // Search in specific text property
           const fieldValue = machine[property as keyof typeof machine];
@@ -328,9 +327,9 @@ export default function RecordsList({
             </div>
 
             {/* Overdue Statistics Badge */}
-            {overdueStats.totalCriticalCount > 0 && (
+            {overdueCount > 0 && (
               <div className="flex items-center gap-2">
-                {overdueStats.overdueCount > 0 && (
+                {overdueCount > 0 && (
                   <div className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1">
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
@@ -340,10 +339,10 @@ export default function RecordsList({
                         d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
                       />
                     </svg>
-                    {overdueStats.overdueCount} Overdue
+                    {overdueCount} Overdue
                   </div>
                 )}
-                {overdueStats.dueCount > 0 && (
+                {dueCount > 0 && (
                   <div className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1">
                     <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
@@ -353,7 +352,7 @@ export default function RecordsList({
                         d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                       />
                     </svg>
-                    {overdueStats.dueCount} Due Today
+                    {dueCount} Due Today
                   </div>
                 )}
               </div>

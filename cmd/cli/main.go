@@ -68,7 +68,6 @@ func createMachines(deps *deps.Dependencies, count int) {
 		"Safety inspection required",
 	}
 	attachments := []string{"", "report.pdf", "manual.pdf", "specs.pdf", "maintenance.pdf", "inspection.pdf", "certificate.pdf", "warranty.pdf", "guide.pdf", "checklist.pdf", "protocol.pdf"}
-	ppmStatuses := []string{"", string(machines.PPMStatusOverdue), string(machines.PPMStatusDue), string(machines.PPMStatusAlmostDue)}
 
 	maintenanceActions := []string{
 		"Routine maintenance performed",
@@ -103,7 +102,6 @@ func createMachines(deps *deps.Dependencies, count int) {
 			ReportedBy:      randomChoice(reporters),
 			AdditionalNotes: randomChoice(notes),
 			Attachment:      randomChoice(attachments),
-			PpmStatus:       randomChoice(ppmStatuses),
 			TncDate:         randomDate(),
 			PpmDate:         randomDate(),
 		}

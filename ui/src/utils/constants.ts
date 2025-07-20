@@ -41,7 +41,7 @@ export const PPM_STATUS_COLORS = {
 export const SEARCHABLE_PPM_STATUSES = [
   { value: PPM_STATUSES.OVERDUE, label: 'Overdue' },
   { value: PPM_STATUSES.DUE, label: 'Due' },
-  { value: PPM_STATUSES.ALMOST_DUE, label: 'Almost Due' },
+  { value: PPM_STATUSES.ALMOST_DUE, label: 'Upcoming' },
 ] as const;
 
 // Type for search property values

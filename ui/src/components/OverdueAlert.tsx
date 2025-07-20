@@ -1,7 +1,6 @@
-import { OverdueStats } from '../hooks/useOverdueStats';
-
 interface OverdueAlertProps {
-  stats: OverdueStats;
+  overdueCount: number;
+  dueCount: number;
   onShowOverdue: () => void;
   onShowDue: () => void;
   onDismissOverdue?: () => void;
@@ -11,7 +10,8 @@ interface OverdueAlertProps {
 }
 
 export default function OverdueAlert({
-  stats,
+  overdueCount,
+  dueCount,
   onShowOverdue,
   onShowDue,
   onDismissOverdue,
@@ -21,8 +21,8 @@ export default function OverdueAlert({
 }: OverdueAlertProps) {
   // If both are dismissed or there are no alerts to show, don't render anything
   if (
-    (stats.overdueCount === 0 || isOverdueDismissed) &&
-    (stats.dueCount === 0 || isDueDismissed)
+    (overdueCount === 0 || isOverdueDismissed) &&
+    (dueCount === 0 || isDueDismissed)
   ) {
     return null;
   }
@@ -30,7 +30,7 @@ export default function OverdueAlert({
   return (
     <div className="mb-6">
       {/* Critical Alert for Overdue Machines */}
-      {stats.overdueCount > 0 && !isOverdueDismissed && (
+      {overdueCount > 0 && !isOverdueDismissed && (
         <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-3 rounded-r-md">
           <div className="flex items-center justify-between">
             <div className="flex items-center flex-1">
@@ -51,9 +51,9 @@ export default function OverdueAlert({
               </div>
               <div className="ml-3 flex-1">
                 <p className="text-sm font-semibold text-red-800">
-                  {stats.overdueCount === 1
+                  {overdueCount === 1
                     ? '1 machine is overdue'
-                    : `${stats.overdueCount} machines are overdue`}{' '}
+                    : `${overdueCount} machines are overdue`}{' '}
                   for PPM maintenance
                 </p>
                 <p className="text-xs text-red-700 mt-1">
@@ -90,7 +90,7 @@ export default function OverdueAlert({
       )}
 
       {/* Warning Alert for Due Today */}
-      {stats.dueCount > 0 && !isDueDismissed && (
+      {dueCount > 0 && !isDueDismissed && (
         <div className="bg-orange-50 border-l-4 border-orange-400 p-4 rounded-r-md">
           <div className="flex items-center justify-between">
             <div className="flex items-center flex-1">
@@ -111,7 +111,7 @@ export default function OverdueAlert({
               </div>
               <div className="ml-3 flex-1">
                 <p className="text-sm font-semibold text-orange-800">
-                  {stats.dueCount === 1 ? '1 machine is due' : `${stats.dueCount} machines are due`}{' '}
+                  {dueCount === 1 ? '1 machine is due' : `${dueCount} machines are due`}{' '}
                   for PPM maintenance today
                 </p>
                 <p className="text-xs text-orange-700 mt-1">

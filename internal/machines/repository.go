@@ -3,6 +3,7 @@ package machines
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -68,7 +69,7 @@ func (r *db) GetBySerialNumber(ctx context.Context, serialNumber string) (*Machi
 	query := `
 		SELECT id, serial_number, customer, state, account_type, model, status, brand, 
 		       district, person_in_charge, reported_by, additional_notes, attachment, 
-		       ppm_status, tnc_date, ppm_date, created_at, updated_at
+		       tnc_date, ppm_date, created_at, updated_at
 		FROM machines 
 		WHERE serial_number = $1
 	`
@@ -78,15 +79,19 @@ func (r *db) GetBySerialNumber(ctx context.Context, serialNumber string) (*Machi
 		&machine.ID, &machine.SerialNumber, &machine.Customer, &machine.State,
 		&machine.AccountType, &machine.Model, &machine.Status, &machine.Brand,
 		&machine.District, &machine.PersonInCharge, &machine.ReportedBy,
-		&machine.AdditionalNotes, &machine.Attachment, &machine.PpmStatus,
+		&machine.AdditionalNotes, &machine.Attachment,
 		&machine.TncDate, &machine.PpmDate, &machine.CreatedAt, &machine.UpdatedAt,
 	)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, fmt.Errorf("machine not found")
 		}
+
 		return nil, fmt.Errorf("failed to get machine: %w", err)
 	}
+
+	// Set PPM status based on the PPM date
+	machine.PpmStatus = string(r.calculatePPMStatus(machine.PpmDate))
 
 	return &machine, nil
 }
@@ -120,7 +125,7 @@ func (r *db) List(ctx context.Context, options *ListOptions) ([]*Machine, error)
 	query := fmt.Sprintf(`
 		SELECT id, serial_number, customer, state, account_type, model, status, brand, 
 		       district, person_in_charge, reported_by, additional_notes, attachment, 
-		       ppm_status, tnc_date, ppm_date, created_at, updated_at
+		       tnc_date, ppm_date, created_at, updated_at
 		FROM machines 
 		%s
 		%s
@@ -143,12 +148,16 @@ func (r *db) List(ctx context.Context, options *ListOptions) ([]*Machine, error)
 			&machine.ID, &machine.SerialNumber, &machine.Customer, &machine.State,
 			&machine.AccountType, &machine.Model, &machine.Status, &machine.Brand,
 			&machine.District, &machine.PersonInCharge, &machine.ReportedBy,
-			&machine.AdditionalNotes, &machine.Attachment, &machine.PpmStatus,
+			&machine.AdditionalNotes, &machine.Attachment,
 			&machine.TncDate, &machine.PpmDate, &machine.CreatedAt, &machine.UpdatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan machine: %w", err)
 		}
+
+		// Set PPM status based on the PPM date
+		machine.PpmStatus = string(r.calculatePPMStatus(machine.PpmDate))
+
 		machines = append(machines, &machine)
 	}
 
@@ -260,4 +269,26 @@ func (r *db) CountByStatus(ctx context.Context) (int32, int32, int32, error) {
 	}
 
 	return overdueCount, dueCount, almostDueCount, nil
+}
+
+// calculatePPMStatus determines the PPM status based on the PPM date
+func (r *db) calculatePPMStatus(ppmDate time.Time) PPMStatus {
+	now := time.Now().UTC()
+
+	// Remove time components for accurate day comparison
+	now = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	ppmDate = time.Date(ppmDate.Year(), ppmDate.Month(), ppmDate.Day(), 0, 0, 0, 0, time.UTC)
+
+	diffDays := int(ppmDate.Sub(now).Hours() / 24)
+
+	if diffDays < 0 {
+		return PPMStatusOverdue
+	} else if diffDays == 0 {
+		return PPMStatusDue
+	} else if diffDays <= 14 { // 2 weeks = 14 days
+		return PPMStatusAlmostDue
+	} else {
+		// More than 2 weeks in the future - return empty status
+		return ""
+	}
 }

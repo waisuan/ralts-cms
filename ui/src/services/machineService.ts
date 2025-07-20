@@ -10,6 +10,9 @@ export interface MachineFilters {
 
 export interface MachineListResponse {
   machines: Machine[];
+  overdue_count: number;
+  due_count: number;
+  almost_due_count: number;
   count: number;
   offset: number;
   limit: number;
@@ -59,7 +62,7 @@ export class MachineService {
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== '') {
           if (key === 'due_ppm' && typeof value === 'boolean') {
-            params[key] = value.toString();
+            params['due_ppm_only'] = value.toString();
           } else if (key === 'sort' && typeof value === 'string') {
             params[key] = value;
           } else if (key === 'limit' && typeof value === 'number') {
