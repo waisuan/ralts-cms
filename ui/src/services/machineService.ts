@@ -5,7 +5,6 @@ export interface MachineFilters {
   limit?: number;
   offset?: number;
   sort?: string;
-  due_ppm?: boolean;
   ppm_status_filter?: string;
 }
 
@@ -62,9 +61,7 @@ export class MachineService {
     if (filters) {
       Object.entries(filters).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== '') {
-          if (key === 'due_ppm' && typeof value === 'boolean') {
-            params['due_ppm_only'] = value.toString();
-          } else if (key === 'ppm_status_filter' && typeof value === 'string') {
+          if (key === 'ppm_status_filter' && typeof value === 'string') {
             params['ppm_status_filter'] = value;
           } else if (key === 'sort' && typeof value === 'string') {
             params[key] = value;

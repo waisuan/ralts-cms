@@ -66,11 +66,19 @@ export function useMachines(options: UseMachinesOptions = {}): UseMachinesReturn
     filtersRef.current = filters;
   }, [filters]);
 
+  // Update filters when options change
+  useEffect(() => {
+    if (JSON.stringify(initialFilters) !== JSON.stringify(filters)) {
+      setFilters(initialFilters);
+    }
+  }, [initialFilters, filters]);
+
   const fetchMachines = useCallback(async (targetOffset?: number, shouldAppend = false) => {
     setLoading(true);
     setError(null);
 
-    const currentOffset = targetOffset !== undefined ? targetOffset : offsetRef.current;
+    // When filters change, always start from offset 0 unless explicitly specified
+    const currentOffset = targetOffset !== undefined ? targetOffset : (shouldAppend ? offsetRef.current : 0);
     const currentLimit = limitRef.current;
     const currentFilters = filtersRef.current;
 
@@ -120,7 +128,17 @@ export function useMachines(options: UseMachinesOptions = {}): UseMachinesReturn
         setMachines(data.machines);
       }
       
-      setTotal(data.count);
+      // Determine which count to use based on the current filter
+      let totalCount = data.count;
+      if (currentFilters?.ppm_status_filter === 'overdue') {
+        totalCount = data.overdue_count || 0;
+      } else if (currentFilters?.ppm_status_filter === 'due') {
+        totalCount = data.due_count || 0;
+      } else if (currentFilters?.ppm_status_filter === 'almost_due') {
+        totalCount = data.almost_due_count || 0;
+      }
+      
+      setTotal(totalCount);
       setOffset(data.offset);
       setLimit(data.limit);
       setOverdueCount(data.overdue_count || 0);
@@ -139,9 +157,10 @@ export function useMachines(options: UseMachinesOptions = {}): UseMachinesReturn
   // Auto-fetch when dependencies change
   useEffect(() => {
     if (autoFetch) {
-      fetchMachines();
+      // When filters change, always start fresh from offset 0
+      fetchMachines(0, false);
     }
-  }, [fetchMachines, autoFetch]);
+  }, [fetchMachines, autoFetch, filters]); // Add filters as dependency
 
   const refetch = useCallback(async () => {
     await fetchMachines(0, false); // Reset to offset 0 and replace machines
@@ -180,8 +199,7 @@ export function useMachines(options: UseMachinesOptions = {}): UseMachinesReturn
 
   const handleSetFilters = useCallback((newFilters: MachineFilters) => {
     setFilters(newFilters);
-    setOffset(0); // Reset to first page when changing filters
-    setMachines([]); // Clear machines when changing filters
+    // Don't manually clear machines or reset offset - let fetchMachines handle it
   }, []);
 
   return {

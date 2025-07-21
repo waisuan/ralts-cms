@@ -44,7 +44,7 @@ export default function RecordsList({
   const apiFilters: MachineFilters = useMemo(() => {
     const filters: MachineFilters = {};
     
-    // Handle due_ppm filter based on filterType
+    // Handle ppm_status_filter based on filterType
     if (filterType === 'due') {
       filters.ppm_status_filter = 'due';
     } else if (filterType === 'overdue') {
@@ -136,10 +136,7 @@ export default function RecordsList({
     return filtered;
   }, [machines, searchOptions]);
 
-  // Update API filters when filter type or sort changes
-  useEffect(() => {
-    setFilters(apiFilters);
-  }, [apiFilters, setFilters]);
+
 
   const handleLoadMore = async () => {
     await loadMore();
