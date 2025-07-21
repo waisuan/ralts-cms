@@ -6,6 +6,7 @@ export interface MachineFilters {
   offset?: number;
   sort?: string;
   due_ppm?: boolean;
+  ppm_status_filter?: string;
 }
 
 export interface MachineListResponse {
@@ -63,6 +64,8 @@ export class MachineService {
         if (value !== undefined && value !== null && value !== '') {
           if (key === 'due_ppm' && typeof value === 'boolean') {
             params['due_ppm_only'] = value.toString();
+          } else if (key === 'ppm_status_filter' && typeof value === 'string') {
+            params['ppm_status_filter'] = value;
           } else if (key === 'sort' && typeof value === 'string') {
             params[key] = value;
           } else if (key === 'limit' && typeof value === 'number') {

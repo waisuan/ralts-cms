@@ -46,7 +46,9 @@ export default function RecordsList({
     
     // Handle due_ppm filter based on filterType
     if (filterType === 'due') {
-      filters.due_ppm = true;
+      filters.ppm_status_filter = 'due';
+    } else if (filterType === 'overdue') {
+      filters.ppm_status_filter = 'overdue';
     }
     
     // Handle sorting

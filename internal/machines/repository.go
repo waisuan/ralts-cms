@@ -28,19 +28,19 @@ const (
 
 // ListOptions defines the options for listing machines
 type ListOptions struct {
-	Limit      int32     `json:"limit"`
-	Offset     int32     `json:"offset"`
-	Sort       SortOrder `json:"sort"`
-	DuePPMOnly bool      `json:"due_ppm_only"`
+	Limit           int32     `json:"limit"`
+	Offset          int32     `json:"offset"`
+	Sort            SortOrder `json:"sort"`
+	PpmStatusFilter PPMStatus `json:"ppm_status_filter"`
 }
 
 // DefaultListOptions returns default list options
 func DefaultListOptions() *ListOptions {
 	return &ListOptions{
-		Limit:      50,
-		Offset:     0,
-		Sort:       SortOrderCreatedAtDesc,
-		DuePPMOnly: false,
+		Limit:           50,
+		Offset:          0,
+		Sort:            SortOrderCreatedAtDesc,
+		PpmStatusFilter: "",
 	}
 }
 
@@ -113,13 +113,21 @@ func (r *db) List(ctx context.Context, options *ListOptions) ([]*Machine, error)
 		orderByClause = "ORDER BY created_at DESC" // Default to most recent first
 	}
 
-	// Build WHERE clause for DuePPMOnly option
+	// Build WHERE clause for PPM status filtering
 	var whereClause string
 	var args []interface{}
 	argIndex := 1
 
-	if options.DuePPMOnly {
-		whereClause = "WHERE ppm_date <= CURRENT_DATE OR ppm_date <= CURRENT_DATE + INTERVAL '2 weeks'"
+	if options.PpmStatusFilter != "" {
+		// Filter by specific PPM status
+		switch options.PpmStatusFilter {
+		case PPMStatusOverdue:
+			whereClause = "WHERE ppm_date < CURRENT_DATE"
+		case PPMStatusDue:
+			whereClause = "WHERE ppm_date = CURRENT_DATE"
+		case PPMStatusAlmostDue:
+			whereClause = "WHERE ppm_date > CURRENT_DATE AND ppm_date <= CURRENT_DATE + INTERVAL '2 weeks'"
+		}
 	}
 
 	query := fmt.Sprintf(`

@@ -62,7 +62,7 @@ func (h *MachinesHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 	limitStr := r.URL.Query().Get("limit")
 	offsetStr := r.URL.Query().Get("offset")
 	sortStr := r.URL.Query().Get("sort")
-	duePPMOnlyStr := r.URL.Query().Get("due_ppm_only")
+	ppmStatusFilterStr := r.URL.Query().Get("ppm_status_filter")
 
 	// Parse limit parameter
 	limit := h.deps.Config.DefaultMachinesLimit
@@ -100,26 +100,28 @@ func (h *MachinesHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Parse due_ppm_only parameter
-	var duePPMOnly bool = false
-	if duePPMOnlyStr != "" {
-		switch duePPMOnlyStr {
-		case "true":
-			duePPMOnly = true
-		case "false":
-			duePPMOnly = false
+	// Parse ppm_status_filter parameter
+	var ppmStatusFilter machines.PPMStatus = ""
+	if ppmStatusFilterStr != "" {
+		switch ppmStatusFilterStr {
+		case "overdue":
+			ppmStatusFilter = machines.PPMStatusOverdue
+		case "due":
+			ppmStatusFilter = machines.PPMStatusDue
+		case "almost_due":
+			ppmStatusFilter = machines.PPMStatusAlmostDue
 		default:
-			http.Error(w, "Invalid due_ppm_only parameter. Must be 'true' or 'false'", http.StatusBadRequest)
+			http.Error(w, "Invalid ppm_status_filter parameter. Must be 'overdue', 'due', or 'almost_due'", http.StatusBadRequest)
 			return
 		}
 	}
 
 	// Create list options
 	options := &machines.ListOptions{
-		Limit:      limit,
-		Offset:     offset,
-		Sort:       sort,
-		DuePPMOnly: duePPMOnly,
+		Limit:           limit,
+		Offset:          offset,
+		Sort:            sort,
+		PpmStatusFilter: ppmStatusFilter,
 	}
 
 	// Get machines from repository

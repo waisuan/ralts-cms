@@ -419,10 +419,10 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		}
 
 		expectedOptions := &machines.ListOptions{
-			Limit:      50,
-			Offset:     0,
-			Sort:       machines.SortOrderCreatedAtDesc,
-			DuePPMOnly: false,
+			Limit:           50,
+			Offset:          0,
+			Sort:            machines.SortOrderCreatedAtDesc,
+			PpmStatusFilter: "",
 		}
 
 		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
@@ -458,10 +458,10 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		}
 
 		expectedOptions := &machines.ListOptions{
-			Limit:      25,
-			Offset:     0,
-			Sort:       machines.SortOrderCreatedAtDesc,
-			DuePPMOnly: false,
+			Limit:           25,
+			Offset:          0,
+			Sort:            machines.SortOrderCreatedAtDesc,
+			PpmStatusFilter: "",
 		}
 
 		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
@@ -492,10 +492,10 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		}
 
 		expectedOptions := &machines.ListOptions{
-			Limit:      50,
-			Offset:     10,
-			Sort:       machines.SortOrderCreatedAtDesc,
-			DuePPMOnly: false,
+			Limit:           50,
+			Offset:          10,
+			Sort:            machines.SortOrderCreatedAtDesc,
+			PpmStatusFilter: "",
 		}
 
 		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
@@ -526,10 +526,10 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		}
 
 		expectedOptions := &machines.ListOptions{
-			Limit:      50,
-			Offset:     0,
-			Sort:       machines.SortOrderCreatedAtAsc,
-			DuePPMOnly: false,
+			Limit:           50,
+			Offset:          0,
+			Sort:            machines.SortOrderCreatedAtAsc,
+			PpmStatusFilter: "",
 		}
 
 		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
@@ -559,10 +559,10 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		}
 
 		expectedOptions := &machines.ListOptions{
-			Limit:      10,
-			Offset:     20,
-			Sort:       machines.SortOrderCreatedAtDesc,
-			DuePPMOnly: false,
+			Limit:           10,
+			Offset:          20,
+			Sort:            machines.SortOrderCreatedAtDesc,
+			PpmStatusFilter: "",
 		}
 
 		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
@@ -594,10 +594,10 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		}
 
 		expectedOptions := &machines.ListOptions{
-			Limit:      50,
-			Offset:     0,
-			Sort:       machines.SortOrderCreatedAtDesc,
-			DuePPMOnly: false,
+			Limit:           50,
+			Offset:          0,
+			Sort:            machines.SortOrderCreatedAtDesc,
+			PpmStatusFilter: "",
 		}
 
 		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
@@ -683,10 +683,10 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 
 	suite.Run("should return 500 on repository error", func() {
 		expectedOptions := &machines.ListOptions{
-			Limit:      50,
-			Offset:     0,
-			Sort:       machines.SortOrderCreatedAtDesc,
-			DuePPMOnly: false,
+			Limit:           50,
+			Offset:          0,
+			Sort:            machines.SortOrderCreatedAtDesc,
+			PpmStatusFilter: "",
 		}
 
 		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(nil, fmt.Errorf("database error"))
@@ -702,10 +702,10 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 
 	suite.Run("should handle empty result set", func() {
 		expectedOptions := &machines.ListOptions{
-			Limit:      50,
-			Offset:     0,
-			Sort:       machines.SortOrderCreatedAtDesc,
-			DuePPMOnly: false,
+			Limit:           50,
+			Offset:          0,
+			Sort:            machines.SortOrderCreatedAtDesc,
+			PpmStatusFilter: "",
 		}
 
 		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return([]*machines.Machine{}, nil)
@@ -761,24 +761,24 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.Assert().Contains(w.Body.String(), "Failed to count machines by status")
 	})
 
-	suite.Run("should use DuePPMOnly=true when provided", func() {
+	suite.Run("should use PpmStatusFilter=overdue when provided", func() {
 		expectedMachines := []*machines.Machine{
-			{SerialNumber: "DUEPPM001", Customer: "Customer 1", Status: "Overdue"},
-			{SerialNumber: "DUEPPM002", Customer: "Customer 2", Status: "Due"},
+			{SerialNumber: "OVERDUE001", Customer: "Customer 1", Status: "Overdue"},
+			{SerialNumber: "OVERDUE002", Customer: "Customer 2", Status: "Overdue"},
 		}
 
 		expectedOptions := &machines.ListOptions{
-			Limit:      50,
-			Offset:     0,
-			Sort:       machines.SortOrderCreatedAtDesc,
-			DuePPMOnly: true,
+			Limit:           50,
+			Offset:          0,
+			Sort:            machines.SortOrderCreatedAtDesc,
+			PpmStatusFilter: machines.PPMStatusOverdue,
 		}
 
 		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
 		suite.mockRepo.EXPECT().Count(gomock.Any()).Return(2, nil)
-		suite.mockRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(1), int32(1), int32(0), nil)
+		suite.mockRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(2), int32(0), int32(0), nil)
 
-		req := httptest.NewRequest("GET", "/machines?due_ppm_only=true", nil)
+		req := httptest.NewRequest("GET", "/machines?ppm_status_filter=overdue", nil)
 		w := httptest.NewRecorder()
 
 		suite.handler.ListMachines(w, req)
@@ -790,28 +790,29 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.Require().NoError(err)
 
 		suite.Assert().Len(response.Machines, 2)
-		suite.Assert().Equal(int32(1), response.OverdueCount)
-		suite.Assert().Equal(int32(1), response.DueCount)
+		suite.Assert().Equal(int32(2), response.OverdueCount)
+		suite.Assert().Equal(int32(0), response.DueCount)
 		suite.Assert().Equal(int32(0), response.AlmostDueCount)
 	})
 
-	suite.Run("should use DuePPMOnly=false when provided", func() {
+	suite.Run("should use PpmStatusFilter=due when provided", func() {
 		expectedMachines := []*machines.Machine{
-			{SerialNumber: "MACHINE001", Customer: "Customer 1", Status: "Operational"},
+			{SerialNumber: "DUE001", Customer: "Customer 1", Status: "Due"},
+			{SerialNumber: "DUE002", Customer: "Customer 2", Status: "Due"},
 		}
 
 		expectedOptions := &machines.ListOptions{
-			Limit:      50,
-			Offset:     0,
-			Sort:       machines.SortOrderCreatedAtDesc,
-			DuePPMOnly: false,
+			Limit:           50,
+			Offset:          0,
+			Sort:            machines.SortOrderCreatedAtDesc,
+			PpmStatusFilter: machines.PPMStatusDue,
 		}
 
 		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
-		suite.mockRepo.EXPECT().Count(gomock.Any()).Return(1, nil)
-		suite.mockRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
+		suite.mockRepo.EXPECT().Count(gomock.Any()).Return(2, nil)
+		suite.mockRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(2), int32(0), nil)
 
-		req := httptest.NewRequest("GET", "/machines?due_ppm_only=false", nil)
+		req := httptest.NewRequest("GET", "/machines?ppm_status_filter=due", nil)
 		w := httptest.NewRecorder()
 
 		suite.handler.ListMachines(w, req)
@@ -822,29 +823,63 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		suite.Require().NoError(err)
 
-		suite.Assert().Len(response.Machines, 1)
+		suite.Assert().Len(response.Machines, 2)
 		suite.Assert().Equal(int32(0), response.OverdueCount)
-		suite.Assert().Equal(int32(0), response.DueCount)
+		suite.Assert().Equal(int32(2), response.DueCount)
 		suite.Assert().Equal(int32(0), response.AlmostDueCount)
 	})
 
-	suite.Run("should combine DuePPMOnly with other parameters", func() {
+	suite.Run("should use PpmStatusFilter=almost_due when provided", func() {
 		expectedMachines := []*machines.Machine{
-			{SerialNumber: "DUEPPM003", Customer: "Customer 3", Status: "Almost Due"},
+			{SerialNumber: "ALMOSTDUE001", Customer: "Customer 1", Status: "Almost Due"},
+			{SerialNumber: "ALMOSTDUE002", Customer: "Customer 2", Status: "Almost Due"},
 		}
 
 		expectedOptions := &machines.ListOptions{
-			Limit:      10,
-			Offset:     5,
-			Sort:       machines.SortOrderCreatedAtAsc,
-			DuePPMOnly: true,
+			Limit:           50,
+			Offset:          0,
+			Sort:            machines.SortOrderCreatedAtDesc,
+			PpmStatusFilter: machines.PPMStatusAlmostDue,
+		}
+
+		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
+		suite.mockRepo.EXPECT().Count(gomock.Any()).Return(2, nil)
+		suite.mockRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(2), nil)
+
+		req := httptest.NewRequest("GET", "/machines?ppm_status_filter=almost_due", nil)
+		w := httptest.NewRecorder()
+
+		suite.handler.ListMachines(w, req)
+
+		suite.Assert().Equal(http.StatusOK, w.Code)
+
+		var response handler.ListMachinesResponse
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		suite.Require().NoError(err)
+
+		suite.Assert().Len(response.Machines, 2)
+		suite.Assert().Equal(int32(0), response.OverdueCount)
+		suite.Assert().Equal(int32(0), response.DueCount)
+		suite.Assert().Equal(int32(2), response.AlmostDueCount)
+	})
+
+	suite.Run("should combine PpmStatusFilter with other parameters", func() {
+		expectedMachines := []*machines.Machine{
+			{SerialNumber: "FILTERED001", Customer: "Customer 1", Status: "Due"},
+		}
+
+		expectedOptions := &machines.ListOptions{
+			Limit:           10,
+			Offset:          5,
+			Sort:            machines.SortOrderCreatedAtAsc,
+			PpmStatusFilter: machines.PPMStatusDue,
 		}
 
 		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
 		suite.mockRepo.EXPECT().Count(gomock.Any()).Return(1, nil)
-		suite.mockRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(1), nil)
+		suite.mockRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(1), int32(0), nil)
 
-		req := httptest.NewRequest("GET", "/machines?limit=10&offset=5&sort=created_at_asc&due_ppm_only=true", nil)
+		req := httptest.NewRequest("GET", "/machines?limit=10&offset=5&sort=created_at_asc&ppm_status_filter=due", nil)
 		w := httptest.NewRecorder()
 
 		suite.handler.ListMachines(w, req)
@@ -860,30 +895,30 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.Assert().Equal(int32(5), response.Offset)
 		suite.Assert().Equal("created_at_asc", response.Sort)
 		suite.Assert().Equal(int32(0), response.OverdueCount)
-		suite.Assert().Equal(int32(0), response.DueCount)
-		suite.Assert().Equal(int32(1), response.AlmostDueCount)
+		suite.Assert().Equal(int32(1), response.DueCount)
+		suite.Assert().Equal(int32(0), response.AlmostDueCount)
 	})
 
-	suite.Run("should return 400 for invalid due_ppm_only parameter", func() {
-		req := httptest.NewRequest("GET", "/machines?due_ppm_only=invalid", nil)
+	suite.Run("should return 400 for invalid ppm_status_filter parameter", func() {
+		req := httptest.NewRequest("GET", "/machines?ppm_status_filter=invalid", nil)
 		w := httptest.NewRecorder()
 
 		suite.handler.ListMachines(w, req)
 
 		suite.Assert().Equal(http.StatusBadRequest, w.Code)
-		suite.Assert().Contains(w.Body.String(), "Invalid due_ppm_only parameter")
+		suite.Assert().Contains(w.Body.String(), "Invalid ppm_status_filter parameter")
 	})
 
-	suite.Run("should default to false when due_ppm_only is not provided", func() {
+	suite.Run("should default to empty string when ppm_status_filter is not provided", func() {
 		expectedMachines := []*machines.Machine{
 			{SerialNumber: "MACHINE001", Customer: "Customer 1", Status: "Operational"},
 		}
 
 		expectedOptions := &machines.ListOptions{
-			Limit:      50,
-			Offset:     0,
-			Sort:       machines.SortOrderCreatedAtDesc,
-			DuePPMOnly: false,
+			Limit:           50,
+			Offset:          0,
+			Sort:            machines.SortOrderCreatedAtDesc,
+			PpmStatusFilter: "",
 		}
 
 		suite.mockRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
