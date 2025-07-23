@@ -4,9 +4,9 @@ import { notFound, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import MaintenanceHistory from '@/components/MaintenanceHistory';
 import MachineModal from '@/components/MachineModal';
-import { mockMachines } from '@/data/mockMachines';
-import { mockMaintenanceRecords } from '@/data/mockMaintenance';
 import { Machine } from '@/types/machine';
+import { MachineService } from '@/services/machineService';
+import { handleApiError } from '@/utils/api';
 
 interface MachinePageProps {
   params: Promise<{
@@ -16,17 +16,11 @@ interface MachinePageProps {
 
 function MachineContent({ machine }: { machine: Machine }) {
   const router = useRouter();
-  const [machines, setMachines] = useState(mockMachines);
   const [isMachineModalOpen, setIsMachineModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('edit');
   const [machineToEdit, setMachineToEdit] = useState<Machine | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [machineToDelete, setMachineToDelete] = useState<Machine | null>(null);
-
-  // Count maintenance records for this machine
-  const maintenanceCount = mockMaintenanceRecords.filter(
-    (record) => record.machine_serial_number === machine.serial_number
-  ).length;
 
   const handleBack = () => {
     router.push('/');
@@ -43,16 +37,17 @@ function MachineContent({ machine }: { machine: Machine }) {
     setShowDeleteConfirm(true);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (machineToDelete) {
-      // Remove the machine from the list
-      const updatedMachines = machines.filter(
-        (m) => m.serial_number !== machineToDelete.serial_number
-      );
-      setMachines(updatedMachines);
-
-      // Navigate back to home page
-      router.push('/');
+      try {
+        await MachineService.deleteMachine(machineToDelete.serial_number);
+        // Navigate back to home page
+        router.push('/');
+      } catch (error) {
+        console.error('Failed to delete machine:', error);
+        const apiError = handleApiError(error);
+        alert(`Failed to delete machine: ${apiError.message}`);
+      }
     }
     setShowDeleteConfirm(false);
   };
@@ -67,21 +62,25 @@ function MachineContent({ machine }: { machine: Machine }) {
     setIsMachineModalOpen(false);
   };
 
-  const handleMachineSubmit = (
+  const handleMachineSubmit = async (
     updatedMachine: Machine | Omit<Machine, 'created_at' | 'updated_at'>
   ) => {
-    // Update the machine in the list
-    const updatedMachines = machines.map((m) =>
-      m.serial_number === updatedMachine.serial_number ? (updatedMachine as Machine) : m
-    );
-    setMachines(updatedMachines);
+    try {
+      if (modalMode === 'edit' && machineToEdit) {
+        await MachineService.updateMachine(machineToEdit.serial_number, updatedMachine);
+      }
 
-    // Update the current machine state
-    setMachineToEdit(null);
-    setIsMachineModalOpen(false);
+      // Update the current machine state
+      setMachineToEdit(null);
+      setIsMachineModalOpen(false);
 
-    // Refresh the page to show updated data
-    window.location.reload();
+      // Refresh the page to show updated data
+      window.location.reload();
+    } catch (error) {
+      console.error('Failed to update machine:', error);
+      const apiError = handleApiError(error);
+      alert(`Failed to update machine: ${apiError.message}`);
+    }
   };
 
   return (
@@ -138,17 +137,6 @@ function MachineContent({ machine }: { machine: Machine }) {
                     This action cannot be undone. All data associated with this machine will be
                     permanently removed.
                   </p>
-                  {maintenanceCount > 0 && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-4">
-                      <div>
-                        <h4 className="text-sm font-bold text-red-800 mb-1 text-center">Warning</h4>
-                        <p className="text-sm text-red-800">
-                          This machine has {maintenanceCount} maintenance record
-                          {maintenanceCount !== 1 ? 's' : ''} that will also be deleted.
-                        </p>
-                      </div>
-                    </div>
-                  )}
                 </div>
                 <div className="flex space-x-3">
                   <button
@@ -178,6 +166,7 @@ function MachineContent({ machine }: { machine: Machine }) {
 export default function MachinePage({ params }: MachinePageProps) {
   const [machine, setMachine] = useState<Machine | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadMachine() {
@@ -188,18 +177,23 @@ export default function MachinePage({ params }: MachinePageProps) {
         // Decode the serial number from the URL
         const serialNumber = decodeURIComponent(resolvedParams.serial_number);
 
-        // Find the machine by serial number
-        const foundMachine = mockMachines.find((m) => m.serial_number === serialNumber);
-
-        if (!foundMachine) {
+        // Fetch the machine from the API
+        const response = await MachineService.getMachine(serialNumber);
+        
+        if (response.data) {
+          setMachine(response.data);
+        } else {
           notFound();
           return;
         }
-
-        setMachine(foundMachine);
       } catch (error) {
         console.error('Error loading machine:', error);
-        notFound();
+        const apiError = handleApiError(error);
+        if (apiError.status === 404) {
+          notFound();
+          return;
+        }
+        setError(apiError.message);
       } finally {
         setIsLoading(false);
       }
@@ -214,6 +208,24 @@ export default function MachinePage({ params }: MachinePageProps) {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading machine information...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-600 text-6xl mb-4">⚠️</div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Machine</h3>
+          <p className="text-gray-500 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Try Again
+          </button>
         </div>
       </div>
     );

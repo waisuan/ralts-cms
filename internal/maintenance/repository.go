@@ -42,6 +42,7 @@ type Repository interface {
 	Update(ctx context.Context, maintenance *Maintenance) error
 	Delete(ctx context.Context, machineSerialNumber, workOrderNumber string) error
 	Count(ctx context.Context) (int, error)
+	CountByMachine(ctx context.Context, machineSerialNumber string) (int, error)
 }
 
 type db struct {
@@ -208,6 +209,18 @@ func (r *db) Count(ctx context.Context) (int, error) {
 	err := r.client.QueryRow(ctx, query).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("failed to count maintenance records: %w", err)
+	}
+
+	return count, nil
+}
+
+func (r *db) CountByMachine(ctx context.Context, machineSerialNumber string) (int, error) {
+	query := `SELECT COUNT(*) FROM maintenance WHERE machine_serial_number = $1`
+
+	var count int
+	err := r.client.QueryRow(ctx, query, machineSerialNumber).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count maintenance records for machine: %w", err)
 	}
 
 	return count, nil

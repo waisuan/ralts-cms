@@ -1,4 +1,4 @@
-package handler
+package handlers
 
 import (
 	"encoding/json"
@@ -113,7 +113,7 @@ func (h *MaintenanceHandler) ListMaintenance(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	count, err := h.deps.MaintenanceRepository.Count(r.Context())
+	count, err := h.deps.MaintenanceRepository.CountByMachine(r.Context(), machineSerialNumber)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to count maintenance: %v", err), http.StatusInternalServerError)
 		return

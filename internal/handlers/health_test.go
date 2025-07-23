@@ -1,11 +1,11 @@
-package handler_test
+package handlers_test
 
 import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"ralts-cms/internal/deps"
-	"ralts-cms/internal/handler"
+	"ralts-cms/internal/handlers"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -15,14 +15,14 @@ import (
 type HealthHandlerTestSuite struct {
 	suite.Suite
 
-	handler *handler.HealthHandler
+	handler *handlers.HealthHandler
 	deps    *deps.Dependencies
 }
 
 // SetupTest sets up each test
 func (suite *HealthHandlerTestSuite) SetupTest() {
 	suite.deps = &deps.Dependencies{}
-	suite.handler = handler.NewHealthHandler(suite.deps)
+	suite.handler = handlers.NewHealthHandler(suite.deps)
 }
 
 func (suite *HealthHandlerTestSuite) TestHealth() {
@@ -41,7 +41,7 @@ func (suite *HealthHandlerTestSuite) TestHealth() {
 		suite.Assert().Equal("application/json", rr.Header().Get("Content-Type"))
 
 		// Parse response body
-		var response handler.HealthResponse
+		var response handlers.HealthResponse
 		err := json.Unmarshal(rr.Body.Bytes(), &response)
 		suite.Require().NoError(err)
 

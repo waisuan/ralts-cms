@@ -49,6 +49,21 @@ func (mr *MockRepositoryMockRecorder) Count(ctx interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Count", reflect.TypeOf((*MockRepository)(nil).Count), ctx)
 }
 
+// CountByMachine mocks base method.
+func (m *MockRepository) CountByMachine(ctx context.Context, machineSerialNumber string) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CountByMachine", ctx, machineSerialNumber)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CountByMachine indicates an expected call of CountByMachine.
+func (mr *MockRepositoryMockRecorder) CountByMachine(ctx, machineSerialNumber interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountByMachine", reflect.TypeOf((*MockRepository)(nil).CountByMachine), ctx, machineSerialNumber)
+}
+
 // Create mocks base method.
 func (m *MockRepository) Create(ctx context.Context, maintenance *Maintenance) error {
 	m.ctrl.T.Helper()

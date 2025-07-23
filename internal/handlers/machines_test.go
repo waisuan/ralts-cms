@@ -1,4 +1,4 @@
-package handler_test
+package handlers_test
 
 import (
 	"bytes"
@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"ralts-cms/internal/deps"
-	"ralts-cms/internal/handler"
+	"ralts-cms/internal/handlers"
 	"ralts-cms/internal/machines"
 	"testing"
 
@@ -21,7 +21,7 @@ import (
 type MachinesHandlerTestSuite struct {
 	suite.Suite
 
-	handler  *handler.MachinesHandler
+	handler  *handlers.MachinesHandler
 	mockRepo *machines.MockRepository
 	ctrl     *gomock.Controller
 }
@@ -37,7 +37,7 @@ func (suite *MachinesHandlerTestSuite) SetupTest() {
 			MaxMachinesLimit:     100,
 		},
 	}
-	suite.handler = handler.NewMachinesHandler(deps)
+	suite.handler = handlers.NewMachinesHandler(deps)
 }
 
 // TearDownTest cleans up after each test
@@ -437,7 +437,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.Assert().Equal(http.StatusOK, w.Code)
 		suite.Assert().Equal("application/json", w.Header().Get("Content-Type"))
 
-		var response handler.ListMachinesResponse
+		var response handlers.ListMachinesResponse
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		suite.Require().NoError(err)
 
@@ -475,7 +475,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 
 		suite.Assert().Equal(http.StatusOK, w.Code)
 
-		var response handler.ListMachinesResponse
+		var response handlers.ListMachinesResponse
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		suite.Require().NoError(err)
 
@@ -509,7 +509,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 
 		suite.Assert().Equal(http.StatusOK, w.Code)
 
-		var response handler.ListMachinesResponse
+		var response handlers.ListMachinesResponse
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		suite.Require().NoError(err)
 
@@ -543,7 +543,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 
 		suite.Assert().Equal(http.StatusOK, w.Code)
 
-		var response handler.ListMachinesResponse
+		var response handlers.ListMachinesResponse
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		suite.Require().NoError(err)
 
@@ -576,7 +576,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 
 		suite.Assert().Equal(http.StatusOK, w.Code)
 
-		var response handler.ListMachinesResponse
+		var response handlers.ListMachinesResponse
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		suite.Require().NoError(err)
 
@@ -611,7 +611,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 
 		suite.Assert().Equal(http.StatusOK, w.Code)
 
-		var response handler.ListMachinesResponse
+		var response handlers.ListMachinesResponse
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		suite.Require().NoError(err)
 
@@ -719,7 +719,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 
 		suite.Assert().Equal(http.StatusOK, w.Code)
 
-		var response handler.ListMachinesResponse
+		var response handlers.ListMachinesResponse
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		suite.Require().NoError(err)
 
@@ -785,7 +785,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 
 		suite.Assert().Equal(http.StatusOK, w.Code)
 
-		var response handler.ListMachinesResponse
+		var response handlers.ListMachinesResponse
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		suite.Require().NoError(err)
 
@@ -819,7 +819,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 
 		suite.Assert().Equal(http.StatusOK, w.Code)
 
-		var response handler.ListMachinesResponse
+		var response handlers.ListMachinesResponse
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		suite.Require().NoError(err)
 
@@ -853,7 +853,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 
 		suite.Assert().Equal(http.StatusOK, w.Code)
 
-		var response handler.ListMachinesResponse
+		var response handlers.ListMachinesResponse
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		suite.Require().NoError(err)
 
@@ -886,7 +886,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 
 		suite.Assert().Equal(http.StatusOK, w.Code)
 
-		var response handler.ListMachinesResponse
+		var response handlers.ListMachinesResponse
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		suite.Require().NoError(err)
 
@@ -932,7 +932,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 
 		suite.Assert().Equal(http.StatusOK, w.Code)
 
-		var response handler.ListMachinesResponse
+		var response handlers.ListMachinesResponse
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		suite.Require().NoError(err)
 

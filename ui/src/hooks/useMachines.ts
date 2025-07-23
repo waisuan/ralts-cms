@@ -31,7 +31,6 @@ export interface UseMachinesReturn {
 
 export function useMachines(options: UseMachinesOptions = {}): UseMachinesReturn {
   const {
-    page: initialPage = 1,
     limit: initialLimit = 10,
     filters: initialFilters = {},
     autoFetch = true,

@@ -29,6 +29,6 @@ export function buildApiUrl(endpoint: string): string {
 }
 
 // Validation helpers
-export function validateApiResponse<T>(response: any): response is T {
-  return response && typeof response === 'object';
+export function validateApiResponse<T>(response: unknown): response is T {
+  return Boolean(response && typeof response === 'object');
 } 

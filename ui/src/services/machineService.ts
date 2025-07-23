@@ -114,7 +114,7 @@ export class MachineService {
   /**
    * Get machine statistics (if available)
    */
-  static async getMachineStats(): Promise<ApiResponse<any>> {
-    return apiClient.get<any>(`${this.BASE_PATH}/stats`);
+  static async getMachineStats(): Promise<ApiResponse<unknown>> {
+    return apiClient.get<unknown>(`${this.BASE_PATH}/stats`);
   }
 } 

@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
-import { mockMaintenanceRecords } from '../data/mockMaintenance';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Machine } from '../types/machine';
 import { Maintenance, MaintenanceOrderType } from '../types/maintenance';
+import { MaintenanceService, CreateMaintenanceRequest, UpdateMaintenanceRequest } from '../services/maintenanceService';
+import { handleApiError } from '../utils/api';
 
 interface MaintenanceHistoryProps {
   machine: Machine;
@@ -12,7 +13,7 @@ interface MaintenanceHistoryProps {
   onDelete?: () => void;
 }
 
-type SortField = 'work_order_date' | 'work_order_number' | 'worker_order_type' | 'reported_by';
+type SortField = 'work_order_date' | 'work_order_number' | 'worker_order_type' | 'reported_by' | 'created_at';
 type SortDirection = 'asc' | 'desc';
 
 // Pagination configuration
@@ -111,12 +112,11 @@ export default function MaintenanceHistory({
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(ITEMS_PER_PAGE);
 
-  // Local state for maintenance records
-  const [localMaintenanceRecords, setLocalMaintenanceRecords] = useState<Maintenance[]>(() =>
-    mockMaintenanceRecords.filter(
-      (record) => record.machine_serial_number === machine.serial_number
-    )
-  );
+  // API state
+  const [maintenanceRecords, setMaintenanceRecords] = useState<Maintenance[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [totalCount, setTotalCount] = useState(0);
 
   // New record form state
   const [isAddRecordModalOpen, setIsAddRecordModalOpen] = useState(false);
@@ -166,8 +166,45 @@ export default function MaintenanceHistory({
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [dropdownPosition, setDropdownPosition] = useState<'above' | 'below'>('below');
 
-  // Use local maintenance records
-  const maintenanceRecords = localMaintenanceRecords;
+  // Load maintenance records from API
+  const loadMaintenanceRecords = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+
+      // Convert sort field to API format
+      let sortParam = 'work_order_date_desc';
+      if (sortField === 'work_order_date') {
+        sortParam = sortDirection === 'desc' ? 'work_order_date_desc' : 'work_order_date_asc';
+      } else if (sortField === 'created_at') {
+        sortParam = sortDirection === 'desc' ? 'created_at_desc' : 'created_at_asc';
+      }
+
+      const response = await MaintenanceService.getMaintenanceList(
+        machine.serial_number,
+        currentPage,
+        itemsPerPage,
+        { sort: sortParam }
+      );
+
+      if (response.data) {
+        // Handle null maintenance array from API
+        setMaintenanceRecords(response.data.maintenance || []);
+        setTotalCount(response.data.count || 0);
+      }
+    } catch (error) {
+      console.error('Failed to load maintenance records:', error);
+      const apiError = handleApiError(error);
+      setError(apiError.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [machine.serial_number, currentPage, itemsPerPage, sortField, sortDirection]);
+
+  // Load records when component mounts or dependencies change
+  useEffect(() => {
+    loadMaintenanceRecords();
+  }, [machine.serial_number, currentPage, itemsPerPage, sortField, sortDirection, loadMaintenanceRecords]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -185,6 +222,9 @@ export default function MaintenanceHistory({
 
   // Sort maintenance records
   const sortedRecords = useMemo(() => {
+    if (!maintenanceRecords || maintenanceRecords.length === 0) {
+      return [];
+    }
     return [...maintenanceRecords].sort((a, b) => {
       let aValue: string | number;
       let bValue: string | number;
@@ -219,8 +259,7 @@ export default function MaintenanceHistory({
   }, [maintenanceRecords, sortField, sortDirection]);
 
   // Pagination calculations
-  const totalItems = sortedRecords.length;
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const currentRecords = sortedRecords.slice(startIndex, endIndex);
@@ -413,7 +452,7 @@ export default function MaintenanceHistory({
     }
 
     // Check if work order number already exists
-    const existingRecord = localMaintenanceRecords.find(
+    const existingRecord = maintenanceRecords?.find(
       (record) => record.work_order_number === newRecordForm.work_order_number.trim()
     );
     if (existingRecord) {
@@ -424,28 +463,33 @@ export default function MaintenanceHistory({
     return Object.keys(errors).length === 0;
   };
 
-  const handleAddNewRecord = (e: React.FormEvent) => {
+  const handleAddNewRecord = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validateNewRecordForm()) {
       return;
     }
 
-    const now = new Date().toISOString();
-    const newRecord: Maintenance = {
-      machine_serial_number: machine.serial_number,
-      work_order_number: newRecordForm.work_order_number.trim(),
-      work_order_date: newRecordForm.work_order_date,
-      action_taken: newRecordForm.action_taken.trim(),
-      reported_by: newRecordForm.reported_by.trim(),
-      worker_order_type: newRecordForm.worker_order_type,
-      attachment: newRecordForm.attachment,
-      created_at: now,
-      updated_at: now,
-    };
+    try {
+      const createData: CreateMaintenanceRequest = {
+        work_order_number: newRecordForm.work_order_number.trim(),
+        work_order_date: newRecordForm.work_order_date,
+        action_taken: newRecordForm.action_taken.trim(),
+        reported_by: newRecordForm.reported_by.trim(),
+        worker_order_type: newRecordForm.worker_order_type,
+        attachment: newRecordForm.attachment || undefined,
+      };
 
-    setLocalMaintenanceRecords((prev) => [newRecord, ...prev]);
-    closeAddRecordModal();
+      await MaintenanceService.createMaintenance(machine.serial_number, createData);
+      
+      // Reload the maintenance records
+      await loadMaintenanceRecords();
+      closeAddRecordModal();
+    } catch (error) {
+      console.error('Failed to create maintenance record:', error);
+      const apiError = handleApiError(error);
+      alert(`Failed to create maintenance record: ${apiError.message}`);
+    }
   };
 
   // Edit record handlers
@@ -570,7 +614,7 @@ export default function MaintenanceHistory({
     }
 
     // Check if work order number already exists (excluding current record)
-    const existingRecord = localMaintenanceRecords.find(
+    const existingRecord = maintenanceRecords?.find(
       (record) =>
         record.work_order_number === editRecordForm.work_order_number.trim() &&
         record.work_order_number !== editingRecord?.work_order_number
@@ -583,30 +627,37 @@ export default function MaintenanceHistory({
     return Object.keys(errors).length === 0;
   };
 
-  const handleEditRecord = (e: React.FormEvent) => {
+  const handleEditRecord = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validateEditRecordForm() || !editingRecord) {
       return;
     }
 
-    const updatedRecord: Maintenance = {
-      ...editingRecord,
-      work_order_number: editRecordForm.work_order_number.trim(),
-      work_order_date: editRecordForm.work_order_date,
-      action_taken: editRecordForm.action_taken.trim(),
-      reported_by: editRecordForm.reported_by.trim(),
-      worker_order_type: editRecordForm.worker_order_type,
-      attachment: editRecordForm.attachment,
-      updated_at: new Date().toISOString(),
-    };
+    try {
+      const updateData: UpdateMaintenanceRequest = {
+        work_order_number: editRecordForm.work_order_number.trim(),
+        work_order_date: editRecordForm.work_order_date,
+        action_taken: editRecordForm.action_taken.trim(),
+        reported_by: editRecordForm.reported_by.trim(),
+        worker_order_type: editRecordForm.worker_order_type,
+        attachment: editRecordForm.attachment || undefined,
+      };
 
-    setLocalMaintenanceRecords((prev) =>
-      prev.map((record) =>
-        record.work_order_number === editingRecord.work_order_number ? updatedRecord : record
-      )
-    );
-    closeEditRecordModal();
+      await MaintenanceService.updateMaintenance(
+        machine.serial_number,
+        editingRecord.work_order_number,
+        updateData
+      );
+
+      // Reload the maintenance records
+      await loadMaintenanceRecords();
+      closeEditRecordModal();
+    } catch (error) {
+      console.error('Failed to update maintenance record:', error);
+      const apiError = handleApiError(error);
+      alert(`Failed to update maintenance record: ${apiError.message}`);
+    }
   };
 
   // Delete record handlers
@@ -621,13 +672,23 @@ export default function MaintenanceHistory({
     setShowDeleteConfirm(false);
   };
 
-  const handleDeleteRecord = () => {
+  const handleDeleteRecord = async () => {
     if (recordToDelete) {
-      setLocalMaintenanceRecords((prev) =>
-        prev.filter((record) => record.work_order_number !== recordToDelete.work_order_number)
-      );
+      try {
+        await MaintenanceService.deleteMaintenance(
+          machine.serial_number,
+          recordToDelete.work_order_number
+        );
+
+        // Reload the maintenance records
+        await loadMaintenanceRecords();
+        closeDeleteConfirm();
+      } catch (error) {
+        console.error('Failed to delete maintenance record:', error);
+        const apiError = handleApiError(error);
+        alert(`Failed to delete maintenance record: ${apiError.message}`);
+      }
     }
-    closeDeleteConfirm();
   };
 
   // Dropdown menu handlers
@@ -688,6 +749,45 @@ export default function MaintenanceHistory({
       </svg>
     );
   };
+
+  // Show loading state
+  if (isLoading && maintenanceRecords.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading maintenance records...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error && maintenanceRecords.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <div className="text-red-600 text-6xl mb-4">⚠️</div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Maintenance Records</h3>
+              <p className="text-gray-500 mb-4">{error}</p>
+              <button
+                onClick={loadMaintenanceRecords}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -878,30 +978,30 @@ export default function MaintenanceHistory({
           {/* Summary Statistics */}
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
             <div className="bg-white rounded-lg shadow-sm border p-4">
-              <div className="text-2xl font-bold text-gray-900">{maintenanceRecords.length}</div>
+              <div className="text-2xl font-bold text-gray-900">{maintenanceRecords?.length || 0}</div>
               <div className="text-sm text-gray-600">Total Records</div>
             </div>
             <div className="bg-white rounded-lg shadow-sm border p-4">
               <div className="text-2xl font-bold text-green-600">
-                {maintenanceRecords.filter((r) => r.worker_order_type === 'Preventive').length}
+                {maintenanceRecords?.filter((r) => r.worker_order_type === 'Preventive').length || 0}
               </div>
               <div className="text-sm text-gray-600">Preventive</div>
             </div>
             <div className="bg-white rounded-lg shadow-sm border p-4">
               <div className="text-2xl font-bold text-red-600">
-                {maintenanceRecords.filter((r) => r.worker_order_type === 'Emergency').length}
+                {maintenanceRecords?.filter((r) => r.worker_order_type === 'Emergency').length || 0}
               </div>
               <div className="text-sm text-gray-600">Emergency</div>
             </div>
             <div className="bg-white rounded-lg shadow-sm border p-4">
               <div className="text-2xl font-bold text-blue-600">
-                {maintenanceRecords.filter((r) => r.worker_order_type === 'Corrective').length}
+                {maintenanceRecords?.filter((r) => r.worker_order_type === 'Corrective').length || 0}
               </div>
               <div className="text-sm text-gray-600">Corrective</div>
             </div>
             <div className="bg-white rounded-lg shadow-sm border p-4">
               <div className="text-2xl font-bold text-purple-600">
-                {maintenanceRecords.filter((r) => r.worker_order_type === 'Inspection').length}
+                {maintenanceRecords?.filter((r) => r.worker_order_type === 'Inspection').length || 0}
               </div>
               <div className="text-sm text-gray-600">Inspection</div>
             </div>
@@ -1203,7 +1303,7 @@ export default function MaintenanceHistory({
 
                     {/* Pagination info */}
                     <div className="text-sm text-gray-900 font-medium">
-                      Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems}{' '}
+                      Showing {startIndex + 1} to {Math.min(endIndex, totalCount)} of {totalCount}{' '}
                       results
                     </div>
 

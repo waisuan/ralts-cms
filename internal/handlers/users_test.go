@@ -1,4 +1,4 @@
-package handler_test
+package handlers_test
 
 import (
 	"bytes"
@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"ralts-cms/internal/deps"
-	"ralts-cms/internal/handler"
+	"ralts-cms/internal/handlers"
 	"ralts-cms/internal/users"
 	"testing"
 
@@ -20,7 +20,7 @@ import (
 type UsersHandlerTestSuite struct {
 	suite.Suite
 
-	handler  *handler.UsersHandler
+	handler  *handlers.UsersHandler
 	mockRepo *users.MockRepository
 	ctrl     *gomock.Controller
 }
@@ -35,7 +35,7 @@ func (suite *UsersHandlerTestSuite) SetupTest() {
 		},
 		UsersRepository: suite.mockRepo,
 	}
-	suite.handler = handler.NewUsersHandler(deps)
+	suite.handler = handlers.NewUsersHandler(deps)
 }
 
 // TearDownTest cleans up after each test
@@ -45,7 +45,7 @@ func (suite *UsersHandlerTestSuite) TearDownTest() {
 
 func (suite *UsersHandlerTestSuite) TestCreateUser() {
 	suite.Run("should create user successfully", func() {
-		userData := handler.CreateUserRequest{
+		userData := handlers.CreateUserRequest{
 			Name:     "Test User",
 			Email:    "test@example.com",
 			Password: "mypassword123",
@@ -91,7 +91,7 @@ func (suite *UsersHandlerTestSuite) TestCreateUser() {
 	})
 
 	suite.Run("should return 500 on repository error", func() {
-		userData := handler.CreateUserRequest{
+		userData := handlers.CreateUserRequest{
 			Name:     "Error User",
 			Email:    "error@example.com",
 			Password: "mypassword123",
@@ -125,7 +125,7 @@ func (suite *UsersHandlerTestSuite) TestCreateUser() {
 
 func (suite *UsersHandlerTestSuite) TestLogin() {
 	suite.Run("should login successfully with valid credentials", func() {
-		loginRequest := handler.LoginRequest{
+		loginRequest := handlers.LoginRequest{
 			Email:    "test@example.com",
 			Password: "mypassword123",
 		}
@@ -186,7 +186,7 @@ func (suite *UsersHandlerTestSuite) TestLogin() {
 	})
 
 	suite.Run("should return 401 when user cannot be authenticated", func() {
-		loginRequest := handler.LoginRequest{
+		loginRequest := handlers.LoginRequest{
 			Email:    "nonexistent@example.com",
 			Password: "mypassword123",
 		}

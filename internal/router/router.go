@@ -3,7 +3,7 @@ package router
 import (
 	"net/http"
 	"ralts-cms/internal/deps"
-	"ralts-cms/internal/handler"
+	"ralts-cms/internal/handlers"
 	"ralts-cms/internal/middlewares"
 
 	"github.com/gorilla/mux"
@@ -14,7 +14,7 @@ func NewRouter(deps *deps.Dependencies) http.Handler {
 	r := mux.NewRouter()
 
 	// Health endpoint (no auth required)
-	r.HandleFunc("/health", handler.NewHealthHandler(deps).Health).Methods(http.MethodGet)
+	r.HandleFunc("/health", handlers.NewHealthHandler(deps).Health).Methods(http.MethodGet)
 
 	// Global OPTIONS handler for CORS preflight
 	r.Methods(http.MethodOptions).HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -25,25 +25,25 @@ func NewRouter(deps *deps.Dependencies) http.Handler {
 	})
 
 	// Public endpoints (no auth required)
-	r.HandleFunc("/api/v1/users/login", handler.NewUsersHandler(deps).Login).Methods(http.MethodPost)
-	r.HandleFunc("/api/v1/users", handler.NewUsersHandler(deps).CreateUser).Methods(http.MethodPost)
+	r.HandleFunc("/api/v1/users/login", handlers.NewUsersHandler(deps).Login).Methods(http.MethodPost)
+	r.HandleFunc("/api/v1/users", handlers.NewUsersHandler(deps).CreateUser).Methods(http.MethodPost)
 
 	// Subrouter for protected endpoints
 	api := r.PathPrefix("/api/v1/").Subrouter()
 
 	// Machine endpoints (protected)
-	api.HandleFunc("/machines", handler.NewMachinesHandler(deps).ListMachines).Methods(http.MethodGet)
-	api.HandleFunc("/machines/{serial_number}", handler.NewMachinesHandler(deps).GetMachine).Methods(http.MethodGet)
-	api.HandleFunc("/machines", handler.NewMachinesHandler(deps).CreateMachine).Methods(http.MethodPost)
-	api.HandleFunc("/machines/{serial_number}", handler.NewMachinesHandler(deps).UpdateMachine).Methods(http.MethodPut)
-	api.HandleFunc("/machines/{serial_number}", handler.NewMachinesHandler(deps).DeleteMachine).Methods(http.MethodDelete)
+	api.HandleFunc("/machines", handlers.NewMachinesHandler(deps).ListMachines).Methods(http.MethodGet)
+	api.HandleFunc("/machines/{serial_number}", handlers.NewMachinesHandler(deps).GetMachine).Methods(http.MethodGet)
+	api.HandleFunc("/machines", handlers.NewMachinesHandler(deps).CreateMachine).Methods(http.MethodPost)
+	api.HandleFunc("/machines/{serial_number}", handlers.NewMachinesHandler(deps).UpdateMachine).Methods(http.MethodPut)
+	api.HandleFunc("/machines/{serial_number}", handlers.NewMachinesHandler(deps).DeleteMachine).Methods(http.MethodDelete)
 
 	// Maintenance endpoints (protected)
-	api.HandleFunc("/machines/{serial_number}/maintenance", handler.NewMaintenanceHandler(deps).ListMaintenance).Methods(http.MethodGet)
-	api.HandleFunc("/machines/{serial_number}/maintenance/{work_order_number}", handler.NewMaintenanceHandler(deps).GetMaintenance).Methods(http.MethodGet)
-	api.HandleFunc("/machines/{serial_number}/maintenance", handler.NewMaintenanceHandler(deps).CreateMaintenance).Methods(http.MethodPost)
-	api.HandleFunc("/machines/{serial_number}/maintenance", handler.NewMaintenanceHandler(deps).UpdateMaintenance).Methods(http.MethodPut)
-	api.HandleFunc("/machines/{serial_number}/maintenance/{work_order_number}", handler.NewMaintenanceHandler(deps).DeleteMaintenance).Methods(http.MethodDelete)
+	api.HandleFunc("/machines/{serial_number}/maintenance", handlers.NewMaintenanceHandler(deps).ListMaintenance).Methods(http.MethodGet)
+	api.HandleFunc("/machines/{serial_number}/maintenance/{work_order_number}", handlers.NewMaintenanceHandler(deps).GetMaintenance).Methods(http.MethodGet)
+	api.HandleFunc("/machines/{serial_number}/maintenance", handlers.NewMaintenanceHandler(deps).CreateMaintenance).Methods(http.MethodPost)
+	api.HandleFunc("/machines/{serial_number}/maintenance", handlers.NewMaintenanceHandler(deps).UpdateMaintenance).Methods(http.MethodPut)
+	api.HandleFunc("/machines/{serial_number}/maintenance/{work_order_number}", handlers.NewMaintenanceHandler(deps).DeleteMaintenance).Methods(http.MethodDelete)
 
 	// Apply middleware to protected endpoints only
 	api.Use(middlewares.LoggingMiddleware)

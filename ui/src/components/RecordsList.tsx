@@ -1,17 +1,15 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Machine } from '../types/machine';
-import { MachineService, MachineFilters } from '../services/machineService';
+import { MachineFilters } from '../services/machineService';
 import { useMachines } from '../hooks/useMachines';
 import { useMachine } from '../hooks/useMachine';
-import { mockMaintenanceRecords } from '../data/mockMaintenance';
 import { SearchOptions } from './SearchBar';
 import { isDateProperty } from '../utils/constants';
 import RecordCard from './RecordCard';
 import MachineModal from './MachineModal';
-import LoadingSpinner from './LoadingSpinner';
 
 type FilterType = 'all' | 'overdue' | 'due';
 export type SortType = 'newest' | 'oldest';
@@ -67,16 +65,12 @@ export default function RecordsList({
     total,
     offset,
     limit,
-    totalPages,
     loading,
     error,
     refetch,
-    setLimit,
-    setFilters,
     loadMore,
     overdueCount,
     dueCount,
-    almostDueCount,
   } = useMachines({
     page: 1,
     limit: ITEMS_PER_PAGE,
@@ -89,14 +83,9 @@ export default function RecordsList({
     createMachine,
     updateMachine,
     deleteMachine,
-    clearError: clearMachineError,
   } = useMachine();
 
-  // Count maintenance records for a machine
-  const getMaintenanceCount = (serialNumber: string) => {
-    return mockMaintenanceRecords.filter((record) => record.machine_serial_number === serialNumber)
-      .length;
-  };
+
 
   // Filter machines based on search options (client-side filtering for properties not supported by API)
   const filteredMachines = useMemo(() => {
@@ -495,22 +484,7 @@ export default function RecordsList({
                     This action cannot be undone. All data associated with this machine will be
                     permanently removed.
                   </p>
-                  {(() => {
-                    const maintenanceCount = getMaintenanceCount(machineToDelete.serial_number);
-                    return maintenanceCount > 0 ? (
-                      <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-4">
-                        <div>
-                          <h4 className="text-sm font-bold text-red-800 mb-1 text-center">
-                            Warning
-                          </h4>
-                          <p className="text-sm text-red-800">
-                            This machine has {maintenanceCount} maintenance record
-                            {maintenanceCount !== 1 ? 's' : ''} that will also be deleted.
-                          </p>
-                        </div>
-                      </div>
-                    ) : null;
-                  })()}
+                  {/* Maintenance count warning removed for now - will be implemented when maintenance API is ready */}
                 </div>
                 <div className="flex space-x-3">
                   <button

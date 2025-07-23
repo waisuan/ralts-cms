@@ -645,6 +645,47 @@ func (suite *MaintenanceRepositoryTestSuite) TestCount() {
 	})
 }
 
+func (suite *MaintenanceRepositoryTestSuite) TestCountByMachine() {
+	ctx := context.Background()
+
+	suite.Run("should return count of maintenance for specific machine", func() {
+		machineSerial := "MACHINE_COUNT_TEST"
+
+		// Create maintenance records for the target machine
+		maintenance1 := testutils.CreateMaintenance(machineSerial, "WO001")
+		maintenance2 := testutils.CreateMaintenance(machineSerial, "WO002")
+		maintenance3 := testutils.CreateMaintenance(machineSerial, "WO003")
+
+		err := suite.repo.Create(ctx, maintenance1)
+		suite.Require().NoError(err)
+		err = suite.repo.Create(ctx, maintenance2)
+		suite.Require().NoError(err)
+		err = suite.repo.Create(ctx, maintenance3)
+		suite.Require().NoError(err)
+
+		// Create maintenance for a different machine
+		otherMaintenance := testutils.CreateMaintenance("OTHER_MACHINE", "WO004")
+		err = suite.repo.Create(ctx, otherMaintenance)
+		suite.Require().NoError(err)
+
+		count, err := suite.repo.CountByMachine(ctx, machineSerial)
+		suite.Require().NoError(err)
+		suite.Assert().Equal(3, count)
+	})
+
+	suite.Run("should return 0 for machine with no maintenance records", func() {
+		count, err := suite.repo.CountByMachine(ctx, "NO_MAINTENANCE_MACHINE")
+		suite.Require().NoError(err)
+		suite.Assert().Equal(0, count)
+	})
+
+	suite.Run("should return 0 for non-existent machine", func() {
+		count, err := suite.repo.CountByMachine(ctx, "NON_EXISTENT_MACHINE")
+		suite.Require().NoError(err)
+		suite.Assert().Equal(0, count)
+	})
+}
+
 // TestMaintenanceRepositoryTestSuite runs the test suite
 func TestMaintenanceRepositoryTestSuite(t *testing.T) {
 	suite.Run(t, new(MaintenanceRepositoryTestSuite))

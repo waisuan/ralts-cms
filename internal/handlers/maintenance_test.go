@@ -1,4 +1,4 @@
-package handler_test
+package handlers_test
 
 import (
 	"bytes"
@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"ralts-cms/internal/deps"
-	"ralts-cms/internal/handler"
+	"ralts-cms/internal/handlers"
 	"ralts-cms/internal/maintenance"
 	"testing"
 
@@ -21,7 +21,7 @@ import (
 type MaintenanceHandlerTestSuite struct {
 	suite.Suite
 
-	handler  *handler.MaintenanceHandler
+	handler  *handlers.MaintenanceHandler
 	mockRepo *maintenance.MockRepository
 	ctrl     *gomock.Controller
 }
@@ -38,7 +38,7 @@ func (suite *MaintenanceHandlerTestSuite) SetupTest() {
 		},
 		MaintenanceRepository: suite.mockRepo,
 	}
-	suite.handler = handler.NewMaintenanceHandler(deps)
+	suite.handler = handlers.NewMaintenanceHandler(deps)
 }
 
 // TearDownTest cleans up after each test
@@ -128,7 +128,7 @@ func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
 		}
 
 		suite.mockRepo.EXPECT().ListByMachine(gomock.Any(), "MACHINE123", expectedOptions).Return(expectedMaintenance, nil)
-		suite.mockRepo.EXPECT().Count(gomock.Any()).Return(2, nil)
+		suite.mockRepo.EXPECT().CountByMachine(gomock.Any(), "MACHINE123").Return(2, nil)
 
 		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance", nil)
 		w := httptest.NewRecorder()
@@ -170,7 +170,7 @@ func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
 		}
 
 		suite.mockRepo.EXPECT().ListByMachine(gomock.Any(), "MACHINE123", expectedOptions).Return(expectedMaintenance, nil)
-		suite.mockRepo.EXPECT().Count(gomock.Any()).Return(1, nil)
+		suite.mockRepo.EXPECT().CountByMachine(gomock.Any(), "MACHINE123").Return(1, nil)
 
 		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance?limit=25", nil)
 		w := httptest.NewRecorder()
@@ -206,7 +206,7 @@ func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
 		}
 
 		suite.mockRepo.EXPECT().ListByMachine(gomock.Any(), "MACHINE123", expectedOptions).Return(expectedMaintenance, nil)
-		suite.mockRepo.EXPECT().Count(gomock.Any()).Return(1, nil)
+		suite.mockRepo.EXPECT().CountByMachine(gomock.Any(), "MACHINE123").Return(1, nil)
 
 		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance?offset=10", nil)
 		w := httptest.NewRecorder()
@@ -242,7 +242,7 @@ func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
 		}
 
 		suite.mockRepo.EXPECT().ListByMachine(gomock.Any(), "MACHINE123", expectedOptions).Return(expectedMaintenance, nil)
-		suite.mockRepo.EXPECT().Count(gomock.Any()).Return(1, nil)
+		suite.mockRepo.EXPECT().CountByMachine(gomock.Any(), "MACHINE123").Return(1, nil)
 
 		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance?sort=created_at_desc", nil)
 		w := httptest.NewRecorder()
@@ -277,7 +277,7 @@ func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
 		}
 
 		suite.mockRepo.EXPECT().ListByMachine(gomock.Any(), "MACHINE123", expectedOptions).Return(expectedMaintenance, nil)
-		suite.mockRepo.EXPECT().Count(gomock.Any()).Return(1, nil)
+		suite.mockRepo.EXPECT().CountByMachine(gomock.Any(), "MACHINE123").Return(1, nil)
 
 		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance?limit=10&offset=20&sort=work_order_date_desc", nil)
 		w := httptest.NewRecorder()
@@ -377,7 +377,7 @@ func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
 		}
 
 		suite.mockRepo.EXPECT().ListByMachine(gomock.Any(), "NOMAINTAINANCE", expectedOptions).Return([]*maintenance.Maintenance{}, nil)
-		suite.mockRepo.EXPECT().Count(gomock.Any()).Return(0, nil)
+		suite.mockRepo.EXPECT().CountByMachine(gomock.Any(), "NOMAINTAINANCE").Return(0, nil)
 
 		req := httptest.NewRequest("GET", "/machines/NOMAINTAINANCE/maintenance", nil)
 		w := httptest.NewRecorder()
@@ -423,7 +423,7 @@ func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
 
 	suite.Run("should return 500 on repository error when counting maintenance records", func() {
 		suite.mockRepo.EXPECT().ListByMachine(gomock.Any(), gomock.Any(), gomock.Any()).Return([]*maintenance.Maintenance{}, nil)
-		suite.mockRepo.EXPECT().Count(gomock.Any()).Return(0, fmt.Errorf("database error"))
+		suite.mockRepo.EXPECT().CountByMachine(gomock.Any(), gomock.Any()).Return(0, fmt.Errorf("database error"))
 
 		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance", nil)
 		w := httptest.NewRecorder()
