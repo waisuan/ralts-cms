@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Machine } from '../types/machine';
 import { Maintenance, MaintenanceOrderType } from '../types/maintenance';
 import { MaintenanceService, CreateMaintenanceRequest, UpdateMaintenanceRequest } from '../services/maintenanceService';
@@ -13,8 +13,7 @@ interface MaintenanceHistoryProps {
   onDelete?: () => void;
 }
 
-type SortField = 'work_order_date' | 'work_order_number' | 'worker_order_type' | 'reported_by' | 'created_at';
-type SortDirection = 'asc' | 'desc';
+
 
 // Pagination configuration
 const ITEMS_PER_PAGE = 10;
@@ -101,8 +100,11 @@ export default function MaintenanceHistory({
   onEdit,
   onDelete,
 }: MaintenanceHistoryProps) {
-  const [sortField, setSortField] = useState<SortField>('work_order_date');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  console.log('🔧 MaintenanceHistory: Component mounted/rendered:', {
+    machineSerialNumber: machine.serial_number,
+    machineCustomer: machine.customer
+  });
+
   const [selectedAction, setSelectedAction] = useState<{
     workOrder: string;
     action: string;
@@ -172,39 +174,56 @@ export default function MaintenanceHistory({
       setIsLoading(true);
       setError(null);
 
-      // Convert sort field to API format
-      let sortParam = 'work_order_date_desc';
-      if (sortField === 'work_order_date') {
-        sortParam = sortDirection === 'desc' ? 'work_order_date_desc' : 'work_order_date_asc';
-      } else if (sortField === 'created_at') {
-        sortParam = sortDirection === 'desc' ? 'created_at_desc' : 'created_at_asc';
-      }
+      console.log('🔧 MaintenanceHistory: Making API call with pagination params:', {
+        machineSerialNumber: machine.serial_number,
+        currentPage,
+        itemsPerPage,
+        calculatedOffset: (currentPage - 1) * itemsPerPage
+      });
 
       const response = await MaintenanceService.getMaintenanceList(
         machine.serial_number,
         currentPage,
-        itemsPerPage,
-        { sort: sortParam }
+        itemsPerPage
       );
+
+      console.log('🔧 MaintenanceHistory: API response received:', {
+        maintenanceRecordsCount: response.data?.maintenance?.length || 0,
+        totalCount: response.data?.count || 0,
+        limit: response.data?.limit,
+        offset: response.data?.offset,
+        sort: response.data?.sort
+      });
 
       if (response.data) {
         // Handle null maintenance array from API
         setMaintenanceRecords(response.data.maintenance || []);
         setTotalCount(response.data.count || 0);
+        
+        console.log('🔧 MaintenanceHistory: State updated:', {
+          maintenanceRecordsLength: response.data.maintenance?.length || 0,
+          totalCount: response.data.count || 0
+        });
       }
     } catch (error) {
-      console.error('Failed to load maintenance records:', error);
+      console.error('🔧 MaintenanceHistory: Failed to load maintenance records:', error);
       const apiError = handleApiError(error);
       setError(apiError.message);
     } finally {
       setIsLoading(false);
+      console.log('🔧 MaintenanceHistory: Loading completed');
     }
-  }, [machine.serial_number, currentPage, itemsPerPage, sortField, sortDirection]);
+  }, [machine.serial_number, currentPage, itemsPerPage]);
 
   // Load records when component mounts or dependencies change
   useEffect(() => {
+    console.log('🔧 MaintenanceHistory: useEffect triggered - loading records:', {
+      machineSerialNumber: machine.serial_number,
+      currentPage,
+      itemsPerPage
+    });
     loadMaintenanceRecords();
-  }, [machine.serial_number, currentPage, itemsPerPage, sortField, sortDirection, loadMaintenanceRecords]);
+  }, [machine.serial_number, currentPage, itemsPerPage, loadMaintenanceRecords]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -220,87 +239,72 @@ export default function MaintenanceHistory({
     };
   }, [openDropdownId]);
 
-  // Sort maintenance records
-  const sortedRecords = useMemo(() => {
-    if (!maintenanceRecords || maintenanceRecords.length === 0) {
-      return [];
-    }
-    return [...maintenanceRecords].sort((a, b) => {
-      let aValue: string | number;
-      let bValue: string | number;
-
-      switch (sortField) {
-        case 'work_order_date':
-          aValue = new Date(a.work_order_date).getTime();
-          bValue = new Date(b.work_order_date).getTime();
-          break;
-        case 'work_order_number':
-          aValue = a.work_order_number;
-          bValue = b.work_order_number;
-          break;
-        case 'worker_order_type':
-          aValue = a.worker_order_type;
-          bValue = b.worker_order_type;
-          break;
-        case 'reported_by':
-          aValue = a.reported_by;
-          bValue = b.reported_by;
-          break;
-        default:
-          return 0;
-      }
-
-      if (sortDirection === 'asc') {
-        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-      } else {
-        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
-      }
-    });
-  }, [maintenanceRecords, sortField, sortDirection]);
+  // Use maintenance records directly (no client-side sorting)
+  const sortedRecords = maintenanceRecords || [];
 
   // Pagination calculations
   const totalPages = Math.ceil(totalCount / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const currentRecords = sortedRecords.slice(startIndex, endIndex);
+  // Use the records directly from the API (already paginated)
+  const currentRecords = sortedRecords;
 
-  // Reset to first page when sorting changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [sortField, sortDirection]);
+  console.log('🔧 MaintenanceHistory: Pagination calculations:', {
+    totalCount,
+    itemsPerPage,
+    totalPages,
+    currentPage,
+    currentRecordsLength: currentRecords.length,
+    showingStart: ((currentPage - 1) * itemsPerPage) + 1,
+    showingEnd: Math.min(currentPage * itemsPerPage, totalCount)
+  });
 
   // Reset to first page when items per page changes
   useEffect(() => {
     setCurrentPage(1);
   }, [itemsPerPage]);
 
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortDirection('desc');
-    }
-  };
-
   // Pagination handlers
   const goToPage = (page: number) => {
-    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+    const newPage = Math.max(1, Math.min(page, totalPages));
+    console.log('🔧 MaintenanceHistory: goToPage called:', {
+      requestedPage: page,
+      newPage,
+      currentPage,
+      totalPages
+    });
+    setCurrentPage(newPage);
   };
 
   const goToNextPage = () => {
     if (currentPage < totalPages) {
+      console.log('🔧 MaintenanceHistory: goToNextPage called:', {
+        currentPage,
+        nextPage: currentPage + 1,
+        totalPages
+      });
       setCurrentPage(currentPage + 1);
+    } else {
+      console.log('🔧 MaintenanceHistory: goToNextPage - already on last page');
     }
   };
 
   const goToPreviousPage = () => {
     if (currentPage > 1) {
+      console.log('🔧 MaintenanceHistory: goToPreviousPage called:', {
+        currentPage,
+        previousPage: currentPage - 1
+      });
       setCurrentPage(currentPage - 1);
+    } else {
+      console.log('🔧 MaintenanceHistory: goToPreviousPage - already on first page');
     }
   };
 
   const handleItemsPerPageChange = (newItemsPerPage: number) => {
+    console.log('🔧 MaintenanceHistory: handleItemsPerPageChange called:', {
+      currentItemsPerPage: itemsPerPage,
+      newItemsPerPage,
+      currentPage
+    });
     setItemsPerPage(newItemsPerPage);
   };
 
@@ -720,35 +724,7 @@ export default function MaintenanceHistory({
     }
   };
 
-  const getSortIcon = (field: SortField) => {
-    if (sortField !== field) {
-      return (
-        <svg
-          className="h-4 w-4 text-gray-400"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
-          />
-        </svg>
-      );
-    }
 
-    return sortDirection === 'asc' ? (
-      <svg className="h-4 w-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-      </svg>
-    ) : (
-      <svg className="h-4 w-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-      </svg>
-    );
-  };
 
   // Show loading state
   if (isLoading && maintenanceRecords.length === 0) {
@@ -978,7 +954,7 @@ export default function MaintenanceHistory({
           {/* Summary Statistics */}
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
             <div className="bg-white rounded-lg shadow-sm border p-4">
-              <div className="text-2xl font-bold text-gray-900">{maintenanceRecords?.length || 0}</div>
+              <div className="text-2xl font-bold text-gray-900">{totalCount}</div>
               <div className="text-sm text-gray-600">Total Records</div>
             </div>
             <div className="bg-white rounded-lg shadow-sm border p-4">
@@ -1076,43 +1052,19 @@ export default function MaintenanceHistory({
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <button
-                          onClick={() => handleSort('work_order_number')}
-                          className="flex items-center gap-1 hover:text-gray-700"
-                        >
-                          Work Order
-                          {getSortIcon('work_order_number')}
-                        </button>
+                        Work Order
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <button
-                          onClick={() => handleSort('work_order_date')}
-                          className="flex items-center gap-1 hover:text-gray-700"
-                        >
-                          Date
-                          {getSortIcon('work_order_date')}
-                        </button>
+                        Date
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <button
-                          onClick={() => handleSort('worker_order_type')}
-                          className="flex items-center gap-1 hover:text-gray-700"
-                        >
-                          Type
-                          {getSortIcon('worker_order_type')}
-                        </button>
+                        Type
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Action Summary
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <button
-                          onClick={() => handleSort('reported_by')}
-                          className="flex items-center gap-1 hover:text-gray-700"
-                        >
-                          Reported By
-                          {getSortIcon('reported_by')}
-                        </button>
+                        Reported By
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Attachment
@@ -1303,7 +1255,7 @@ export default function MaintenanceHistory({
 
                     {/* Pagination info */}
                     <div className="text-sm text-gray-900 font-medium">
-                      Showing {startIndex + 1} to {Math.min(endIndex, totalCount)} of {totalCount}{' '}
+                      Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount}{' '}
                       results
                     </div>
 

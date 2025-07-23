@@ -41,10 +41,20 @@ export class MaintenanceService {
     filters?: MaintenanceFilters
   ): Promise<ApiResponse<MaintenanceListResponse>> {
     const encodedSerialNumber = encodeURIComponent(machineSerialNumber);
+    const calculatedOffset = (page - 1) * limit;
     const params: Record<string, string> = {
       limit: limit.toString(),
-      offset: ((page - 1) * limit).toString(),
+      offset: calculatedOffset.toString(),
     };
+
+    console.log('🔧 MaintenanceService: Making API call:', {
+      url: `${this.BASE_PATH}/${encodedSerialNumber}/maintenance`,
+      params,
+      page,
+      limit,
+      calculatedOffset,
+      filters
+    });
 
     // Add filters to query parameters
     if (filters) {
@@ -61,10 +71,22 @@ export class MaintenanceService {
       });
     }
 
-    return apiClient.get<MaintenanceListResponse>(
+    const response = await apiClient.get<MaintenanceListResponse>(
       `${this.BASE_PATH}/${encodedSerialNumber}/maintenance`,
       params
     );
+
+    console.log('🔧 MaintenanceService: API response received:', {
+      data: response.data ? {
+        maintenanceCount: response.data.maintenance?.length || 0,
+        totalCount: response.data.count,
+        limit: response.data.limit,
+        offset: response.data.offset,
+        sort: response.data.sort
+      } : null
+    });
+
+    return response;
   }
 
   /**

@@ -12,6 +12,14 @@ import (
 	"github.com/gorilla/mux"
 )
 
+type ListMaintenanceResponse struct {
+	Maintenance []*maintenance.Maintenance `json:"maintenance"`
+	Count       int32                      `json:"count"`
+	Limit       int32                      `json:"limit"`
+	Offset      int32                      `json:"offset"`
+	Sort        string                     `json:"sort"`
+}
+
 type MaintenanceHandler struct {
 	deps *deps.Dependencies
 }
@@ -120,12 +128,12 @@ func (h *MaintenanceHandler) ListMaintenance(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Build response
-	response := map[string]interface{}{
-		"maintenance": maintenanceList,
-		"count":       count,
-		"limit":       limit,
-		"offset":      offset,
-		"sort":        string(sort),
+	response := ListMaintenanceResponse{
+		Maintenance: maintenanceList,
+		Count:       int32(count),
+		Limit:       limit,
+		Offset:      offset,
+		Sort:        string(sort),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
