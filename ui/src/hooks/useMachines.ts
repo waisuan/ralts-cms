@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { MachineService, MachineFilters, MachineListResponse } from '../services/machineService';
 import { Machine } from '../types/machine';
 import { ApiError, handleApiError } from '../utils/api';
-import { logApiResponse, logApiError } from '../utils/debug';
 
 export interface UseMachinesOptions {
   page?: number;
@@ -81,29 +80,12 @@ export function useMachines(options: UseMachinesOptions = {}): UseMachinesReturn
     const currentLimit = limitRef.current;
     const currentFilters = filtersRef.current;
 
-    console.log('fetchMachines called:', { 
-      targetOffset, 
-      currentOffset, 
-      currentLimit, 
-      shouldAppend,
-      filters: currentFilters 
-    });
-
     try {
       // Calculate page from offset for the API call
       const page = Math.floor(currentOffset / currentLimit) + 1;
-      console.log('Making API call with:', { page, currentLimit, currentFilters });
       const response = await MachineService.getMachines(page, currentLimit, currentFilters);
-      logApiResponse('/api/v1/machines', response);
       
       const data = response.data as MachineListResponse;
-      
-      console.log('API response:', { 
-        machinesCount: data.machines?.length, 
-        total: data.count, 
-        offset: data.offset, 
-        limit: data.limit 
-      });
       
       if (!data || !data.machines) {
         console.warn('API returned unexpected format, using empty machines array');
@@ -145,7 +127,6 @@ export function useMachines(options: UseMachinesOptions = {}): UseMachinesReturn
       setAlmostDueCount(data.almost_due_count || 0);
     } catch (err) {
       const apiError = handleApiError(err);
-      logApiError('/api/v1/machines', apiError);
       setError(apiError);
       console.error('Failed to fetch machines:', apiError);
     } finally {
@@ -171,7 +152,6 @@ export function useMachines(options: UseMachinesOptions = {}): UseMachinesReturn
     const currentTotal = total;
     
     const nextOffset = currentOffset + currentLimit;
-    console.log('LoadMore called:', { currentOffset, currentLimit, nextOffset, currentTotal });
     if (nextOffset < currentTotal) {
       await fetchMachines(nextOffset, true); // Load next page and append
     }

@@ -52,10 +52,20 @@ export class MachineService {
     limit: number = 10,
     filters?: MachineFilters
   ): Promise<ApiResponse<MachineListResponse>> {
+    const calculatedOffset = (page - 1) * limit;
     const params: Record<string, string> = {
       limit: limit.toString(),
-      offset: ((page - 1) * limit).toString(),
+      offset: calculatedOffset.toString(),
     };
+
+    console.log('🔧 MachineService: Making API call:', {
+      url: this.BASE_PATH,
+      params,
+      page,
+      limit,
+      calculatedOffset,
+      filters
+    });
 
     // Add filters to query parameters
     if (filters) {
@@ -74,7 +84,19 @@ export class MachineService {
       });
     }
 
-    return apiClient.get<MachineListResponse>(this.BASE_PATH, params);
+    const response = await apiClient.get<MachineListResponse>(this.BASE_PATH, params);
+
+    console.log('🔧 MachineService: API response received:', {
+      data: response.data ? {
+        machinesCount: response.data.machines?.length || 0,
+        totalCount: response.data.count,
+        limit: response.data.limit,
+        offset: response.data.offset,
+        sort: response.data.sort
+      } : null
+    });
+
+    return response;
   }
 
   /**

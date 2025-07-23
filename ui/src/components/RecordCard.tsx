@@ -56,7 +56,6 @@ export default function RecordCard({ machine, onView, onEdit, onDelete }: Record
   const handleDownloadAttachment = () => {
     if (machine.attachment) {
       // In a real app, this would trigger the actual download
-      console.log('Downloading attachment:', machine.attachment);
       // For now, just show an alert
       alert(`Downloading attachment: ${machine.attachment}`);
     }

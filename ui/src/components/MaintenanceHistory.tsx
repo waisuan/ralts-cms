@@ -100,11 +100,6 @@ export default function MaintenanceHistory({
   onEdit,
   onDelete,
 }: MaintenanceHistoryProps) {
-  console.log('🔧 MaintenanceHistory: Component mounted/rendered:', {
-    machineSerialNumber: machine.serial_number,
-    machineCustomer: machine.customer
-  });
-
   const [selectedAction, setSelectedAction] = useState<{
     workOrder: string;
     action: string;
@@ -174,36 +169,16 @@ export default function MaintenanceHistory({
       setIsLoading(true);
       setError(null);
 
-      console.log('🔧 MaintenanceHistory: Making API call with pagination params:', {
-        machineSerialNumber: machine.serial_number,
-        currentPage,
-        itemsPerPage,
-        calculatedOffset: (currentPage - 1) * itemsPerPage
-      });
-
       const response = await MaintenanceService.getMaintenanceList(
         machine.serial_number,
         currentPage,
         itemsPerPage
       );
 
-      console.log('🔧 MaintenanceHistory: API response received:', {
-        maintenanceRecordsCount: response.data?.maintenance?.length || 0,
-        totalCount: response.data?.count || 0,
-        limit: response.data?.limit,
-        offset: response.data?.offset,
-        sort: response.data?.sort
-      });
-
       if (response.data) {
         // Handle null maintenance array from API
         setMaintenanceRecords(response.data.maintenance || []);
         setTotalCount(response.data.count || 0);
-        
-        console.log('🔧 MaintenanceHistory: State updated:', {
-          maintenanceRecordsLength: response.data.maintenance?.length || 0,
-          totalCount: response.data.count || 0
-        });
       }
     } catch (error) {
       console.error('🔧 MaintenanceHistory: Failed to load maintenance records:', error);
@@ -211,17 +186,11 @@ export default function MaintenanceHistory({
       setError(apiError.message);
     } finally {
       setIsLoading(false);
-      console.log('🔧 MaintenanceHistory: Loading completed');
     }
   }, [machine.serial_number, currentPage, itemsPerPage]);
 
   // Load records when component mounts or dependencies change
   useEffect(() => {
-    console.log('🔧 MaintenanceHistory: useEffect triggered - loading records:', {
-      machineSerialNumber: machine.serial_number,
-      currentPage,
-      itemsPerPage
-    });
     loadMaintenanceRecords();
   }, [machine.serial_number, currentPage, itemsPerPage, loadMaintenanceRecords]);
 
@@ -247,16 +216,6 @@ export default function MaintenanceHistory({
   // Use the records directly from the API (already paginated)
   const currentRecords = sortedRecords;
 
-  console.log('🔧 MaintenanceHistory: Pagination calculations:', {
-    totalCount,
-    itemsPerPage,
-    totalPages,
-    currentPage,
-    currentRecordsLength: currentRecords.length,
-    showingStart: ((currentPage - 1) * itemsPerPage) + 1,
-    showingEnd: Math.min(currentPage * itemsPerPage, totalCount)
-  });
-
   // Reset to first page when items per page changes
   useEffect(() => {
     setCurrentPage(1);
@@ -265,46 +224,22 @@ export default function MaintenanceHistory({
   // Pagination handlers
   const goToPage = (page: number) => {
     const newPage = Math.max(1, Math.min(page, totalPages));
-    console.log('🔧 MaintenanceHistory: goToPage called:', {
-      requestedPage: page,
-      newPage,
-      currentPage,
-      totalPages
-    });
     setCurrentPage(newPage);
   };
 
   const goToNextPage = () => {
     if (currentPage < totalPages) {
-      console.log('🔧 MaintenanceHistory: goToNextPage called:', {
-        currentPage,
-        nextPage: currentPage + 1,
-        totalPages
-      });
       setCurrentPage(currentPage + 1);
-    } else {
-      console.log('🔧 MaintenanceHistory: goToNextPage - already on last page');
     }
   };
 
   const goToPreviousPage = () => {
     if (currentPage > 1) {
-      console.log('🔧 MaintenanceHistory: goToPreviousPage called:', {
-        currentPage,
-        previousPage: currentPage - 1
-      });
       setCurrentPage(currentPage - 1);
-    } else {
-      console.log('🔧 MaintenanceHistory: goToPreviousPage - already on first page');
     }
   };
 
   const handleItemsPerPageChange = (newItemsPerPage: number) => {
-    console.log('🔧 MaintenanceHistory: handleItemsPerPageChange called:', {
-      currentItemsPerPage: itemsPerPage,
-      newItemsPerPage,
-      currentPage
-    });
     setItemsPerPage(newItemsPerPage);
   };
 
