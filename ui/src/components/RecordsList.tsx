@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Machine } from '../types/machine';
 import { MachineFilters } from '../services/machineService';
@@ -20,6 +20,7 @@ interface RecordsListProps {
   sortBy?: SortType;
   onShowAll?: () => void;
   onSortChange?: (sortBy: SortType) => void;
+  onCountsUpdate?: (overdue: number, due: number) => void;
 }
 
 const ITEMS_PER_PAGE = 12; // Show 12 machines per page
@@ -30,6 +31,7 @@ export default function RecordsList({
   sortBy = 'newest',
   onShowAll,
   onSortChange,
+  onCountsUpdate,
 }: RecordsListProps) {
   const router = useRouter();
   const [isMachineModalOpen, setIsMachineModalOpen] = useState(false);
@@ -84,6 +86,13 @@ export default function RecordsList({
     updateMachine,
     deleteMachine,
   } = useMachine();
+
+  // Update parent component with counts when they change
+  useEffect(() => {
+    if (onCountsUpdate) {
+      onCountsUpdate(overdueCount, dueCount);
+    }
+  }, [overdueCount, dueCount, onCountsUpdate]);
 
 
 

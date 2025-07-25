@@ -1,5 +1,6 @@
 import { apiClient, ApiResponse } from '../utils/api';
 import { Maintenance } from '../types/maintenance';
+import { htmlDateToBackendDate } from '../utils/dateUtils';
 
 export interface MaintenanceFilters {
   limit?: number;
@@ -47,14 +48,7 @@ export class MaintenanceService {
       offset: calculatedOffset.toString(),
     };
 
-    console.log('🔧 MaintenanceService: Making API call:', {
-      url: `${this.BASE_PATH}/${encodedSerialNumber}/maintenance`,
-      params,
-      page,
-      limit,
-      calculatedOffset,
-      filters
-    });
+
 
     // Add filters to query parameters
     if (filters) {
@@ -71,20 +65,20 @@ export class MaintenanceService {
       });
     }
 
+    console.log('🔧 API: GET /api/v1/machines/:serial_number/maintenance', { 
+      serialNumber: machineSerialNumber, 
+      params 
+    });
     const response = await apiClient.get<MaintenanceListResponse>(
       `${this.BASE_PATH}/${encodedSerialNumber}/maintenance`,
       params
     );
-
-    console.log('🔧 MaintenanceService: API response received:', {
-      data: response.data ? {
-        maintenanceCount: response.data.maintenance?.length || 0,
-        totalCount: response.data.count,
-        limit: response.data.limit,
-        offset: response.data.offset,
-        sort: response.data.sort
-      } : null
+    console.log('🔧 API: GET /api/v1/machines/:serial_number/maintenance response', { 
+      maintenanceCount: response.data?.maintenance?.length || 0,
+      totalCount: response.data?.count || 0
     });
+
+
 
     return response;
   }
@@ -111,9 +105,16 @@ export class MaintenanceService {
     data: CreateMaintenanceRequest
   ): Promise<ApiResponse<Maintenance>> {
     const encodedSerialNumber = encodeURIComponent(machineSerialNumber);
+    
+    // Convert HTML date to backend ISO format
+    const backendData = {
+      ...data,
+      work_order_date: htmlDateToBackendDate(data.work_order_date)
+    };
+    
     return apiClient.post<Maintenance>(
       `${this.BASE_PATH}/${encodedSerialNumber}/maintenance`,
-      data
+      backendData
     );
   }
 
@@ -126,9 +127,16 @@ export class MaintenanceService {
     data: UpdateMaintenanceRequest
   ): Promise<ApiResponse<Maintenance>> {
     const encodedSerialNumber = encodeURIComponent(machineSerialNumber);
+    
+    // Convert HTML date to backend ISO format if work_order_date is provided
+    const backendData = {
+      ...data,
+      ...(data.work_order_date && { work_order_date: htmlDateToBackendDate(data.work_order_date) })
+    };
+    
     return apiClient.put<Maintenance>(
       `${this.BASE_PATH}/${encodedSerialNumber}/maintenance`,
-      data
+      backendData
     );
   }
 

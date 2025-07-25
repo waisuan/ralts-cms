@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { Machine } from '../types/machine';
-import { mockMaintenanceRecords } from '../data/mockMaintenance';
 import { PPM_STATUSES, PPM_STATUS_COLORS } from '../utils/constants';
 
 interface RecordCardProps {
@@ -41,12 +40,8 @@ export default function RecordCard({ machine, onView, onEdit, onDelete }: Record
   const [showNotesModal, setShowNotesModal] = useState(false);
   const status = getPPMStatusDisplay(machine.ppm_status);
 
-  // Count maintenance records for this machine
-  const maintenanceCount = useMemo(() => {
-    return mockMaintenanceRecords.filter(
-      (record) => record.machine_serial_number === machine.serial_number
-    ).length;
-  }, [machine.serial_number]);
+  // Use server-driven maintenance count, fallback to 0 if not available
+  const maintenanceCount = machine.maintenance_count ?? 0;
 
   const formatDate = (dateString: string) => {
     if (!dateString) return '-';

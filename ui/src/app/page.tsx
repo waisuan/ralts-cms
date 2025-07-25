@@ -5,7 +5,6 @@ import RecordsList, { SortType } from '@/components/RecordsList';
 import SearchBar, { SearchOptions } from '@/components/SearchBar';
 import OverdueAlert from '@/components/OverdueAlert';
 import { DEFAULT_SEARCH_PROPERTY } from '@/utils/constants';
-import { useMachines } from '@/hooks/useMachines';
 
 type FilterType = 'all' | 'overdue' | 'due';
 
@@ -18,13 +17,8 @@ export default function Home() {
   const [sortBy, setSortBy] = useState<SortType>('newest');
   const [isOverdueDismissed, setIsOverdueDismissed] = useState(false);
   const [isDueDismissed, setIsDueDismissed] = useState(false);
-
-  // Get count values from backend for the alert banner
-  const { overdueCount, dueCount } = useMachines({
-    page: 1,
-    limit: 1, // We only need the counts, not the machines
-    autoFetch: true,
-  });
+  const [overdueCount, setOverdueCount] = useState(0);
+  const [dueCount, setDueCount] = useState(0);
 
   const handleShowOverdue = () => {
     // Clear any existing search and show only overdue machines
@@ -60,6 +54,11 @@ export default function Home() {
     setIsDueDismissed(true);
   };
 
+  const handleCountsUpdate = (overdue: number, due: number) => {
+    setOverdueCount(overdue);
+    setDueCount(due);
+  };
+
   return (
     <div className="container mx-auto px-4">
       <div className="mb-8">
@@ -85,6 +84,7 @@ export default function Home() {
         sortBy={sortBy}
         onShowAll={handleShowAll}
         onSortChange={handleSortChange}
+        onCountsUpdate={handleCountsUpdate}
       />
     </div>
   );

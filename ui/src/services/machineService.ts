@@ -58,14 +58,7 @@ export class MachineService {
       offset: calculatedOffset.toString(),
     };
 
-    console.log('🔧 MachineService: Making API call:', {
-      url: this.BASE_PATH,
-      params,
-      page,
-      limit,
-      calculatedOffset,
-      filters
-    });
+
 
     // Add filters to query parameters
     if (filters) {
@@ -84,17 +77,14 @@ export class MachineService {
       });
     }
 
+    console.log('🔧 API: GET /api/v1/machines', { params });
     const response = await apiClient.get<MachineListResponse>(this.BASE_PATH, params);
-
-    console.log('🔧 MachineService: API response received:', {
-      data: response.data ? {
-        machinesCount: response.data.machines?.length || 0,
-        totalCount: response.data.count,
-        limit: response.data.limit,
-        offset: response.data.offset,
-        sort: response.data.sort
-      } : null
+    console.log('🔧 API: GET /api/v1/machines response', { 
+      machinesCount: response.data?.machines?.length || 0,
+      totalCount: response.data?.count || 0
     });
+
+
 
     return response;
   }

@@ -5,6 +5,7 @@ import { Machine } from '../types/machine';
 import { Maintenance, MaintenanceOrderType } from '../types/maintenance';
 import { MaintenanceService, CreateMaintenanceRequest, UpdateMaintenanceRequest } from '../services/maintenanceService';
 import { handleApiError } from '../utils/api';
+import { backendDateToHtmlDate } from '../utils/dateUtils';
 
 interface MaintenanceHistoryProps {
   machine: Machine;
@@ -108,6 +109,9 @@ export default function MaintenanceHistory({
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(ITEMS_PER_PAGE);
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
 
   // API state
   const [maintenanceRecords, setMaintenanceRecords] = useState<Maintenance[]>([]);
@@ -227,6 +231,14 @@ export default function MaintenanceHistory({
     setCurrentPage(newPage);
   };
 
+  const goToFirstPage = () => {
+    setCurrentPage(1);
+  };
+
+  const goToLastPage = () => {
+    setCurrentPage(totalPages);
+  };
+
   const goToNextPage = () => {
     if (currentPage < totalPages) {
       setCurrentPage(currentPage + 1);
@@ -241,6 +253,13 @@ export default function MaintenanceHistory({
 
   const handleItemsPerPageChange = (newItemsPerPage: number) => {
     setItemsPerPage(newItemsPerPage);
+  };
+
+  // Search handler
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+    // Reset to first page when searching
+    setCurrentPage(1);
   };
 
   // Generate page numbers for pagination
@@ -435,7 +454,7 @@ export default function MaintenanceHistory({
   const openEditRecordModal = (record: Maintenance) => {
     const formData = {
       work_order_number: record.work_order_number,
-      work_order_date: record.work_order_date.split('T')[0], // Extract date part for input
+      work_order_date: backendDateToHtmlDate(record.work_order_date), // Convert backend date to HTML format
       action_taken: record.action_taken,
       reported_by: record.reported_by,
       worker_order_type: record.worker_order_type as MaintenanceOrderType,
@@ -972,6 +991,43 @@ export default function MaintenanceHistory({
           </div>
         </div>
 
+        {/* Search Bar */}
+        <div className="flex justify-end mb-2">
+          <div className="flex items-center gap-2">
+            <div className="w-64">
+              <label htmlFor="maintenance-search" className="sr-only">
+                Search maintenance records
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <input
+                  id="maintenance-search"
+                  type="text"
+                  placeholder="Search maintenance records..."
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
+                />
+              </div>
+            </div>
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="text-gray-400 hover:text-gray-600 focus:outline-none focus:text-gray-600 transition-colors"
+                title="Clear search"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* Maintenance Records Table */}
         <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
           {sortedRecords.length === 0 ? (
@@ -1196,6 +1252,18 @@ export default function MaintenanceHistory({
 
                     {/* Pagination navigation */}
                     <div className="flex items-center gap-2">
+                      {/* First page button */}
+                      <button
+                        onClick={goToFirstPage}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 text-gray-900 font-medium"
+                        title="Go to first page"
+                      >
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                        </svg>
+                      </button>
+
                       {/* Previous button */}
                       <button
                         onClick={goToPreviousPage}
@@ -1229,6 +1297,18 @@ export default function MaintenanceHistory({
                         className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 text-gray-900 font-medium"
                       >
                         Next
+                      </button>
+
+                      {/* Last page button */}
+                      <button
+                        onClick={goToLastPage}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 text-gray-900 font-medium"
+                        title="Go to last page"
+                      >
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                        </svg>
                       </button>
                     </div>
                   </div>

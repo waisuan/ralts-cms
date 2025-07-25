@@ -143,6 +143,15 @@ func (h *MachinesHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	for _, machine := range machines {
+		maintenanceCount, err := h.deps.MaintenanceRepository.CountByMachine(r.Context(), machine.SerialNumber)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to count maintenance records for machine %s: %v", machine.SerialNumber, err), http.StatusInternalServerError)
+			return
+		}
+		machine.MaintenanceCount = maintenanceCount
+	}
+
 	// Build response
 	response := ListMachinesResponse{
 		Machines:       machines,

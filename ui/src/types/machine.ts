@@ -16,4 +16,5 @@ export interface Machine {
   ppm_date: string; // ISO 8601
   created_at: string; // ISO 8601
   updated_at: string; // ISO 8601
+  maintenance_count?: number; // Server-driven maintenance record count
 }

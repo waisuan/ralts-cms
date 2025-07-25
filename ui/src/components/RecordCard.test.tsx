@@ -2,33 +2,7 @@ import { render, screen } from '@testing-library/react';
 import RecordCard from './RecordCard';
 import { Machine } from '../types/machine';
 
-// Mock maintenance data for RecordCard tests
-jest.mock('../data/mockMaintenance', () => ({
-  mockMaintenanceRecords: [
-    {
-      machine_serial_number: 'SN-TEST',
-      work_order_number: 'WO-TEST-001',
-      work_order_date: '2024-06-15',
-      action_taken: 'Test maintenance action',
-      reported_by: 'Test Tech',
-      worker_order_type: 'Preventive',
-      attachment: 'test_report.pdf',
-      created_at: '2024-06-15T09:00:00Z',
-      updated_at: '2024-06-15T10:30:00Z',
-    },
-    {
-      machine_serial_number: 'SN-TEST',
-      work_order_number: 'WO-TEST-002',
-      work_order_date: '2024-06-10',
-      action_taken: 'Another test maintenance action',
-      reported_by: 'Test Tech 2',
-      worker_order_type: 'Emergency',
-      attachment: '',
-      created_at: '2024-06-10T14:00:00Z',
-      updated_at: '2024-06-10T16:00:00Z',
-    },
-  ],
-}));
+// No longer need to mock maintenance data since we're using server-driven counts
 
 // Mock the current date for consistent testing
 const MOCK_CURRENT_DATE = '2024-06-29T12:00:00.000Z';
@@ -47,11 +21,12 @@ describe('RecordCard', () => {
     reported_by: 'Test Reporter',
     additional_notes: 'Test notes for the machine',
     attachment: 'test_file.pdf',
-    ppm_status: '',
+    ppm_status: 'overdue',
     tnc_date: '2024-07-01',
     ppm_date: '2024-06-24', // Overdue date for testing
     created_at: '2024-01-01',
     updated_at: '2024-06-01',
+    maintenance_count: 2, // Server-driven maintenance count
   };
 
   beforeEach(() => {
@@ -104,5 +79,28 @@ describe('RecordCard', () => {
     // Check that attachment and notes icons are present
     expect(screen.getByTitle('Download attachment')).toBeInTheDocument();
     expect(screen.getByTitle('View additional notes')).toBeInTheDocument();
+  });
+
+  it('displays maintenance count badge with server-driven value', () => {
+    render(
+      <RecordCard machine={baseMachine} onView={() => {}} onEdit={() => {}} onDelete={() => {}} />
+    );
+
+    // Check that maintenance count badge is displayed with server-driven value
+    expect(screen.getByTitle('2 maintenance records available')).toBeInTheDocument();
+    expect(screen.getByText('2')).toBeInTheDocument();
+  });
+
+  it('displays zero maintenance count when maintenance_count is not provided', () => {
+    const machineWithoutMaintenanceCount = { ...baseMachine };
+    delete machineWithoutMaintenanceCount.maintenance_count;
+
+    render(
+      <RecordCard machine={machineWithoutMaintenanceCount} onView={() => {}} onEdit={() => {}} onDelete={() => {}} />
+    );
+
+    // Check that maintenance count badge shows 0 when not provided
+    expect(screen.getByTitle('0 maintenance records available')).toBeInTheDocument();
+    expect(screen.getByText('0')).toBeInTheDocument();
   });
 });
