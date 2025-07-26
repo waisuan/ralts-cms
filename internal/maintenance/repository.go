@@ -43,6 +43,7 @@ type Repository interface {
 	Delete(ctx context.Context, machineSerialNumber, workOrderNumber string) error
 	Count(ctx context.Context) (int, error)
 	CountByMachine(ctx context.Context, machineSerialNumber string) (int, error)
+	CountByWorkOrderType(ctx context.Context, machineSerialNumber string) (int, int, int, int, error)
 }
 
 type db struct {
@@ -224,4 +225,26 @@ func (r *db) CountByMachine(ctx context.Context, machineSerialNumber string) (in
 	}
 
 	return count, nil
+}
+
+func (r *db) CountByWorkOrderType(ctx context.Context, machineSerialNumber string) (int, int, int, int, error) {
+	query := `
+		SELECT 
+			COUNT(CASE WHEN worker_order_type = 'Preventive' THEN 1 END) as preventative_count,
+			COUNT(CASE WHEN worker_order_type = 'Corrective' THEN 1 END) as corrective_count,
+			COUNT(CASE WHEN worker_order_type = 'Emergency' THEN 1 END) as emergency_count,
+			COUNT(CASE WHEN worker_order_type = 'Inspection' THEN 1 END) as inspection_count
+		FROM maintenance 
+		WHERE machine_serial_number = $1
+	`
+
+	var preventativeCount, correctiveCount, emergencyCount, inspectionCount int
+	err := r.client.QueryRow(ctx, query, machineSerialNumber).Scan(
+		&preventativeCount, &correctiveCount, &emergencyCount, &inspectionCount,
+	)
+	if err != nil {
+		return 0, 0, 0, 0, fmt.Errorf("failed to count maintenance records by work order type: %w", err)
+	}
+
+	return preventativeCount, correctiveCount, emergencyCount, inspectionCount, nil
 }

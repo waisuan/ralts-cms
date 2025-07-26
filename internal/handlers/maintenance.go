@@ -13,11 +13,15 @@ import (
 )
 
 type ListMaintenanceResponse struct {
-	Maintenance []*maintenance.Maintenance `json:"maintenance"`
-	Count       int32                      `json:"count"`
-	Limit       int32                      `json:"limit"`
-	Offset      int32                      `json:"offset"`
-	Sort        string                     `json:"sort"`
+	Maintenance       []*maintenance.Maintenance `json:"maintenance"`
+	PreventativeCount int32                      `json:"preventative_count"`
+	CorrectiveCount   int32                      `json:"corrective_count"`
+	EmergencyCount    int32                      `json:"emergency_count"`
+	InspectionCount   int32                      `json:"inspection_count"`
+	Count             int32                      `json:"count"`
+	Limit             int32                      `json:"limit"`
+	Offset            int32                      `json:"offset"`
+	Sort              string                     `json:"sort"`
 }
 
 type MaintenanceHandler struct {
@@ -127,13 +131,24 @@ func (h *MaintenanceHandler) ListMaintenance(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	// Get counts by work order type
+	preventativeCount, correctiveCount, emergencyCount, inspectionCount, err := h.deps.MaintenanceRepository.CountByWorkOrderType(r.Context(), machineSerialNumber)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to count maintenance by work order type: %v", err), http.StatusInternalServerError)
+		return
+	}
+
 	// Build response
 	response := ListMaintenanceResponse{
-		Maintenance: maintenanceList,
-		Count:       int32(count),
-		Limit:       limit,
-		Offset:      offset,
-		Sort:        string(sort),
+		Maintenance:       maintenanceList,
+		PreventativeCount: int32(preventativeCount),
+		CorrectiveCount:   int32(correctiveCount),
+		EmergencyCount:    int32(emergencyCount),
+		InspectionCount:   int32(inspectionCount),
+		Count:             int32(count),
+		Limit:             limit,
+		Offset:            offset,
+		Sort:              string(sort),
 	}
 
 	w.Header().Set("Content-Type", "application/json")

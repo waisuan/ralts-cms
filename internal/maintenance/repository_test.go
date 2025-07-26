@@ -686,6 +686,83 @@ func (suite *MaintenanceRepositoryTestSuite) TestCountByMachine() {
 	})
 }
 
+func (suite *MaintenanceRepositoryTestSuite) TestCountByWorkOrderType() {
+	ctx := context.Background()
+
+	suite.Run("should return correct counts for all work order types", func() {
+		machineSerial := "MACHINE_WORK_ORDER_TYPE_TEST"
+
+		// Create maintenance records with different work order types
+		maintenance1 := testutils.CreateMaintenance(machineSerial, "WO001")
+		maintenance1.WorkerOrderType = "Preventive"
+
+		maintenance2 := testutils.CreateMaintenance(machineSerial, "WO002")
+		maintenance2.WorkerOrderType = "Corrective"
+
+		maintenance3 := testutils.CreateMaintenance(machineSerial, "WO003")
+		maintenance3.WorkerOrderType = "Emergency"
+
+		maintenance4 := testutils.CreateMaintenance(machineSerial, "WO004")
+		maintenance4.WorkerOrderType = "Inspection"
+
+		maintenance5 := testutils.CreateMaintenance(machineSerial, "WO005")
+		maintenance5.WorkerOrderType = "Preventive"
+
+		maintenance6 := testutils.CreateMaintenance(machineSerial, "WO006")
+		maintenance6.WorkerOrderType = "Corrective"
+
+		// Create maintenance for a different machine
+		otherMaintenance := testutils.CreateMaintenance("OTHER_MACHINE", "WO007")
+		otherMaintenance.WorkerOrderType = "Preventive"
+
+		// Create all maintenance records
+		err := suite.repo.Create(ctx, maintenance1)
+		suite.Require().NoError(err)
+		err = suite.repo.Create(ctx, maintenance2)
+		suite.Require().NoError(err)
+		err = suite.repo.Create(ctx, maintenance3)
+		suite.Require().NoError(err)
+		err = suite.repo.Create(ctx, maintenance4)
+		suite.Require().NoError(err)
+		err = suite.repo.Create(ctx, maintenance5)
+		suite.Require().NoError(err)
+		err = suite.repo.Create(ctx, maintenance6)
+		suite.Require().NoError(err)
+		err = suite.repo.Create(ctx, otherMaintenance)
+		suite.Require().NoError(err)
+
+		// Get counts for the target machine
+		preventativeCount, correctiveCount, emergencyCount, inspectionCount, err := suite.repo.CountByWorkOrderType(ctx, machineSerial)
+		suite.Require().NoError(err)
+
+		// Verify counts
+		suite.Assert().Equal(2, preventativeCount) // WO001, WO005
+		suite.Assert().Equal(2, correctiveCount)   // WO002, WO006
+		suite.Assert().Equal(1, emergencyCount)    // WO003
+		suite.Assert().Equal(1, inspectionCount)   // WO004
+	})
+
+	suite.Run("should return 0 for all types when machine has no maintenance records", func() {
+		preventativeCount, correctiveCount, emergencyCount, inspectionCount, err := suite.repo.CountByWorkOrderType(ctx, "NO_MAINTENANCE_MACHINE")
+		suite.Require().NoError(err)
+
+		suite.Assert().Equal(0, preventativeCount)
+		suite.Assert().Equal(0, correctiveCount)
+		suite.Assert().Equal(0, emergencyCount)
+		suite.Assert().Equal(0, inspectionCount)
+	})
+
+	suite.Run("should return 0 for non-existent machine", func() {
+		preventativeCount, correctiveCount, emergencyCount, inspectionCount, err := suite.repo.CountByWorkOrderType(ctx, "NON_EXISTENT_MACHINE")
+		suite.Require().NoError(err)
+
+		suite.Assert().Equal(0, preventativeCount)
+		suite.Assert().Equal(0, correctiveCount)
+		suite.Assert().Equal(0, emergencyCount)
+		suite.Assert().Equal(0, inspectionCount)
+	})
+}
+
 // TestMaintenanceRepositoryTestSuite runs the test suite
 func TestMaintenanceRepositoryTestSuite(t *testing.T) {
 	suite.Run(t, new(MaintenanceRepositoryTestSuite))
