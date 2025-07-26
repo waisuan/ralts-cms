@@ -10,6 +10,10 @@ export interface MaintenanceFilters {
 
 export interface MaintenanceListResponse {
   maintenance: Maintenance[];
+  preventative_count: number;
+  corrective_count: number;
+  emergency_count: number;
+  inspection_count: number;
   count: number;
   limit: number;
   offset: number;
@@ -75,7 +79,11 @@ export class MaintenanceService {
     );
     console.log('🔧 API: GET /api/v1/machines/:serial_number/maintenance response', { 
       maintenanceCount: response.data?.maintenance?.length || 0,
-      totalCount: response.data?.count || 0
+      totalCount: response.data?.count || 0,
+      preventativeCount: response.data?.preventative_count || 0,
+      correctiveCount: response.data?.corrective_count || 0,
+      emergencyCount: response.data?.emergency_count || 0,
+      inspectionCount: response.data?.inspection_count || 0
     });
 
 

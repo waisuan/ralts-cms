@@ -1,5 +1,5 @@
-import { getPPMStatus } from '../ppmUtils';
-import { htmlDateToBackendDate, backendDateToHtmlDate } from '../dateUtils';
+import { getPPMStatus } from './ppmUtils';
+import { htmlDateToBackendDate, backendDateToHtmlDate } from './dateUtils';
 
 describe('Date Utilities', () => {
   describe('htmlDateToBackendDate', () => {
@@ -41,7 +41,6 @@ describe('Date Utilities', () => {
 
 describe('PPM Status calculation based on PPM date', () => {
   const today = new Date();
-  const todayString = today.toISOString().split('T')[0]; // YYYY-MM-DD format
 
   it('should return "Overdue" for past dates', () => {
     const pastDate = new Date(today);

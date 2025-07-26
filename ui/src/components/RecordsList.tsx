@@ -10,6 +10,7 @@ import { SearchOptions } from './SearchBar';
 import { isDateProperty } from '../utils/constants';
 import RecordCard from './RecordCard';
 import MachineModal from './MachineModal';
+import FullPageLoader from './FullPageLoader';
 
 type FilterType = 'all' | 'overdue' | 'due';
 export type SortType = 'newest' | 'oldest';
@@ -39,6 +40,7 @@ export default function RecordsList({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [machineToDelete, setMachineToDelete] = useState<Machine | null>(null);
   const [machineToEdit, setMachineToEdit] = useState<Machine | null>(null);
+  const [isNavigating, setIsNavigating] = useState(false);
 
   // Convert search options to API filters
   const apiFilters: MachineFilters = useMemo(() => {
@@ -141,6 +143,7 @@ export default function RecordsList({
   };
 
   const handleView = (serial_number: string) => {
+    setIsNavigating(true);
     router.push(`/machines/${encodeURIComponent(serial_number)}`);
   };
 
@@ -516,6 +519,12 @@ export default function RecordsList({
           </div>
         </div>
       )}
+
+      {/* Full Page Loading Overlay */}
+      <FullPageLoader 
+        isVisible={isNavigating} 
+        message="Loading machine details..." 
+      />
     </div>
   );
 }

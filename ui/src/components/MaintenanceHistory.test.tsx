@@ -1,63 +1,23 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { useRouter } from 'next/navigation';
 import MaintenanceHistory from './MaintenanceHistory';
 import { Machine } from '../types/machine';
+import { MaintenanceService } from '../services/maintenanceService';
 
 // Mock next/navigation
 jest.mock('next/navigation', () => ({
   useRouter: jest.fn(),
 }));
 
-// Mock the maintenance data
-jest.mock('../data/mockMaintenance', () => ({
-  mockMaintenanceRecords: [
-    {
-      machine_serial_number: 'SN-001',
-      work_order_number: 'WO-001',
-      work_order_date: '2024-06-15',
-      action_taken: 'Performed routine maintenance and cleaning',
-      reported_by: 'John Doe',
-      worker_order_type: 'Preventive',
-      attachment: 'maintenance_report.pdf',
-      created_at: '2024-06-15T09:00:00Z',
-      updated_at: '2024-06-15T10:30:00Z',
-    },
-    {
-      machine_serial_number: 'SN-001',
-      work_order_number: 'WO-002',
-      work_order_date: '2024-06-10',
-      action_taken:
-        'This is a very long action description that exceeds the character limit and should be truncated when displayed in the table but shown in full when the modal is opened',
-      reported_by: 'Jane Smith',
-      worker_order_type: 'Emergency',
-      attachment: '',
-      created_at: '2024-06-10T14:00:00Z',
-      updated_at: '2024-06-10T16:00:00Z',
-    },
-    {
-      machine_serial_number: 'NO-RECORDS',
-      work_order_number: 'WO-003',
-      work_order_date: '2024-06-01',
-      action_taken: 'Test action',
-      reported_by: 'Test User',
-      worker_order_type: 'Corrective',
-      attachment: '',
-      created_at: '2024-06-01T08:00:00Z',
-      updated_at: '2024-06-01T09:00:00Z',
-    },
-    // Add more records to trigger pagination
-    ...Array.from({ length: 15 }, (_, i) => ({
-      machine_serial_number: 'SN-001',
-      work_order_number: `WO-${String(i + 4).padStart(3, '0')}`,
-      work_order_date: '2024-06-01',
-      action_taken: `Additional maintenance record ${i + 4}`,
-      reported_by: 'Test User',
-      worker_order_type: 'Preventive',
-      attachment: '',
-      created_at: '2024-06-01T08:00:00Z',
-      updated_at: '2024-06-01T09:00:00Z',
-    })),
-  ],
+// Mock the maintenance service
+jest.mock('../services/maintenanceService', () => ({
+  MaintenanceService: {
+    getMaintenanceList: jest.fn(),
+    getMaintenance: jest.fn(),
+    createMaintenance: jest.fn(),
+    updateMaintenance: jest.fn(),
+    deleteMaintenance: jest.fn(),
+  },
 }));
 
 describe('MaintenanceHistory', () => {
@@ -87,11 +47,84 @@ describe('MaintenanceHistory', () => {
       push: mockPush,
     });
     mockPush.mockClear();
+    
+    // Reset all mocks
+    jest.clearAllMocks();
   });
 
-  it('renders machine information correctly', () => {
+  it('renders machine information correctly', async () => {
+    // Mock the API response with work order type counts
+    const mockApiResponse = {
+      data: {
+        maintenance: [
+          {
+            machine_serial_number: 'SN-001',
+            work_order_number: 'WO-001',
+            work_order_date: '2024-06-15',
+            action_taken: 'Performed routine maintenance and cleaning',
+            reported_by: 'John Doe',
+            worker_order_type: 'Preventive',
+            attachment: 'maintenance_report.pdf',
+            created_at: '2024-06-15T09:00:00Z',
+            updated_at: '2024-06-15T10:30:00Z',
+          },
+        ],
+        preventative_count: 2,
+        corrective_count: 1,
+        emergency_count: 3,
+        inspection_count: 1,
+        count: 7,
+        limit: 10,
+        offset: 0,
+        sort: 'work_order_date_desc',
+      },
+    };
+
+    (MaintenanceService.getMaintenanceList as jest.Mock).mockResolvedValue(mockApiResponse);
+
     render(<MaintenanceHistory machine={mockMachine} onBack={() => {}} />);
-    expect(screen.getByText(mockMachine.serial_number)).toBeInTheDocument();
-    expect(screen.getByText(mockMachine.model)).toBeInTheDocument();
+    
+    // Wait for the API call to complete and verify the machine information and counts are displayed
+    await waitFor(() => {
+      expect(screen.getByText(mockMachine.serial_number)).toBeInTheDocument();
+      expect(screen.getByText(mockMachine.model)).toBeInTheDocument();
+    });
+    
+    // Verify the counts are displayed (using more specific selectors)
+    await waitFor(() => {
+      expect(screen.getByText('2')).toBeInTheDocument(); // Preventative count
+      expect(screen.getByText('3')).toBeInTheDocument(); // Emergency count
+    });
+    
+    // Check that both corrective and inspection counts of 1 are present
+    const countElements = screen.getAllByText('1');
+    expect(countElements.length).toBeGreaterThanOrEqual(2); // At least 2 elements with "1"
+  });
+
+  it('displays work order type counts from backend', async () => {
+    const mockApiResponse = {
+      data: {
+        maintenance: [],
+        preventative_count: 5,
+        corrective_count: 2,
+        emergency_count: 1,
+        inspection_count: 3,
+        count: 11,
+        limit: 10,
+        offset: 0,
+        sort: 'work_order_date_desc',
+      },
+    };
+
+    (MaintenanceService.getMaintenanceList as jest.Mock).mockResolvedValue(mockApiResponse);
+
+    render(<MaintenanceHistory machine={mockMachine} onBack={() => {}} />);
+    
+    await waitFor(() => {
+      expect(screen.getByText('5')).toBeInTheDocument(); // Preventative count
+      expect(screen.getByText('2')).toBeInTheDocument(); // Corrective count
+      expect(screen.getByText('1')).toBeInTheDocument(); // Emergency count
+      expect(screen.getByText('3')).toBeInTheDocument(); // Inspection count
+    });
   });
 });

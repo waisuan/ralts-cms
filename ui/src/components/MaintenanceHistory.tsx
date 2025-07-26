@@ -6,6 +6,7 @@ import { Maintenance, MaintenanceOrderType } from '../types/maintenance';
 import { MaintenanceService, CreateMaintenanceRequest, UpdateMaintenanceRequest } from '../services/maintenanceService';
 import { handleApiError } from '../utils/api';
 import { backendDateToHtmlDate } from '../utils/dateUtils';
+import FullPageLoader from './FullPageLoader';
 
 interface MaintenanceHistoryProps {
   machine: Machine;
@@ -118,6 +119,10 @@ export default function MaintenanceHistory({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
+  const [preventativeCount, setPreventativeCount] = useState(0);
+  const [correctiveCount, setCorrectiveCount] = useState(0);
+  const [emergencyCount, setEmergencyCount] = useState(0);
+  const [inspectionCount, setInspectionCount] = useState(0);
 
   // New record form state
   const [isAddRecordModalOpen, setIsAddRecordModalOpen] = useState(false);
@@ -167,6 +172,15 @@ export default function MaintenanceHistory({
   const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
   const [dropdownPosition, setDropdownPosition] = useState<'above' | 'below'>('below');
 
+  // Navigation state
+  const [isNavigatingBack, setIsNavigatingBack] = useState(false);
+
+  // Handle back navigation with full-page loading state
+  const handleBackNavigation = () => {
+    setIsNavigatingBack(true);
+    onBack();
+  };
+
   // Load maintenance records from API
   const loadMaintenanceRecords = useCallback(async () => {
     try {
@@ -183,6 +197,10 @@ export default function MaintenanceHistory({
         // Handle null maintenance array from API
         setMaintenanceRecords(response.data.maintenance || []);
         setTotalCount(response.data.count || 0);
+        setPreventativeCount(response.data.preventative_count || 0);
+        setCorrectiveCount(response.data.corrective_count || 0);
+        setEmergencyCount(response.data.emergency_count || 0);
+        setInspectionCount(response.data.inspection_count || 0);
       }
     } catch (error) {
       console.error('🔧 MaintenanceHistory: Failed to load maintenance records:', error);
@@ -726,7 +744,7 @@ export default function MaintenanceHistory({
         <div className="mb-8">
           <div className="flex items-center gap-4 mb-4">
             <button
-              onClick={onBack}
+              onClick={handleBackNavigation}
               className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
             >
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -913,25 +931,25 @@ export default function MaintenanceHistory({
             </div>
             <div className="bg-white rounded-lg shadow-sm border p-4">
               <div className="text-2xl font-bold text-green-600">
-                {maintenanceRecords?.filter((r) => r.worker_order_type === 'Preventive').length || 0}
+                {preventativeCount}
               </div>
               <div className="text-sm text-gray-600">Preventive</div>
             </div>
             <div className="bg-white rounded-lg shadow-sm border p-4">
               <div className="text-2xl font-bold text-red-600">
-                {maintenanceRecords?.filter((r) => r.worker_order_type === 'Emergency').length || 0}
+                {emergencyCount}
               </div>
               <div className="text-sm text-gray-600">Emergency</div>
             </div>
             <div className="bg-white rounded-lg shadow-sm border p-4">
               <div className="text-2xl font-bold text-blue-600">
-                {maintenanceRecords?.filter((r) => r.worker_order_type === 'Corrective').length || 0}
+                {correctiveCount}
               </div>
               <div className="text-sm text-gray-600">Corrective</div>
             </div>
             <div className="bg-white rounded-lg shadow-sm border p-4">
               <div className="text-2xl font-bold text-purple-600">
-                {maintenanceRecords?.filter((r) => r.worker_order_type === 'Inspection').length || 0}
+                {inspectionCount}
               </div>
               <div className="text-sm text-gray-600">Inspection</div>
             </div>
@@ -2061,6 +2079,12 @@ export default function MaintenanceHistory({
           </div>
         </div>
       )}
+
+      {/* Full Page Loading Overlay */}
+      <FullPageLoader 
+        isVisible={isNavigatingBack} 
+        message="Loading machines list..." 
+      />
     </div>
   );
 }

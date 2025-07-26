@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/contexts/AuthContext';
 import AppContent from '@/components/AppContent';
+import PageTransitionLoader from '@/components/PageTransitionLoader';
 
 const geistSans = Geist({
   subsets: ['latin'],
@@ -28,6 +29,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <AuthProvider>
+          <PageTransitionLoader />
           <AppContent>{children}</AppContent>
         </AuthProvider>
       </body>
