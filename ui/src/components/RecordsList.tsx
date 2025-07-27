@@ -41,6 +41,10 @@ export default function RecordsList({
   const [machineToDelete, setMachineToDelete] = useState<Machine | null>(null);
   const [machineToEdit, setMachineToEdit] = useState<Machine | null>(null);
   const [isNavigating, setIsNavigating] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // CRUD operation loading states
+  const [isDeletingMachine, setIsDeletingMachine] = useState(false);
 
   // Convert search options to API filters
   const apiFilters: MachineFilters = useMemo(() => {
@@ -160,42 +164,74 @@ export default function RecordsList({
     const machine = machines.find((m) => m.serial_number === serial_number);
     if (machine) {
       setMachineToDelete(machine);
+      setDeleteError(null);
       setShowDeleteConfirm(true);
     }
   };
 
   const handleConfirmDelete = async () => {
     if (machineToDelete) {
-      const success = await deleteMachine(machineToDelete.serial_number);
-      if (success) {
-        setMachineToDelete(null);
-        setShowDeleteConfirm(false);
-        // Refresh the machines list
-        refetch();
+      try {
+        setIsDeletingMachine(true);
+        setDeleteError(null);
+        const success = await deleteMachine(machineToDelete.serial_number);
+        if (success) {
+          setMachineToDelete(null);
+          setShowDeleteConfirm(false);
+          // Refresh the machines list
+          refetch();
+        } else {
+          // Show error message when delete fails
+          setDeleteError('Failed to delete machine. Please try again.');
+        }
+      } catch (error) {
+        console.error('Failed to delete machine:', error);
+        setDeleteError('Failed to delete machine. Please try again.');
+      } finally {
+        setIsDeletingMachine(false);
       }
     }
   };
 
   const handleCancelDelete = () => {
     setMachineToDelete(null);
+    setDeleteError(null);
     setShowDeleteConfirm(false);
   };
 
   const handleAddMachine = async (newMachine: Omit<Machine, 'created_at' | 'updated_at'>) => {
-    const createdMachine = await createMachine(newMachine);
-    if (createdMachine) {
-      // Refresh the machines list
-      refetch();
+    try {
+      const createdMachine = await createMachine(newMachine);
+      if (createdMachine) {
+        // Refresh the machines list
+        refetch();
+      } else {
+        // Create failed, don't close modal - let the modal handle the error
+        throw new Error('Failed to create machine');
+      }
+    } catch (error) {
+      console.error('Failed to create machine:', error);
+      // Re-throw the error so the modal can handle it
+      throw error;
     }
   };
 
   const handleEditMachine = async (updatedMachine: Machine) => {
-    const updated = await updateMachine(updatedMachine.serial_number, updatedMachine);
-    if (updated) {
-      setMachineToEdit(null);
-      setIsMachineModalOpen(false);
-      // Refresh the machines list
-      refetch();
+    try {
+      const updated = await updateMachine(updatedMachine.serial_number, updatedMachine);
+      if (updated) {
+        setMachineToEdit(null);
+        setIsMachineModalOpen(false);
+        // Refresh the machines list
+        refetch();
+      } else {
+        // Update failed, don't close modal - let the modal handle the error
+        throw new Error('Failed to update machine');
+      }
+    } catch (error) {
+      console.error('Failed to update machine:', error);
+      // Re-throw the error so the modal can handle it
+      throw error;
     }
   };
 
@@ -210,11 +246,11 @@ export default function RecordsList({
     setIsMachineModalOpen(false);
   };
 
-  const handleMachineSubmit = (machine: Machine | Omit<Machine, 'created_at' | 'updated_at'>) => {
+  const handleMachineSubmit = async (machine: Machine | Omit<Machine, 'created_at' | 'updated_at'>) => {
     if (modalMode === 'add') {
-      handleAddMachine(machine as Omit<Machine, 'created_at' | 'updated_at'>);
+      await handleAddMachine(machine as Omit<Machine, 'created_at' | 'updated_at'>);
     } else {
-      handleEditMachine(machine as Machine);
+      await handleEditMachine(machine as Machine);
     }
   };
 
@@ -496,9 +532,24 @@ export default function RecordsList({
                     This action cannot be undone. All data associated with this machine will be
                     permanently removed.
                   </p>
+                  {/* Error Display */}
+                  {deleteError && (
+                    <div className="mt-4 mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+                      <div className="flex">
+                        <div className="flex-shrink-0">
+                          <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div className="ml-3">
+                          <p className="text-sm font-medium">{deleteError}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   {/* Maintenance count warning removed for now - will be implemented when maintenance API is ready */}
                 </div>
-                <div className="flex space-x-3">
+                <div className="flex space-x-3 mt-6">
                   <button
                     type="button"
                     onClick={handleCancelDelete}
@@ -509,9 +560,17 @@ export default function RecordsList({
                   <button
                     type="button"
                     onClick={handleConfirmDelete}
-                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
+                    disabled={isDeletingMachine}
+                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors disabled:bg-red-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    Delete Machine
+                    {isDeletingMachine ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Deleting...
+                      </>
+                    ) : (
+                      'Delete Machine'
+                    )}
                   </button>
                 </div>
               </div>

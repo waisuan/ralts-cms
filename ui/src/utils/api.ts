@@ -43,8 +43,36 @@ export class ApiClient {
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        
+        // Provide user-friendly messages for specific status codes
+        let errorMessage = errorData.message;
+        if (!errorMessage) {
+          switch (response.status) {
+            case 501:
+              errorMessage = 'This feature is not yet implemented on the server.';
+              break;
+            case 404:
+              errorMessage = 'The requested resource was not found.';
+              break;
+            case 400:
+              errorMessage = 'Invalid request. Please check your input.';
+              break;
+            case 401:
+              errorMessage = 'Authentication required. Please log in again.';
+              break;
+            case 403:
+              errorMessage = 'You do not have permission to perform this action.';
+              break;
+            case 500:
+              errorMessage = 'Server error. Please try again later.';
+              break;
+            default:
+              errorMessage = `HTTP error! status: ${response.status}`;
+          }
+        }
+        
         throw new ApiError(
-          errorData.message || `HTTP error! status: ${response.status}`,
+          errorMessage,
           response.status,
           errorData
         );

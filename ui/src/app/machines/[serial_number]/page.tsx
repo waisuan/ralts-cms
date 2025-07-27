@@ -1,12 +1,13 @@
 'use client';
 
-import { notFound, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import MaintenanceHistory from '@/components/MaintenanceHistory';
 import MachineModal from '@/components/MachineModal';
 import { Machine } from '@/types/machine';
 import { MachineService } from '@/services/machineService';
 import { handleApiError } from '@/utils/api';
+import { notFound } from 'next/navigation';
 
 interface MachinePageProps {
   params: Promise<{
@@ -45,8 +46,7 @@ function MachineContent({ machine }: { machine: Machine }) {
         router.push('/');
       } catch (error) {
         console.error('Failed to delete machine:', error);
-        const apiError = handleApiError(error);
-        alert(`Failed to delete machine: ${apiError.message}`);
+        alert('Failed to delete machine. Please try again.');
       }
     }
     setShowDeleteConfirm(false);
@@ -70,16 +70,15 @@ function MachineContent({ machine }: { machine: Machine }) {
         await MachineService.updateMachine(machineToEdit.serial_number, updatedMachine);
       }
 
-      // Update the current machine state
+      // Only close modal and reload if successful
       setMachineToEdit(null);
       setIsMachineModalOpen(false);
-
       // Refresh the page to show updated data
       window.location.reload();
     } catch (error) {
       console.error('Failed to update machine:', error);
-      const apiError = handleApiError(error);
-      alert(`Failed to update machine: ${apiError.message}`);
+      // Don't close modal or reload - let the modal handle the error
+      throw error;
     }
   };
 
@@ -138,7 +137,7 @@ function MachineContent({ machine }: { machine: Machine }) {
                     permanently removed.
                   </p>
                 </div>
-                <div className="flex space-x-3">
+                <div className="flex space-x-3 mt-6">
                   <button
                     type="button"
                     onClick={handleCancelDelete}

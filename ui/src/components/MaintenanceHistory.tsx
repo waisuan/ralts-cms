@@ -175,6 +175,20 @@ export default function MaintenanceHistory({
   // Navigation state
   const [isNavigatingBack, setIsNavigatingBack] = useState(false);
 
+  // CRUD operation loading states
+  const [isCreating, setIsCreating] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Search and pagination loading states
+  const [isSearching, setIsSearching] = useState(false);
+  const [isPaginationLoading, setIsPaginationLoading] = useState(false);
+
+  // CRUD operation error states
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   // Handle back navigation with full-page loading state
   const handleBackNavigation = () => {
     setIsNavigatingBack(true);
@@ -246,26 +260,46 @@ export default function MaintenanceHistory({
   // Pagination handlers
   const goToPage = (page: number) => {
     const newPage = Math.max(1, Math.min(page, totalPages));
+    setIsPaginationLoading(true);
     setCurrentPage(newPage);
+    setTimeout(() => {
+      setIsPaginationLoading(false);
+    }, 300);
   };
 
   const goToFirstPage = () => {
+    setIsPaginationLoading(true);
     setCurrentPage(1);
+    setTimeout(() => {
+      setIsPaginationLoading(false);
+    }, 300);
   };
 
   const goToLastPage = () => {
+    setIsPaginationLoading(true);
     setCurrentPage(totalPages);
+    setTimeout(() => {
+      setIsPaginationLoading(false);
+    }, 300);
   };
 
   const goToNextPage = () => {
     if (currentPage < totalPages) {
+      setIsPaginationLoading(true);
       setCurrentPage(currentPage + 1);
+      setTimeout(() => {
+        setIsPaginationLoading(false);
+      }, 300);
     }
   };
 
   const goToPreviousPage = () => {
     if (currentPage > 1) {
+      setIsPaginationLoading(true);
       setCurrentPage(currentPage - 1);
+      setTimeout(() => {
+        setIsPaginationLoading(false);
+      }, 300);
     }
   };
 
@@ -278,6 +312,13 @@ export default function MaintenanceHistory({
     setSearchQuery(e.target.value);
     // Reset to first page when searching
     setCurrentPage(1);
+    
+    // Show search loading state
+    setIsSearching(true);
+    // Simulate search delay and hide loading after data loads
+    setTimeout(() => {
+      setIsSearching(false);
+    }, 500);
   };
 
   // Generate page numbers for pagination
@@ -356,6 +397,7 @@ export default function MaintenanceHistory({
     setSelectedFile(null);
     setUploadProgress(0);
     setIsUploading(false);
+    setCreateError(null); // Clear error when opening modal
   };
 
   const closeAddRecordModal = () => {
@@ -372,6 +414,7 @@ export default function MaintenanceHistory({
     setSelectedFile(null);
     setUploadProgress(0);
     setIsUploading(false);
+    setCreateError(null); // Clear error when closing modal
   };
 
   const handleNewRecordInputChange = (field: string, value: string) => {
@@ -447,6 +490,8 @@ export default function MaintenanceHistory({
     }
 
     try {
+      setIsCreating(true);
+      setCreateError(null); // Clear previous errors
       const createData: CreateMaintenanceRequest = {
         work_order_number: newRecordForm.work_order_number.trim(),
         work_order_date: newRecordForm.work_order_date,
@@ -463,8 +508,8 @@ export default function MaintenanceHistory({
       closeAddRecordModal();
     } catch (error) {
       console.error('Failed to create maintenance record:', error);
-      const apiError = handleApiError(error);
-      alert(`Failed to create maintenance record: ${apiError.message}`);
+      setCreateError('An error occurred while creating the maintenance record. Please try again.');
+      setIsCreating(false);
     }
   };
 
@@ -486,6 +531,7 @@ export default function MaintenanceHistory({
     setEditSelectedFile(null);
     setEditUploadProgress(0);
     setEditIsUploading(false);
+    setUpdateError(null); // Clear error when opening modal
     setIsEditRecordModalOpen(true);
     setOpenDropdownId(null);
   };
@@ -514,6 +560,7 @@ export default function MaintenanceHistory({
     setEditUploadProgress(0);
     setEditIsUploading(false);
     setShowEditCancelConfirm(false);
+    setUpdateError(null); // Clear error when closing modal
   };
 
   const handleEditCancelClick = () => {
@@ -611,6 +658,8 @@ export default function MaintenanceHistory({
     }
 
     try {
+      setIsUpdating(true);
+      setUpdateError(null); // Clear previous errors
       const updateData: UpdateMaintenanceRequest = {
         work_order_number: editRecordForm.work_order_number.trim(),
         work_order_date: editRecordForm.work_order_date,
@@ -631,26 +680,30 @@ export default function MaintenanceHistory({
       closeEditRecordModal();
     } catch (error) {
       console.error('Failed to update maintenance record:', error);
-      const apiError = handleApiError(error);
-      alert(`Failed to update maintenance record: ${apiError.message}`);
+      setUpdateError('An error occurred while updating the maintenance record. Please try again.');
+      setIsUpdating(false);
     }
   };
 
   // Delete record handlers
   const openDeleteConfirm = (record: Maintenance) => {
     setRecordToDelete(record);
+    setDeleteError(null); // Clear error when opening
     setShowDeleteConfirm(true);
     setOpenDropdownId(null);
   };
 
   const closeDeleteConfirm = () => {
     setRecordToDelete(null);
+    setDeleteError(null); // Clear error when closing
     setShowDeleteConfirm(false);
   };
 
   const handleDeleteRecord = async () => {
     if (recordToDelete) {
       try {
+        setIsDeleting(true);
+        setDeleteError(null); // Clear previous errors
         await MaintenanceService.deleteMaintenance(
           machine.serial_number,
           recordToDelete.work_order_number
@@ -661,8 +714,8 @@ export default function MaintenanceHistory({
         closeDeleteConfirm();
       } catch (error) {
         console.error('Failed to delete maintenance record:', error);
-        const apiError = handleApiError(error);
-        alert(`Failed to delete maintenance record: ${apiError.message}`);
+        setDeleteError('Failed to delete maintenance record. Please try again.');
+        setIsDeleting(false);
       }
     }
   };
@@ -1018,17 +1071,22 @@ export default function MaintenanceHistory({
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
+                  {isSearching ? (
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                  ) : (
+                    <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  )}
                 </div>
                 <input
                   id="maintenance-search"
                   type="text"
-                  placeholder="Search maintenance records..."
+                  placeholder={isSearching ? "Searching..." : "Search maintenance records..."}
                   value={searchQuery}
                   onChange={handleSearchChange}
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900"
+                  disabled={isSearching}
+                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 disabled:bg-gray-50 disabled:cursor-not-allowed"
                 />
               </div>
             </div>
@@ -1243,7 +1301,15 @@ export default function MaintenanceHistory({
 
               {/* Pagination Controls */}
               {totalPages > 1 && (
-                <div className="bg-white px-6 py-4 border-t border-gray-200">
+                <div className="bg-white px-6 py-4 border-t border-gray-200 relative">
+                  {isPaginationLoading && (
+                    <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10">
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                        <span className="text-sm">Loading...</span>
+                      </div>
+                    </div>
+                  )}
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     {/* Items per page selector */}
                     <div className="flex items-center gap-2">
@@ -1628,8 +1694,24 @@ export default function MaintenanceHistory({
                   )}
                 </div>
 
+                {/* Error Display */}
+                {createError && (
+                  <div className="mt-3 mb-3 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+                    <div className="flex">
+                      <div className="flex-shrink-0">
+                        <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm font-medium">{createError}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Action Buttons */}
-                <div className="flex justify-end gap-3 mt-8">
+                <div className="flex justify-end gap-3 mt-6">
                   <button
                     type="button"
                     onClick={closeAddRecordModal}
@@ -1639,9 +1721,17 @@ export default function MaintenanceHistory({
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                    disabled={isCreating}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:bg-blue-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    Add Record
+                    {isCreating ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Adding...
+                      </>
+                    ) : (
+                      'Add Record'
+                    )}
                   </button>
                 </div>
               </form>
@@ -1946,8 +2036,24 @@ export default function MaintenanceHistory({
                   )}
                 </div>
 
+                {/* Error Display */}
+                {updateError && (
+                  <div className="mt-3 mb-3 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+                    <div className="flex">
+                      <div className="flex-shrink-0">
+                        <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm font-medium">{updateError}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Action Buttons */}
-                <div className="flex justify-end gap-3 mt-8">
+                <div className="flex justify-end gap-3 mt-6">
                   <button
                     type="button"
                     onClick={handleEditCancelClick}
@@ -1957,9 +2063,17 @@ export default function MaintenanceHistory({
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                    disabled={isUpdating}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:bg-blue-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    Update Record
+                    {isUpdating ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Updating...
+                      </>
+                    ) : (
+                      'Update Record'
+                    )}
                   </button>
                 </div>
               </form>
@@ -2005,7 +2119,22 @@ export default function MaintenanceHistory({
                     will be permanently removed.
                   </p>
                 </div>
-                <div className="flex space-x-3">
+                {/* Error Display */}
+                {deleteError && (
+                  <div className="mt-4 mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+                    <div className="flex">
+                      <div className="flex-shrink-0">
+                        <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-sm font-medium">{deleteError}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div className="flex space-x-3 mt-6">
                   <button
                     type="button"
                     onClick={closeDeleteConfirm}
@@ -2016,9 +2145,17 @@ export default function MaintenanceHistory({
                   <button
                     type="button"
                     onClick={handleDeleteRecord}
-                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
+                    disabled={isDeleting}
+                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors disabled:bg-red-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    Delete Record
+                    {isDeleting ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Deleting...
+                      </>
+                    ) : (
+                      'Delete Record'
+                    )}
                   </button>
                 </div>
               </div>

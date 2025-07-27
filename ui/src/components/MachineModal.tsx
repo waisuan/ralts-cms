@@ -12,7 +12,7 @@ interface MachineModalProps {
   mode: MachineModalMode;
   machine?: Machine | null; // Required for edit mode, optional for add mode
   onClose: () => void;
-  onSubmit: (machine: Machine | Omit<Machine, 'created_at' | 'updated_at'>) => void;
+  onSubmit: (machine: Machine | Omit<Machine, 'created_at' | 'updated_at'>) => Promise<void>;
 }
 
 export default function MachineModal({
@@ -45,6 +45,8 @@ export default function MachineModal({
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Pre-populate form when in edit mode and machine data is available
   useEffect(() => {
@@ -66,6 +68,9 @@ export default function MachineModal({
         tnc_date: backendDateToHtmlDate(machine.tnc_date),
         ppm_date: backendDateToHtmlDate(machine.ppm_date),
       });
+      // Reset submission state when opening modal
+      setIsSubmitting(false);
+      setSubmitError(null);
     } else if (mode === 'add' && isOpen) {
       // Reset form for add mode
       setFormData({
@@ -85,6 +90,9 @@ export default function MachineModal({
         tnc_date: '',
         ppm_date: '',
       });
+      // Reset submission state when opening modal
+      setIsSubmitting(false);
+      setSubmitError(null);
     }
   }, [mode, machine, isOpen]);
 
@@ -152,12 +160,15 @@ export default function MachineModal({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validateForm()) {
       return;
     }
+
+    setIsSubmitting(true);
+    setSubmitError(null);
 
     // Convert HTML date format back to backend format
     const submissionData = {
@@ -166,20 +177,25 @@ export default function MachineModal({
       ppm_date: htmlDateToBackendDate(formData.ppm_date),
     };
 
-    if (mode === 'edit' && machine) {
-      // Create updated machine with existing timestamps
-      const updatedMachine: Machine = {
-        ...submissionData,
-        created_at: machine.created_at,
-        updated_at: new Date().toISOString(),
-      };
-      onSubmit(updatedMachine);
-    } else {
-      // Create new machine (timestamps will be added by parent)
-      onSubmit(submissionData);
+    try {
+      if (mode === 'edit' && machine) {
+        // Create updated machine with existing timestamps
+        const updatedMachine: Machine = {
+          ...submissionData,
+          created_at: machine.created_at,
+          updated_at: new Date().toISOString(),
+        };
+        await onSubmit(updatedMachine);
+      } else {
+        // Create new machine (timestamps will be added by parent)
+        await onSubmit(submissionData);
+      }
+      // Only close if successful
+      handleClose();
+    } catch {
+      setSubmitError('An error occurred while saving the machine. Please try again.');
+      setIsSubmitting(false);
     }
-
-    handleClose();
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -307,6 +323,7 @@ export default function MachineModal({
     setUploadProgress(0);
     setIsUploading(false);
     setShowCancelConfirm(false);
+    setSubmitError(null);
     onClose();
   };
 
@@ -729,8 +746,24 @@ export default function MachineModal({
               />
             </div>
 
+            {/* Error Display - moved closer to buttons */}
+            {submitError && (
+              <div className="mt-3 mb-3 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm font-medium">{submitError}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Action Buttons */}
-            <div className="flex justify-end gap-3 mt-8">
+            <div className="flex justify-end gap-3 mt-6">
               <button
                 type="button"
                 onClick={handleCancelClick}
@@ -738,8 +771,19 @@ export default function MachineModal({
               >
                 Cancel
               </button>
-              <button type="submit" className={modalConfig.submitButtonClass}>
-                {modalConfig.submitButtonText}
+              <button 
+                type="submit" 
+                disabled={isSubmitting}
+                className={`${modalConfig.submitButtonClass} disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    {mode === 'edit' ? 'Updating...' : 'Adding...'}
+                  </>
+                ) : (
+                  modalConfig.submitButtonText
+                )}
               </button>
             </div>
           </form>
