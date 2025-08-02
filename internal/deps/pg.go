@@ -30,6 +30,6 @@ func NewPostgresClient(ctx context.Context, cfg *Config) (*pgxpool.Pool, error) 
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	log.Printf("Successfully connected to PostgreSQL database: %s", cfg.DATABASE_URL)
+	log.Printf("Successfully connected to database")
 	return pool, nil
 }

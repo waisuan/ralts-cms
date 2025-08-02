@@ -13,6 +13,11 @@ import (
 func NewRouter(deps *deps.Dependencies) http.Handler {
 	r := mux.NewRouter()
 
+	// Apply CORS middleware to all endpoints
+	r.Use(middlewares.CORSMiddleware)
+	// Apply logging middleware to all endpoints
+	r.Use(middlewares.LoggingMiddleware)
+
 	// Health endpoint (no auth required)
 	r.HandleFunc("/health", handlers.NewHealthHandler(deps).Health).Methods(http.MethodGet)
 
@@ -46,9 +51,7 @@ func NewRouter(deps *deps.Dependencies) http.Handler {
 	api.HandleFunc("/machines/{serial_number}/maintenance/{work_order_number}", handlers.NewMaintenanceHandler(deps).DeleteMaintenance).Methods(http.MethodDelete)
 
 	// Apply middleware to protected endpoints only
-	api.Use(middlewares.LoggingMiddleware)
-	api.Use(middlewares.CORSMiddleware)
-	// api.Use(middlewares.AuthenticationMiddleware(deps.Config.JWTSecret))
+	api.Use(middlewares.AuthenticationMiddleware(deps.Config.JWTSecret))
 
 	return r
 }

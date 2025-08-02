@@ -70,7 +70,6 @@ func (h *UsersHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.deps.UsersRepository.Login(r.Context(), loginRequest.Email, loginRequest.Password)
 	if err != nil {
-		log.Println("Failed to login: ", err)
 		http.Error(w, "Failed to login", http.StatusUnauthorized)
 		return
 	}
