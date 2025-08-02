@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { MachineService, MachineFilters, MachineListResponse } from '../services/machineService';
 import { Machine } from '../types/machine';
 import { ApiError, handleApiError } from '../utils/api';
+import { isAuthError } from '../utils/auth';
 
 export interface UseMachinesOptions {
   page?: number;
@@ -127,8 +128,11 @@ export function useMachines(options: UseMachinesOptions = {}): UseMachinesReturn
       setAlmostDueCount(data.almost_due_count || 0);
     } catch (err) {
       const apiError = handleApiError(err);
-      setError(apiError);
-      console.error('Failed to fetch machines:', apiError);
+      // Don't set error if we're redirecting due to auth error
+      if (!isAuthError(err)) {
+        setError(apiError);
+        console.error('Failed to fetch machines:', apiError);
+      }
     } finally {
       setLoading(false);
     }

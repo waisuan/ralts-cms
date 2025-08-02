@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { MachineService, CreateMachineRequest, UpdateMachineRequest } from '../services/machineService';
 import { Machine } from '../types/machine';
 import { ApiError, handleApiError } from '../utils/api';
+import { isAuthError } from '../utils/auth';
 
 export interface UseMachineReturn {
   machine: Machine | null;
@@ -29,8 +30,11 @@ export function useMachine(): UseMachineReturn {
       setMachine(response.data as Machine);
     } catch (err) {
       const apiError = handleApiError(err);
-      setError(apiError);
-      console.error('Failed to fetch machine:', apiError);
+      // Don't set error if we're redirecting due to auth error
+      if (!isAuthError(err)) {
+        setError(apiError);
+        console.error('Failed to fetch machine:', apiError);
+      }
     } finally {
       setLoading(false);
     }
@@ -47,8 +51,11 @@ export function useMachine(): UseMachineReturn {
       return newMachine;
     } catch (err) {
       const apiError = handleApiError(err);
-      setError(apiError);
-      console.error('Failed to create machine:', apiError);
+      // Don't set error if we're redirecting due to auth error
+      if (!isAuthError(err)) {
+        setError(apiError);
+        console.error('Failed to create machine:', apiError);
+      }
       return null;
     } finally {
       setLoading(false);
@@ -69,8 +76,11 @@ export function useMachine(): UseMachineReturn {
       return updatedMachine;
     } catch (err) {
       const apiError = handleApiError(err);
-      setError(apiError);
-      console.error('Failed to update machine:', apiError);
+      // Don't set error if we're redirecting due to auth error
+      if (!isAuthError(err)) {
+        setError(apiError);
+        console.error('Failed to update machine:', apiError);
+      }
       return null;
     } finally {
       setLoading(false);
@@ -87,8 +97,11 @@ export function useMachine(): UseMachineReturn {
       return true;
     } catch (err) {
       const apiError = handleApiError(err);
-      setError(apiError);
-      console.error('Failed to delete machine:', apiError);
+      // Don't set error if we're redirecting due to auth error
+      if (!isAuthError(err)) {
+        setError(apiError);
+        console.error('Failed to delete machine:', apiError);
+      }
       return false;
     } finally {
       setLoading(false);

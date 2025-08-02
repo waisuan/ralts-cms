@@ -5,6 +5,7 @@ import { Machine } from '../types/machine';
 import { Maintenance, MaintenanceOrderType } from '../types/maintenance';
 import { MaintenanceService, CreateMaintenanceRequest, UpdateMaintenanceRequest } from '../services/maintenanceService';
 import { handleApiError } from '../utils/api';
+import { isAuthError } from '../utils/auth';
 import { backendDateToHtmlDate } from '../utils/dateUtils';
 import FullPageLoader from './FullPageLoader';
 
@@ -219,7 +220,10 @@ export default function MaintenanceHistory({
     } catch (error) {
       console.error('🔧 MaintenanceHistory: Failed to load maintenance records:', error);
       const apiError = handleApiError(error);
-      setError(apiError.message);
+      // Don't set error if we're redirecting due to auth error
+      if (!isAuthError(error)) {
+        setError(apiError.message);
+      }
     } finally {
       setIsLoading(false);
     }

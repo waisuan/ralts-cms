@@ -1,17 +1,19 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { UserService } from '../services/userService';
+import { isAuthError } from '../utils/auth';
 
-interface User {
-  id: string;
+interface AuthUser {
+  id: number;
   name: string;
   email: string;
-  role: 'admin' | 'user';
+  role: string;
   avatar?: string;
 }
 
 interface AuthContextType {
-  user: User | null;
+  user: AuthUser | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
@@ -20,73 +22,13 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Default avatar for users without one
-const getDefaultAvatar = (name: string): string => {
-  // Generate initials from name
-  const initials = name
-    .split(' ')
-    .map((word) => word.charAt(0))
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
 
-  // Use a placeholder service that generates avatars with initials
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=random&color=fff&size=150`;
-};
 
-// Function to fetch users from the file
-const fetchUsersFromFile = async (): Promise<
-  Array<{
-    id: string;
-    name: string;
-    email: string;
-    password: string;
-    role: 'admin' | 'user';
-    avatar?: string;
-  }>
-> => {
-  try {
-    const response = await fetch('/api/users');
-    if (response.ok) {
-      const data = await response.json();
-      return data.users || [];
-    }
-  } catch (error) {
-    console.error('Error fetching users:', error);
-  }
-  return [];
-};
+
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [allUsers, setAllUsers] = useState<
-    Array<{
-      id: string;
-      name: string;
-      email: string;
-      password: string;
-      role: 'admin' | 'user';
-      avatar?: string;
-    }>
-  >([]);
-
-  // Load users from file on mount
-  useEffect(() => {
-    const loadUsers = async () => {
-      const fileUsers = await fetchUsersFromFile();
-
-      // Add default avatars to users who don't have one
-      const usersWithAvatars = fileUsers.map((user) => ({
-        ...user,
-        avatar: user.avatar || getDefaultAvatar(user.name),
-      }));
-
-      setAllUsers(usersWithAvatars);
-    };
-
-    loadUsers();
-  }, []);
 
   // Check for existing session on mount
   useEffect(() => {
@@ -103,32 +45,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      const response = await UserService.loginUser({ email, password });
+      
+      if (response.data) {
+        const userData: AuthUser = {
+          id: response.data.user.id,
+          name: response.data.user.name,
+          email: response.data.user.email,
+          role: response.data.user.role,
+          avatar: response.data.user.avatar,
+        };
 
-    // Use allUsers (from file) for authentication
-    const foundUser = allUsers.find((u) => u.email === email && u.password === password);
-
-    if (foundUser) {
-      const userData: User = {
-        id: foundUser.id,
-        name: foundUser.name,
-        email: foundUser.email,
-        role: foundUser.role,
-        avatar: foundUser.avatar,
-      };
-
-      setUser(userData);
-      localStorage.setItem('ralts_user', JSON.stringify(userData));
-      return true;
+        setUser(userData);
+        localStorage.setItem('ralts_user', JSON.stringify(userData));
+        localStorage.setItem('ralts_token', response.data.token);
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Login error:', error);
+      // Don't redirect on login errors since we're already on the login page
+      if (isAuthError(error)) {
+        console.log('🔐 Login failed due to authentication error');
+      }
+      return false;
     }
-
-    return false;
   };
 
   const logout = () => {
     setUser(null);
     localStorage.removeItem('ralts_user');
+    localStorage.removeItem('ralts_token');
   };
 
   const value: AuthContextType = {

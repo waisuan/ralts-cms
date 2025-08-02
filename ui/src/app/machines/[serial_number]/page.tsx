@@ -7,6 +7,7 @@ import MachineModal from '@/components/MachineModal';
 import { Machine } from '@/types/machine';
 import { MachineService } from '@/services/machineService';
 import { handleApiError } from '@/utils/api';
+import { isAuthError } from '@/utils/auth';
 import { notFound } from 'next/navigation';
 
 interface MachinePageProps {
@@ -192,7 +193,10 @@ export default function MachinePage({ params }: MachinePageProps) {
           notFound();
           return;
         }
-        setError(apiError.message);
+        // Don't set error if we're redirecting due to auth error
+        if (!isAuthError(error)) {
+          setError(apiError.message);
+        }
       } finally {
         setIsLoading(false);
       }

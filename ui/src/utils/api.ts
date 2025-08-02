@@ -1,4 +1,5 @@
 // API client utilities for making HTTP requests to the backend
+import { redirectToLogin, isAuthError } from './auth';
 
 export interface ApiResponse<T> {
   data?: T;
@@ -30,9 +31,13 @@ export class ApiClient {
   ): Promise<ApiResponse<T>> {
     const url = `${this.baseURL}${endpoint}`;
     
+    // Get JWT token from localStorage if available
+    const token = typeof window !== 'undefined' ? localStorage.getItem('ralts_token') : null;
+    
     const config: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` }),
         ...options.headers,
       },
       ...options,
@@ -109,6 +114,17 @@ export class ApiClient {
       }
     } catch (error) {
       if (error instanceof ApiError) {
+        // Check if this is a 401 authentication error
+        if (isAuthError(error)) {
+          // Don't redirect for login-related endpoints since user is already on login page
+          const isLoginEndpoint = endpoint.includes('/login') || endpoint.includes('/users');
+          if (!isLoginEndpoint) {
+            console.log('🔐 Authentication error detected, redirecting to login');
+            redirectToLogin();
+            // Don't throw the error since we're redirecting
+            throw new ApiError('Redirecting to login...', 401);
+          }
+        }
         throw error;
       }
       
@@ -159,6 +175,20 @@ export const apiClient = new ApiClient();
 // Helper function to handle API errors
 export function handleApiError(error: unknown): ApiError {
   if (error instanceof ApiError) {
+    // Check if this is a 401 authentication error and redirect
+    if (isAuthError(error)) {
+      // For handleApiError, we don't have endpoint context, so we'll be more conservative
+      // Only redirect if we're not on a login-related page
+      const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+      const isLoginPage = currentPath === '/' || currentPath === '/login' || currentPath === '/register';
+      
+      if (!isLoginPage) {
+        console.log('🔐 Authentication error detected in handleApiError, redirecting to login');
+        redirectToLogin();
+        // Return a generic error since we're redirecting
+        return new ApiError('Redirecting to login...', 401);
+      }
+    }
     return error;
   }
   

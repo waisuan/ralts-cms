@@ -2,6 +2,9 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { UserService } from '../services/userService';
+import { handleApiError } from '../utils/api';
+import { isAuthError } from '../utils/auth';
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -46,27 +49,24 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: formData.name.trim(),
-          email: formData.email.trim(),
-          password: formData.password,
-        }),
+      const response = await UserService.registerUser({
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        password: formData.password,
       });
 
-      if (response.ok) {
+      if (response.data) {
         setSuccess(true);
         setFormData({ name: '', email: '', password: '', confirmPassword: '' });
       } else {
-        const data = await response.json();
-        setError(data.error || 'Registration failed');
+        setError(response.error || 'Registration failed');
       }
-    } catch {
-      setError('An error occurred during registration');
+    } catch (error) {
+      const apiError = handleApiError(error);
+      // Don't show error message if we're redirecting due to auth error
+      if (!isAuthError(error)) {
+        setError(apiError.message);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -242,25 +242,27 @@ export default function RegisterPage() {
             </form>
           )}
 
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">Already have an account?</span>
-              </div>
-            </div>
-
+          {!success && (
             <div className="mt-6">
-              <Link
-                href="/"
-                className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                Sign in instead
-              </Link>
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300" />
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white text-gray-500">Already have an account?</span>
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <Link
+                  href="/"
+                  className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  Sign in instead
+                </Link>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
