@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import MaintenanceHistory from '@/components/MaintenanceHistory';
 import MachineModal from '@/components/MachineModal';
+import LoadingOverlay from '@/components/LoadingOverlay';
 import { Machine } from '@/types/machine';
 import { MachineService } from '@/services/machineService';
 import { handleApiError } from '@/utils/api';
@@ -23,6 +24,9 @@ function MachineContent({ machine }: { machine: Machine }) {
   const [machineToEdit, setMachineToEdit] = useState<Machine | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [machineToDelete, setMachineToDelete] = useState<Machine | null>(null);
+  const [isDeletingMachine, setIsDeletingMachine] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+
 
   const handleBack = () => {
     router.push('/');
@@ -42,12 +46,14 @@ function MachineContent({ machine }: { machine: Machine }) {
   const handleConfirmDelete = async () => {
     if (machineToDelete) {
       try {
+        setIsDeletingMachine(true);
         await MachineService.deleteMachine(machineToDelete.serial_number);
         // Navigate back to home page
         router.push('/');
       } catch (error) {
         console.error('Failed to delete machine:', error);
         alert('Failed to delete machine. Please try again.');
+        setIsDeletingMachine(false);
       }
     }
     setShowDeleteConfirm(false);
@@ -63,36 +69,46 @@ function MachineContent({ machine }: { machine: Machine }) {
     setIsMachineModalOpen(false);
   };
 
-  const handleMachineSubmit = async (
-    updatedMachine: Machine | Omit<Machine, 'created_at' | 'updated_at'>
-  ) => {
-    try {
-      if (modalMode === 'edit' && machineToEdit) {
-        await MachineService.updateMachine(machineToEdit.serial_number, updatedMachine);
-      }
+      const handleMachineSubmit = async (
+      updatedMachine: Machine | Omit<Machine, 'created_at' | 'updated_at'>
+    ) => {
+      try {
+        if (modalMode === 'edit' && machineToEdit) {
+          await MachineService.updateMachine(machineToEdit.serial_number, updatedMachine);
+        }
 
-      // Only close modal and reload if successful
-      setMachineToEdit(null);
-      setIsMachineModalOpen(false);
-      // Refresh the page to show updated data
-      window.location.reload();
-    } catch (error) {
-      console.error('Failed to update machine:', error);
-      // Don't close modal or reload - let the modal handle the error
-      throw error;
-    }
-  };
+        // Show loading indicator immediately after successful update
+        setIsUpdating(true);
+
+        // Force a hard page reload to ensure fresh data and prevent race conditions
+        window.location.href = `/machines/${machine.serial_number}`;
+      } catch (error) {
+        console.error('Failed to update machine:', error);
+        // Don't close modal or reload - let the modal handle the error
+        throw error;
+      }
+    };
 
   return (
     <>
+      {/* Loading Overlay - shows when updating or deleting machine data */}
+      <LoadingOverlay 
+        isVisible={isUpdating || isDeletingMachine} 
+        message={
+          isUpdating ? "Loading machine details..." :
+          isDeletingMachine ? "Deleting machine..." :
+          "Loading..."
+        }
+      />
+
       <MaintenanceHistory
         machine={machine}
         onBack={handleBack}
         onEdit={handleEdit}
         onDelete={handleDelete}
-      />
+              />
 
-      {/* Machine Modal (Edit) */}
+        {/* Machine Modal (Edit) */}
       <MachineModal
         isOpen={isMachineModalOpen}
         mode={modalMode}
@@ -207,11 +223,11 @@ export default function MachinePage({ params }: MachinePageProps) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading machine information...</p>
-        </div>
+      <div className="min-h-screen bg-gray-50">
+        <LoadingOverlay 
+          isVisible={true} 
+          message="Loading machine details..." 
+        />
       </div>
     );
   }

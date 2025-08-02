@@ -8,6 +8,7 @@ import { handleApiError } from '../utils/api';
 import { isAuthError } from '../utils/auth';
 import { backendDateToHtmlDate } from '../utils/dateUtils';
 import FullPageLoader from './FullPageLoader';
+import LoadingOverlay from './LoadingOverlay';
 
 interface MaintenanceHistoryProps {
   machine: Machine;
@@ -510,6 +511,7 @@ export default function MaintenanceHistory({
       // Reload the maintenance records
       await loadMaintenanceRecords();
       closeAddRecordModal();
+      setIsCreating(false); // Reset loading state on success
     } catch (error) {
       console.error('Failed to create maintenance record:', error);
       setCreateError('An error occurred while creating the maintenance record. Please try again.');
@@ -682,6 +684,7 @@ export default function MaintenanceHistory({
       // Reload the maintenance records
       await loadMaintenanceRecords();
       closeEditRecordModal();
+      setIsUpdating(false); // Reset loading state on success
     } catch (error) {
       console.error('Failed to update maintenance record:', error);
       setUpdateError('An error occurred while updating the maintenance record. Please try again.');
@@ -716,6 +719,7 @@ export default function MaintenanceHistory({
         // Reload the maintenance records
         await loadMaintenanceRecords();
         closeDeleteConfirm();
+        setIsDeleting(false); // Reset loading state on success
       } catch (error) {
         console.error('Failed to delete maintenance record:', error);
         setDeleteError('Failed to delete maintenance record. Please try again.');
@@ -796,6 +800,17 @@ export default function MaintenanceHistory({
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
+      {/* Loading Overlay for CRUD operations */}
+      <LoadingOverlay 
+        isVisible={isCreating || isUpdating || isDeleting} 
+        message={
+          isCreating ? "Creating maintenance record..." :
+          isUpdating ? "Updating maintenance record..." :
+          isDeleting ? "Deleting maintenance record..." :
+          "Loading..."
+        }
+      />
+      
       <div className="container mx-auto px-4">
         {/* Header */}
         <div className="mb-8">

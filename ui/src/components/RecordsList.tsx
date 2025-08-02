@@ -11,6 +11,7 @@ import { isDateProperty } from '../utils/constants';
 import RecordCard from './RecordCard';
 import MachineModal from './MachineModal';
 import FullPageLoader from './FullPageLoader';
+import LoadingOverlay from './LoadingOverlay';
 
 type FilterType = 'all' | 'overdue' | 'due';
 export type SortType = 'newest' | 'oldest';
@@ -45,6 +46,8 @@ export default function RecordsList({
 
   // CRUD operation loading states
   const [isDeletingMachine, setIsDeletingMachine] = useState(false);
+  const [isCreatingMachine, setIsCreatingMachine] = useState(false);
+  const [isUpdatingMachine, setIsUpdatingMachine] = useState(false);
 
   // Convert search options to API filters
   const apiFilters: MachineFilters = useMemo(() => {
@@ -201,16 +204,20 @@ export default function RecordsList({
 
   const handleAddMachine = async (newMachine: Omit<Machine, 'created_at' | 'updated_at'>) => {
     try {
+      setIsCreatingMachine(true);
       const createdMachine = await createMachine(newMachine);
       if (createdMachine) {
         // Refresh the machines list
         refetch();
+        setIsCreatingMachine(false);
       } else {
         // Create failed, don't close modal - let the modal handle the error
+        setIsCreatingMachine(false);
         throw new Error('Failed to create machine');
       }
     } catch (error) {
       console.error('Failed to create machine:', error);
+      setIsCreatingMachine(false);
       // Re-throw the error so the modal can handle it
       throw error;
     }
@@ -218,18 +225,22 @@ export default function RecordsList({
 
   const handleEditMachine = async (updatedMachine: Machine) => {
     try {
+      setIsUpdatingMachine(true);
       const updated = await updateMachine(updatedMachine.serial_number, updatedMachine);
       if (updated) {
         setMachineToEdit(null);
         setIsMachineModalOpen(false);
         // Refresh the machines list
         refetch();
+        setIsUpdatingMachine(false);
       } else {
         // Update failed, don't close modal - let the modal handle the error
+        setIsUpdatingMachine(false);
         throw new Error('Failed to update machine');
       }
     } catch (error) {
       console.error('Failed to update machine:', error);
+      setIsUpdatingMachine(false);
       // Re-throw the error so the modal can handle it
       throw error;
     }
@@ -339,6 +350,17 @@ export default function RecordsList({
 
   return (
     <div className="space-y-6">
+      {/* Loading Overlay for CRUD operations */}
+      <LoadingOverlay 
+        isVisible={isCreatingMachine || isUpdatingMachine || isDeletingMachine} 
+        message={
+          isCreatingMachine ? "Creating machine..." :
+          isUpdatingMachine ? "Updating machine..." :
+          isDeletingMachine ? "Deleting machine..." :
+          "Loading..."
+        }
+      />
+      
       <div className="flex justify-between items-center">
         <div className="flex-1">
           <div className="flex items-center gap-4">
