@@ -124,6 +124,21 @@ func (mr *MockRepositoryMockRecorder) List(ctx, options interface{}) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockRepository)(nil).List), ctx, options)
 }
 
+// Search mocks base method.
+func (m *MockRepository) Search(ctx context.Context, query string, options *ListOptions) ([]*Machine, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Search", ctx, query, options)
+	ret0, _ := ret[0].([]*Machine)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Search indicates an expected call of Search.
+func (mr *MockRepositoryMockRecorder) Search(ctx, query, options interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockRepository)(nil).Search), ctx, query, options)
+}
+
 // Update mocks base method.
 func (m *MockRepository) Update(ctx context.Context, machine *Machine) error {
 	m.ctrl.T.Helper()

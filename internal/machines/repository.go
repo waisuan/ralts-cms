@@ -53,6 +53,7 @@ type Repository interface {
 	Delete(ctx context.Context, serialNumber string) error
 	Count(ctx context.Context) (int, error)
 	CountByStatus(ctx context.Context) (int32, int32, int32, error)
+	Search(ctx context.Context, query string, options *ListOptions) ([]*Machine, error)
 }
 
 type db struct {
@@ -165,7 +166,6 @@ func (r *db) List(ctx context.Context, options *ListOptions) ([]*Machine, error)
 
 		// Set PPM status based on the PPM date
 		machine.PpmStatus = string(r.calculatePPMStatus(machine.PpmDate))
-
 		machines = append(machines, &machine)
 	}
 
@@ -277,6 +277,88 @@ func (r *db) CountByStatus(ctx context.Context) (int32, int32, int32, error) {
 	}
 
 	return overdueCount, dueCount, almostDueCount, nil
+}
+
+func (r *db) Search(ctx context.Context, query string, options *ListOptions) ([]*Machine, error) {
+	// Use default options if none provided
+	if options == nil {
+		options = DefaultListOptions()
+	}
+
+	// Build the base query with full-text search
+	baseQuery := `
+		SELECT id, serial_number, customer, state, account_type, model, status, brand, 
+		       district, person_in_charge, reported_by, additional_notes, attachment, 
+		       tnc_date, ppm_date, created_at, updated_at,
+		       ts_rank(search_vector, plainto_tsquery('english', $1)) as rank
+		FROM machines 
+		WHERE search_vector @@ plainto_tsquery('english', $1)
+	`
+
+	// Build WHERE clause for PPM status filtering
+	var args []interface{}
+	args = append(args, query)
+	argIndex := 2
+
+	if options.PpmStatusFilter != "" {
+		// Add PPM status filter condition
+		switch options.PpmStatusFilter {
+		case PPMStatusOverdue:
+			baseQuery += " AND ppm_date < CURRENT_DATE"
+		case PPMStatusDue:
+			baseQuery += " AND ppm_date = CURRENT_DATE"
+		case PPMStatusAlmostDue:
+			baseQuery += " AND ppm_date > CURRENT_DATE AND ppm_date <= CURRENT_DATE + INTERVAL '2 weeks'"
+		}
+	}
+
+	// Build ORDER BY clause based on sort option
+	var orderByClause string
+	switch options.Sort {
+	case SortOrderCreatedAtAsc:
+		orderByClause = "ORDER BY rank DESC, created_at ASC"
+	case SortOrderCreatedAtDesc:
+		orderByClause = "ORDER BY rank DESC, created_at DESC"
+	default:
+		orderByClause = "ORDER BY rank DESC, created_at DESC"
+	}
+
+	// Add pagination
+	finalQuery := fmt.Sprintf("%s %s LIMIT $%d OFFSET $%d", baseQuery, orderByClause, argIndex, argIndex+1)
+	args = append(args, options.Limit, options.Offset)
+
+	rows, err := r.client.Query(ctx, finalQuery, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search machines: %w", err)
+	}
+	defer rows.Close()
+
+	var machines []*Machine
+	for rows.Next() {
+		var machine Machine
+		var rank float32
+		err := rows.Scan(
+			&machine.ID, &machine.SerialNumber, &machine.Customer, &machine.State,
+			&machine.AccountType, &machine.Model, &machine.Status, &machine.Brand,
+			&machine.District, &machine.PersonInCharge, &machine.ReportedBy,
+			&machine.AdditionalNotes, &machine.Attachment,
+			&machine.TncDate, &machine.PpmDate, &machine.CreatedAt, &machine.UpdatedAt,
+			&rank,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan machine: %w", err)
+		}
+
+		// Set PPM status based on the PPM date
+		machine.PpmStatus = string(r.calculatePPMStatus(machine.PpmDate))
+		machines = append(machines, &machine)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating rows: %w", err)
+	}
+
+	return machines, nil
 }
 
 // calculatePPMStatus determines the PPM status based on the PPM date

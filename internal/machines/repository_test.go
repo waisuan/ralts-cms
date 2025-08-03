@@ -624,6 +624,294 @@ func (suite *MachineRepositoryTestSuite) TestCountByStatus() {
 	})
 }
 
+func (suite *MachineRepositoryTestSuite) TestSearch() {
+	ctx := context.Background()
+
+	suite.Run("should search machines by text query", func() {
+		// Create test machines with different searchable content
+		hpPrinter := testutils.CreateMachine("HP001")
+		hpPrinter.Brand = "HP"
+		hpPrinter.Model = "LaserJet Pro"
+		hpPrinter.Customer = "Office Supplies Inc"
+		suite.Require().NoError(suite.repo.Create(ctx, hpPrinter))
+
+		canonPrinter := testutils.CreateMachine("CANON001")
+		canonPrinter.Brand = "Canon"
+		canonPrinter.Model = "Pixma Pro"
+		canonPrinter.Customer = "Print Shop"
+		suite.Require().NoError(suite.repo.Create(ctx, canonPrinter))
+
+		// Search for HP printers
+		results, err := suite.repo.Search(ctx, "HP", &machines.ListOptions{
+			Limit: 10,
+			Sort:  machines.SortOrderCreatedAtDesc,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Len(results, 1)
+		suite.Assert().Equal("HP001", results[0].SerialNumber)
+		suite.Assert().Equal("HP", results[0].Brand)
+	})
+
+	suite.Run("should search across multiple fields", func() {
+		// Create machine with searchable content in different fields
+		machine := testutils.CreateMachine("SEARCH001")
+		machine.Customer = "Tech Solutions"
+		machine.Brand = "Brother"
+		machine.Model = "Laser Printer"
+		machine.District = "Downtown"
+		machine.PersonInCharge = "John Tech"
+		suite.Require().NoError(suite.repo.Create(ctx, machine))
+
+		// Search for "Tech" which should match customer and person_in_charge
+		results, err := suite.repo.Search(ctx, "Tech", &machines.ListOptions{
+			Limit: 10,
+			Sort:  machines.SortOrderCreatedAtDesc,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Len(results, 1)
+		suite.Assert().Equal("SEARCH001", results[0].SerialNumber)
+	})
+
+	suite.Run("should return empty results for non-matching query", func() {
+		// Create a machine
+		machine := testutils.CreateMachine("NOMATCH001")
+		suite.Require().NoError(suite.repo.Create(ctx, machine))
+
+		// Search for something that doesn't exist
+		results, err := suite.repo.Search(ctx, "nonexistent", &machines.ListOptions{
+			Limit: 10,
+			Sort:  machines.SortOrderCreatedAtDesc,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Len(results, 0)
+	})
+
+	suite.Run("should respect pagination parameters", func() {
+		// Create multiple machines
+		for i := 1; i <= 5; i++ {
+			machine := testutils.CreateMachine(fmt.Sprintf("PAGE%03d", i))
+			machine.Brand = "HP"
+			suite.Require().NoError(suite.repo.Create(ctx, machine))
+		}
+
+		// Search with limit and offset
+		results, err := suite.repo.Search(ctx, "HP", &machines.ListOptions{
+			Limit:  2,
+			Offset: 1,
+			Sort:   machines.SortOrderCreatedAtDesc,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Len(results, 2)
+	})
+
+	suite.Run("should filter by PPM status overdue", func() {
+		// Create overdue machine
+		overdueMachine := testutils.CreateMachine("OVERDUE001")
+		overdueMachine.Brand = "HP"
+		overdueMachine.PpmDate = time.Now().AddDate(0, 0, -1) // Yesterday
+		suite.Require().NoError(suite.repo.Create(ctx, overdueMachine))
+
+		// Create future machine (not overdue)
+		futureMachine := testutils.CreateMachine("FUTURE001")
+		futureMachine.Brand = "HP"
+		futureMachine.PpmDate = time.Now().AddDate(0, 0, 30) // 30 days from now
+		suite.Require().NoError(suite.repo.Create(ctx, futureMachine))
+
+		// Search for HP machines that are overdue
+		results, err := suite.repo.Search(ctx, "HP", &machines.ListOptions{
+			Limit:           10,
+			Sort:            machines.SortOrderCreatedAtDesc,
+			PpmStatusFilter: machines.PPMStatusOverdue,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Len(results, 1)
+		suite.Assert().Equal("OVERDUE001", results[0].SerialNumber)
+	})
+
+	suite.Run("should filter by PPM status due today", func() {
+		// Create machine due today
+		dueMachine := testutils.CreateMachine("DUE001")
+		dueMachine.Brand = "Canon"
+		dueMachine.PpmDate = time.Now() // Today
+		suite.Require().NoError(suite.repo.Create(ctx, dueMachine))
+
+		// Create machine due tomorrow
+		tomorrowMachine := testutils.CreateMachine("TOMORROW001")
+		tomorrowMachine.Brand = "Canon"
+		tomorrowMachine.PpmDate = time.Now().AddDate(0, 0, 1) // Tomorrow
+		suite.Require().NoError(suite.repo.Create(ctx, tomorrowMachine))
+
+		// Search for Canon machines due today
+		results, err := suite.repo.Search(ctx, "Canon", &machines.ListOptions{
+			Limit:           10,
+			Sort:            machines.SortOrderCreatedAtDesc,
+			PpmStatusFilter: machines.PPMStatusDue,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Len(results, 1)
+		suite.Assert().Equal("DUE001", results[0].SerialNumber)
+	})
+
+	suite.Run("should filter by PPM status almost due", func() {
+		// Create machine almost due (within 2 weeks)
+		almostDueMachine := testutils.CreateMachine("ALMOSTDUE001")
+		almostDueMachine.Brand = "Brother"
+		almostDueMachine.PpmDate = time.Now().AddDate(0, 0, 10) // 10 days from now
+		suite.Require().NoError(suite.repo.Create(ctx, almostDueMachine))
+
+		// Create machine far in future (not almost due)
+		farFutureMachine := testutils.CreateMachine("FARFUTURE001")
+		farFutureMachine.Brand = "Brother"
+		farFutureMachine.PpmDate = time.Now().AddDate(0, 0, 30) // 30 days from now
+		suite.Require().NoError(suite.repo.Create(ctx, farFutureMachine))
+
+		// Search for Brother machines almost due
+		results, err := suite.repo.Search(ctx, "Brother", &machines.ListOptions{
+			Limit:           10,
+			Sort:            machines.SortOrderCreatedAtDesc,
+			PpmStatusFilter: machines.PPMStatusAlmostDue,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Len(results, 1)
+		suite.Assert().Equal("ALMOSTDUE001", results[0].SerialNumber)
+	})
+
+	suite.Run("should use default options when none provided", func() {
+		// Create a machine
+		machine := testutils.CreateMachine("DEFAULT001")
+		machine.Brand = "HP"
+		suite.Require().NoError(suite.repo.Create(ctx, machine))
+
+		// Search without providing options
+		results, err := suite.repo.Search(ctx, "HP", nil)
+		suite.Require().NoError(err)
+		suite.Assert().Len(results, 1)
+		suite.Assert().Equal("DEFAULT001", results[0].SerialNumber)
+	})
+
+	suite.Run("should handle case-insensitive search", func() {
+		// Create machine with mixed case
+		machine := testutils.CreateMachine("CASE001")
+		machine.Brand = "HP"
+		machine.Customer = "Office Supplies"
+		suite.Require().NoError(suite.repo.Create(ctx, machine))
+
+		// Search with lowercase
+		results, err := suite.repo.Search(ctx, "office", &machines.ListOptions{
+			Limit: 10,
+			Sort:  machines.SortOrderCreatedAtDesc,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Len(results, 1)
+		suite.Assert().Equal("CASE001", results[0].SerialNumber)
+	})
+
+	suite.Run("should handle empty search query", func() {
+		// Create a machine
+		machine := testutils.CreateMachine("EMPTY001")
+		suite.Require().NoError(suite.repo.Create(ctx, machine))
+
+		// Search with empty query
+		results, err := suite.repo.Search(ctx, "", &machines.ListOptions{
+			Limit: 10,
+			Sort:  machines.SortOrderCreatedAtDesc,
+		})
+		suite.Require().NoError(err)
+		// Should return no results for empty query
+		suite.Assert().Len(results, 0)
+	})
+
+	suite.Run("should handle special characters in search query", func() {
+		// Create machine with special characters
+		machine := testutils.CreateMachine("SPECIAL001")
+		machine.Customer = "Tech & Solutions"
+		machine.AdditionalNotes = "Maintenance (urgent)"
+		suite.Require().NoError(suite.repo.Create(ctx, machine))
+
+		// Search with special characters
+		results, err := suite.repo.Search(ctx, "Tech Solutions", &machines.ListOptions{
+			Limit: 10,
+			Sort:  machines.SortOrderCreatedAtDesc,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Len(results, 1)
+		suite.Assert().Equal("SPECIAL001", results[0].SerialNumber)
+	})
+
+	suite.Run("should return multiple results with proper ranking", func() {
+		// Create multiple HP machines with different search relevance
+		hpLaser := testutils.CreateMachine("HP001")
+		hpLaser.Brand = "HP"
+		hpLaser.Model = "LaserJet Pro"
+		hpLaser.Customer = "Office Supplies"
+		suite.Require().NoError(suite.repo.Create(ctx, hpLaser))
+
+		hpInkjet := testutils.CreateMachine("HP002")
+		hpInkjet.Brand = "HP"
+		hpInkjet.Model = "Inkjet Pro"
+		hpInkjet.Customer = "Print Shop"
+		suite.Require().NoError(suite.repo.Create(ctx, hpInkjet))
+
+		hpScanner := testutils.CreateMachine("HP003")
+		hpScanner.Brand = "HP"
+		hpScanner.Model = "Scanner Pro"
+		hpScanner.Customer = "Document Center"
+		suite.Require().NoError(suite.repo.Create(ctx, hpScanner))
+
+		// Create a non-HP machine to ensure it's not included
+		canonMachine := testutils.CreateMachine("CANON001")
+		canonMachine.Brand = "Canon"
+		canonMachine.Model = "Pixma"
+		suite.Require().NoError(suite.repo.Create(ctx, canonMachine))
+
+		// Search for HP machines
+		results, err := suite.repo.Search(ctx, "HP", &machines.ListOptions{
+			Limit: 10,
+			Sort:  machines.SortOrderCreatedAtDesc,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Len(results, 3)
+
+		// Verify all results are HP machines
+		for _, result := range results {
+			suite.Assert().Equal("HP", result.Brand)
+		}
+
+		// Verify we got the expected serial numbers
+		serialNumbers := make([]string, len(results))
+		for i, result := range results {
+			serialNumbers[i] = result.SerialNumber
+		}
+		suite.Assert().Contains(serialNumbers, "HP001")
+		suite.Assert().Contains(serialNumbers, "HP002")
+		suite.Assert().Contains(serialNumbers, "HP003")
+		suite.Assert().NotContains(serialNumbers, "CANON001")
+	})
+
+	suite.Run("should respect limit when multiple results exist", func() {
+		// Create multiple machines with same brand
+		for i := 1; i <= 5; i++ {
+			machine := testutils.CreateMachine(fmt.Sprintf("LIMIT%03d", i))
+			machine.Brand = "Brother"
+			suite.Require().NoError(suite.repo.Create(ctx, machine))
+		}
+
+		// Search with limit less than total matches
+		results, err := suite.repo.Search(ctx, "Brother", &machines.ListOptions{
+			Limit:  3,
+			Offset: 0,
+			Sort:   machines.SortOrderCreatedAtDesc,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Len(results, 3)
+
+		// Verify all results are Brother machines
+		for _, result := range results {
+			suite.Assert().Equal("Brother", result.Brand)
+		}
+	})
+}
+
 // TestMachineRepositoryTestSuite runs the test suite
 func TestMachineRepositoryTestSuite(t *testing.T) {
 	suite.Run(t, new(MachineRepositoryTestSuite))
