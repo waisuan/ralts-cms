@@ -23,6 +23,7 @@ interface RecordsListProps {
   onShowAll?: () => void;
   onSortChange?: (sortBy: SortType) => void;
   onCountsUpdate?: (overdue: number, due: number) => void;
+  onSearchLoadingChange?: (loading: boolean) => void;
 }
 
 const ITEMS_PER_PAGE = 12; // Show 12 machines per page
@@ -34,6 +35,7 @@ export default function RecordsList({
   onShowAll,
   onSortChange,
   onCountsUpdate,
+  onSearchLoadingChange,
 }: RecordsListProps) {
   const router = useRouter();
   const [isMachineModalOpen, setIsMachineModalOpen] = useState(false);
@@ -67,10 +69,24 @@ export default function RecordsList({
       filters.sort = 'created_at_asc';
     }
     
+    // Handle search query - only send to API for 'any' property or specific supported properties
+    if (searchOptions.query.trim()) {
+      if (searchOptions.property === 'any') {
+        // For 'any' search, send the query to backend
+        filters.q = searchOptions.query.trim();
+      } else if (searchOptions.property === 'ppm_status') {
+        // For PPM status, use the existing ppm_status_filter
+        filters.ppm_status_filter = searchOptions.query;
+      } else if (isDateProperty(searchOptions.property)) {
+        // For date properties, we'll handle client-side for now
+        // Could be enhanced to use backend date filtering in the future
+      }
+    }
+    
     return filters;
-  }, [filterType, sortBy]);
+  }, [filterType, sortBy, searchOptions]);
 
-  // Use the machines API hook with server-side pagination
+  // Use the machines API hook with server-side pagination and debounced search
   const {
     machines,
     total,
@@ -103,45 +119,17 @@ export default function RecordsList({
     }
   }, [overdueCount, dueCount, onCountsUpdate]);
 
-
-
-  // Filter machines based on search options (client-side filtering for properties not supported by API)
-  const filteredMachines = useMemo(() => {
-    let filtered = machines;
-
-    // Apply client-side filtering for properties not supported by API
-    if (searchOptions.query.trim()) {
-      const query = searchOptions.query.toLowerCase();
-      const { property } = searchOptions;
-
-      filtered = filtered.filter((machine) => {
-        // Handle date properties differently
-        if (isDateProperty(property)) {
-          const fieldValue = machine[property as keyof typeof machine];
-          if (!fieldValue) return false;
-
-          // Convert both dates to YYYY-MM-DD format for comparison
-          const machineDate = fieldValue.toString().split('T')[0]; // Extract date part from ISO string
-          const searchDate = searchOptions.query; // Already in YYYY-MM-DD format from date input
-
-          return machineDate === searchDate;
-        } else if (property === 'ppm_status') {
-          // Handle PPM status search using backend ppm_status field
-          const backendStatus = machine.ppm_status;
-          if (!backendStatus) return false;
-
-          // Use exact matching for PPM status since user selects from dropdown
-          return backendStatus === searchOptions.query;
-        } else {
-          // Search in specific text property
-          const fieldValue = machine[property as keyof typeof machine];
-          return fieldValue && fieldValue.toString().toLowerCase().includes(query);
-        }
-      });
+  // Update parent component with search loading state
+  useEffect(() => {
+    if (onSearchLoadingChange) {
+      onSearchLoadingChange(loading);
     }
+  }, [loading, onSearchLoadingChange]);
 
-    return filtered;
-  }, [machines, searchOptions]);
+
+
+  // Use machines directly from API (server-side search is now handled by the backend)
+  const filteredMachines = machines;
 
 
 
@@ -369,8 +357,8 @@ export default function RecordsList({
               <p className="text-sm text-gray-500 mt-1">
                 {searchOptions.query.trim() ? (
                   <>
-                    Showing {filteredMachines.length} of {machines.length} loaded machine
-                    {machines.length !== 1 ? 's' : ''}
+                    Showing {machines.length} of {total} machine
+                    {total !== 1 ? 's' : ''}
                     {getFilterStatusText()}
                   </>
                 ) : (

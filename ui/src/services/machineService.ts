@@ -6,6 +6,7 @@ export interface MachineFilters {
   offset?: number;
   sort?: string;
   ppm_status_filter?: string;
+  q?: string; // Search query parameter
 }
 
 export interface MachineListResponse {
@@ -72,6 +73,8 @@ export class MachineService {
             params[key] = value.toString();
           } else if (key === 'offset' && typeof value === 'number') {
             params[key] = value.toString();
+          } else if (key === 'q' && typeof value === 'string') {
+            params['q'] = value;
           }
         }
       });

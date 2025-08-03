@@ -5,12 +5,10 @@ export const DEFAULT_SEARCH_PROPERTY = 'any' as const;
 export const SEARCH_PROPERTIES = [
   { value: 'any', label: 'Any' },
   { value: 'ppm_status', label: 'PPM Status' },
-  { value: 'tnc_date', label: 'TNC Date' },
-  { value: 'ppm_date', label: 'PPM Date' },
 ] as const;
 
 // Properties that should use date picker instead of text input
-export const DATE_PROPERTIES = ['tnc_date', 'ppm_date'] as const;
+export const DATE_PROPERTIES = [] as const;
 
 // Properties that should use dropdown selection instead of text input
 export const PPM_STATUS_PROPERTY = 'ppm_status' as const;

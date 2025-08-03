@@ -66,6 +66,21 @@ func (mr *MockRepositoryMockRecorder) CountByStatus(ctx interface{}) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountByStatus", reflect.TypeOf((*MockRepository)(nil).CountByStatus), ctx)
 }
 
+// CountSearch mocks base method.
+func (m *MockRepository) CountSearch(ctx context.Context, query string, options *ListOptions) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CountSearch", ctx, query, options)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CountSearch indicates an expected call of CountSearch.
+func (mr *MockRepositoryMockRecorder) CountSearch(ctx, query, options interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountSearch", reflect.TypeOf((*MockRepository)(nil).CountSearch), ctx, query, options)
+}
+
 // Create mocks base method.
 func (m *MockRepository) Create(ctx context.Context, machine *Machine) error {
 	m.ctrl.T.Helper()

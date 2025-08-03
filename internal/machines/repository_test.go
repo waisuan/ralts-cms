@@ -910,6 +910,64 @@ func (suite *MachineRepositoryTestSuite) TestSearch() {
 			suite.Assert().Equal("Brother", result.Brand)
 		}
 	})
+
+	suite.Run("should count search results correctly", func() {
+		// Create test machines
+		hpMachine := testutils.CreateMachine("HP001")
+		hpMachine.Brand = "HP"
+		suite.Require().NoError(suite.repo.Create(ctx, hpMachine))
+
+		canonMachine := testutils.CreateMachine("CANON001")
+		canonMachine.Brand = "Canon"
+		suite.Require().NoError(suite.repo.Create(ctx, canonMachine))
+
+		// Count search results for "HP"
+		count, err := suite.repo.CountSearch(ctx, "HP", &machines.ListOptions{
+			Limit: 10,
+			Sort:  machines.SortOrderCreatedAtDesc,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Equal(1, count)
+
+		// Count search results for "Canon"
+		count, err = suite.repo.CountSearch(ctx, "Canon", &machines.ListOptions{
+			Limit: 10,
+			Sort:  machines.SortOrderCreatedAtDesc,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Equal(1, count)
+
+		// Count search results for non-existent term
+		count, err = suite.repo.CountSearch(ctx, "nonexistent", &machines.ListOptions{
+			Limit: 10,
+			Sort:  machines.SortOrderCreatedAtDesc,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Equal(0, count)
+	})
+
+	suite.Run("should count search results with PPM status filter", func() {
+		// Create overdue HP machine
+		overdueMachine := testutils.CreateMachine("HP001")
+		overdueMachine.Brand = "HP"
+		overdueMachine.PpmDate = time.Now().AddDate(0, 0, -1) // Yesterday
+		suite.Require().NoError(suite.repo.Create(ctx, overdueMachine))
+
+		// Create future HP machine (not overdue)
+		futureMachine := testutils.CreateMachine("HP002")
+		futureMachine.Brand = "HP"
+		futureMachine.PpmDate = time.Now().AddDate(0, 0, 30) // 30 days from now
+		suite.Require().NoError(suite.repo.Create(ctx, futureMachine))
+
+		// Count HP machines that are overdue
+		count, err := suite.repo.CountSearch(ctx, "HP", &machines.ListOptions{
+			Limit:           10,
+			Sort:            machines.SortOrderCreatedAtDesc,
+			PpmStatusFilter: machines.PPMStatusOverdue,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Equal(1, count)
+	})
 }
 
 // TestMachineRepositoryTestSuite runs the test suite

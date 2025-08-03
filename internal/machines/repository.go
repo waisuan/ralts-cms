@@ -54,6 +54,7 @@ type Repository interface {
 	Count(ctx context.Context) (int, error)
 	CountByStatus(ctx context.Context) (int32, int32, int32, error)
 	Search(ctx context.Context, query string, options *ListOptions) ([]*Machine, error)
+	CountSearch(ctx context.Context, query string, options *ListOptions) (int, error)
 }
 
 type db struct {
@@ -359,6 +360,44 @@ func (r *db) Search(ctx context.Context, query string, options *ListOptions) ([]
 	}
 
 	return machines, nil
+}
+
+func (r *db) CountSearch(ctx context.Context, query string, options *ListOptions) (int, error) {
+	// Use default options if none provided
+	if options == nil {
+		options = DefaultListOptions()
+	}
+
+	// Build the base query for counting search results
+	baseQuery := `
+		SELECT COUNT(*)
+		FROM machines 
+		WHERE search_vector @@ plainto_tsquery('english', $1)
+	`
+
+	// Build WHERE clause for PPM status filtering
+	var args []interface{}
+	args = append(args, query)
+
+	if options.PpmStatusFilter != "" {
+		// Add PPM status filter condition
+		switch options.PpmStatusFilter {
+		case PPMStatusOverdue:
+			baseQuery += " AND ppm_date < CURRENT_DATE"
+		case PPMStatusDue:
+			baseQuery += " AND ppm_date = CURRENT_DATE"
+		case PPMStatusAlmostDue:
+			baseQuery += " AND ppm_date > CURRENT_DATE AND ppm_date <= CURRENT_DATE + INTERVAL '2 weeks'"
+		}
+	}
+
+	var count int
+	err := r.client.QueryRow(ctx, baseQuery, args...).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count search results: %w", err)
+	}
+
+	return count, nil
 }
 
 // calculatePPMStatus determines the PPM status based on the PPM date

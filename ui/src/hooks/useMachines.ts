@@ -3,6 +3,7 @@ import { MachineService, MachineFilters, MachineListResponse } from '../services
 import { Machine } from '../types/machine';
 import { ApiError, handleApiError } from '../utils/api';
 import { isAuthError } from '../utils/auth';
+import { useDebounce } from './useDebounce';
 
 export interface UseMachinesOptions {
   page?: number;
@@ -46,6 +47,9 @@ export function useMachines(options: UseMachinesOptions = {}): UseMachinesReturn
   const [overdueCount, setOverdueCount] = useState(0);
   const [dueCount, setDueCount] = useState(0);
   const [almostDueCount, setAlmostDueCount] = useState(0);
+
+  // Debounce the search query to avoid excessive API calls
+  const debouncedFilters = useDebounce(filters, 300); // 300ms debounce
 
   // Use refs to avoid stale closures
   const offsetRef = useRef(offset);
@@ -144,7 +148,7 @@ export function useMachines(options: UseMachinesOptions = {}): UseMachinesReturn
       // When filters change, always start fresh from offset 0
       fetchMachines(0, false);
     }
-  }, [fetchMachines, autoFetch, filters]); // Add filters as dependency
+  }, [fetchMachines, autoFetch, debouncedFilters]); // Use debounced filters
 
   const refetch = useCallback(async () => {
     await fetchMachines(0, false); // Reset to offset 0 and replace machines

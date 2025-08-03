@@ -19,6 +19,7 @@ export default function Home() {
   const [isDueDismissed, setIsDueDismissed] = useState(false);
   const [overdueCount, setOverdueCount] = useState(0);
   const [dueCount, setDueCount] = useState(0);
+  const [isSearching, setIsSearching] = useState(false);
 
   const handleShowOverdue = () => {
     // Clear any existing search and show only overdue machines
@@ -59,6 +60,10 @@ export default function Home() {
     setDueCount(due);
   };
 
+  const handleSearchLoadingChange = (loading: boolean) => {
+    setIsSearching(loading);
+  };
+
   return (
     <div className="container mx-auto px-4">
       <div className="mb-8">
@@ -75,7 +80,11 @@ export default function Home() {
         />
 
         {/* Enhanced Search Bar with Dropdown */}
-        <SearchBar searchOptions={searchOptions} onSearch={setSearchOptions} />
+        <SearchBar 
+          searchOptions={searchOptions} 
+          onSearch={setSearchOptions} 
+          isSearching={isSearching}
+        />
       </div>
 
       <RecordsList
@@ -85,6 +94,7 @@ export default function Home() {
         onShowAll={handleShowAll}
         onSortChange={handleSortChange}
         onCountsUpdate={handleCountsUpdate}
+        onSearchLoadingChange={handleSearchLoadingChange}
       />
     </div>
   );

@@ -127,11 +127,19 @@ func (h *MachinesHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 
 	// Get machines from repository (search if query provided, otherwise list)
 	var machines []*machines.Machine
+	var count int
 	var err error
 	if query != "" {
 		machines, err = h.deps.MachinesRepository.Search(r.Context(), query, options)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to search machines: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		// Count search results
+		count, err = h.deps.MachinesRepository.CountSearch(r.Context(), query, options)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to count search results: %v", err), http.StatusInternalServerError)
 			return
 		}
 	} else {
@@ -140,12 +148,12 @@ func (h *MachinesHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("Failed to list machines: %v", err), http.StatusInternalServerError)
 			return
 		}
-	}
 
-	count, err := h.deps.MachinesRepository.Count(r.Context())
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to count machines: %v", err), http.StatusInternalServerError)
-		return
+		count, err = h.deps.MachinesRepository.Count(r.Context())
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to count machines: %v", err), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	overdueCount, dueCount, almostDueCount, err := h.deps.MachinesRepository.CountByStatus(r.Context())

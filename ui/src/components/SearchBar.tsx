@@ -16,6 +16,7 @@ export interface SearchOptions {
 interface SearchBarProps {
   onSearch: (options: SearchOptions) => void;
   searchOptions: SearchOptions;
+  isSearching?: boolean;
 }
 
 // Helper function to convert internal PPM status to consumer-facing text
@@ -24,7 +25,7 @@ function getPPMStatusDisplayText(internalValue: string): string {
   return statusOption ? statusOption.label : internalValue;
 }
 
-export default function SearchBar({ onSearch, searchOptions }: SearchBarProps) {
+export default function SearchBar({ onSearch, searchOptions, isSearching = false }: SearchBarProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const handleQueryChange = (query: string) => {
@@ -131,7 +132,22 @@ export default function SearchBar({ onSearch, searchOptions }: SearchBarProps) {
               />
             )}
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              {isDatePropertyValue ? (
+              {isSearching ? (
+                /* Loading Spinner */
+                <svg
+                  className="h-5 w-5 text-gray-400 animate-spin"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
+                </svg>
+              ) : isDatePropertyValue ? (
                 /* Calendar Icon for Date Properties */
                 <svg
                   className="h-5 w-5 text-gray-400"
@@ -178,6 +194,32 @@ export default function SearchBar({ onSearch, searchOptions }: SearchBarProps) {
                 </svg>
               )}
             </div>
+            
+            {/* Clear Button - Only show when there's a query and not loading */}
+            {searchOptions.query && !isSearching && (
+              <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                <button
+                  type="button"
+                  onClick={() => handleQueryChange('')}
+                  className="text-gray-400 hover:text-gray-600 focus:outline-none focus:text-gray-600 transition-colors"
+                  title="Clear search"
+                >
+                  <svg
+                    className="h-5 w-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
