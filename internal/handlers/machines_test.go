@@ -963,6 +963,131 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.Assert().Equal(int32(0), response.DueCount)
 		suite.Assert().Equal(int32(0), response.AlmostDueCount)
 	})
+
+	suite.Run("should call Search when query parameter is provided", func() {
+		expectedMachines := []*machines.Machine{
+			{SerialNumber: "SEARCH001", Customer: "HP Customer", Brand: "HP"},
+			{SerialNumber: "SEARCH002", Customer: "HP Customer", Brand: "HP"},
+		}
+
+		expectedOptions := &machines.ListOptions{
+			Limit:           50,
+			Offset:          0,
+			Sort:            machines.SortOrderCreatedAtDesc,
+			PpmStatusFilter: "",
+		}
+
+		// Expect Search to be called instead of List
+		suite.mockMachinesRepo.EXPECT().Search(gomock.Any(), "HP", expectedOptions).Return(expectedMachines, nil)
+		suite.mockMachinesRepo.EXPECT().Count(gomock.Any()).Return(2, nil)
+		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "SEARCH001").Return(1, nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "SEARCH002").Return(2, nil)
+
+		req := httptest.NewRequest("GET", "/machines?q=HP", nil)
+		w := httptest.NewRecorder()
+
+		suite.handler.ListMachines(w, req)
+
+		suite.Assert().Equal(http.StatusOK, w.Code)
+
+		var response handlers.ListMachinesResponse
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		suite.Require().NoError(err)
+
+		suite.Assert().Len(response.Machines, 2)
+		suite.Assert().Equal("SEARCH001", response.Machines[0].SerialNumber)
+		suite.Assert().Equal("SEARCH002", response.Machines[1].SerialNumber)
+	})
+
+	suite.Run("should call List when query parameter is empty", func() {
+		expectedMachines := []*machines.Machine{
+			{SerialNumber: "LIST001", Customer: "Customer 1", Status: "Operational"},
+		}
+
+		expectedOptions := &machines.ListOptions{
+			Limit:           50,
+			Offset:          0,
+			Sort:            machines.SortOrderCreatedAtDesc,
+			PpmStatusFilter: "",
+		}
+
+		// Expect List to be called when q parameter is empty
+		suite.mockMachinesRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
+		suite.mockMachinesRepo.EXPECT().Count(gomock.Any()).Return(1, nil)
+		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "LIST001").Return(1, nil)
+
+		req := httptest.NewRequest("GET", "/machines?q=", nil)
+		w := httptest.NewRecorder()
+
+		suite.handler.ListMachines(w, req)
+
+		suite.Assert().Equal(http.StatusOK, w.Code)
+
+		var response handlers.ListMachinesResponse
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		suite.Require().NoError(err)
+
+		suite.Assert().Len(response.Machines, 1)
+		suite.Assert().Equal("LIST001", response.Machines[0].SerialNumber)
+	})
+
+	suite.Run("should combine search with other parameters", func() {
+		expectedMachines := []*machines.Machine{
+			{SerialNumber: "COMBINED001", Customer: "HP Customer", Brand: "HP"},
+		}
+
+		expectedOptions := &machines.ListOptions{
+			Limit:           10,
+			Offset:          5,
+			Sort:            machines.SortOrderCreatedAtAsc,
+			PpmStatusFilter: machines.PPMStatusOverdue,
+		}
+
+		// Expect Search to be called with combined parameters
+		suite.mockMachinesRepo.EXPECT().Search(gomock.Any(), "printer", expectedOptions).Return(expectedMachines, nil)
+		suite.mockMachinesRepo.EXPECT().Count(gomock.Any()).Return(1, nil)
+		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(1), int32(0), int32(0), nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "COMBINED001").Return(1, nil)
+
+		req := httptest.NewRequest("GET", "/machines?q=printer&limit=10&offset=5&sort=created_at_asc&ppm_status_filter=overdue", nil)
+		w := httptest.NewRecorder()
+
+		suite.handler.ListMachines(w, req)
+
+		suite.Assert().Equal(http.StatusOK, w.Code)
+
+		var response handlers.ListMachinesResponse
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		suite.Require().NoError(err)
+
+		suite.Assert().Len(response.Machines, 1)
+		suite.Assert().Equal(int32(10), response.Limit)
+		suite.Assert().Equal(int32(5), response.Offset)
+		suite.Assert().Equal("created_at_asc", response.Sort)
+		suite.Assert().Equal(int32(1), response.OverdueCount)
+	})
+
+	suite.Run("should return error when Search fails", func() {
+		expectedOptions := &machines.ListOptions{
+			Limit:           50,
+			Offset:          0,
+			Sort:            machines.SortOrderCreatedAtDesc,
+			PpmStatusFilter: "",
+		}
+
+		// Expect Search to be called and return error
+		suite.mockMachinesRepo.EXPECT().Search(gomock.Any(), "invalid", expectedOptions).Return(nil, fmt.Errorf("search failed"))
+
+		req := httptest.NewRequest("GET", "/machines?q=invalid", nil)
+		w := httptest.NewRecorder()
+
+		suite.handler.ListMachines(w, req)
+
+		suite.Assert().Equal(http.StatusInternalServerError, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Failed to search machines")
+	})
 }
 
 // TestMachinesHandlerTestSuite runs the test suite

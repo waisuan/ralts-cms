@@ -58,11 +58,12 @@ func (h *MachinesHandler) GetMachine(w http.ResponseWriter, r *http.Request) {
 
 // ListMachines handles GET /machines
 func (h *MachinesHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
-	// Parse query parameters for pagination and sorting
+	// Parse query parameters for pagination, sorting, and search
 	limitStr := r.URL.Query().Get("limit")
 	offsetStr := r.URL.Query().Get("offset")
 	sortStr := r.URL.Query().Get("sort")
 	ppmStatusFilterStr := r.URL.Query().Get("ppm_status_filter")
+	query := r.URL.Query().Get("q")
 
 	// Parse limit parameter
 	limit := h.deps.Config.DefaultMachinesLimit
@@ -124,11 +125,21 @@ func (h *MachinesHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 		PpmStatusFilter: ppmStatusFilter,
 	}
 
-	// Get machines from repository
-	machines, err := h.deps.MachinesRepository.List(r.Context(), options)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to list machines: %v", err), http.StatusInternalServerError)
-		return
+	// Get machines from repository (search if query provided, otherwise list)
+	var machines []*machines.Machine
+	var err error
+	if query != "" {
+		machines, err = h.deps.MachinesRepository.Search(r.Context(), query, options)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to search machines: %v", err), http.StatusInternalServerError)
+			return
+		}
+	} else {
+		machines, err = h.deps.MachinesRepository.List(r.Context(), options)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to list machines: %v", err), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	count, err := h.deps.MachinesRepository.Count(r.Context())
