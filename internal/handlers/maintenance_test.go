@@ -508,7 +508,7 @@ func (suite *MaintenanceHandlerTestSuite) TestCreateMaintenance() {
 			ReportedBy:          "John Doe",
 		}
 
-		suite.mockRepo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, m *maintenance.Maintenance) error {
+		suite.mockRepo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, m *maintenance.Maintenance) error {
 			suite.Assert().Equal("MACHINE123", m.MachineSerialNumber)
 			suite.Assert().Equal("WO001", m.WorkOrderNumber)
 			suite.Assert().Equal("Routine maintenance", m.ActionTaken)
@@ -624,7 +624,7 @@ func (suite *MaintenanceHandlerTestSuite) TestUpdateMaintenance() {
 		// Mock the existence check
 		suite.mockRepo.EXPECT().GetByWorkOrder(gomock.Any(), "MACHINE123", "WO001").Return(&maintenance.Maintenance{WorkOrderNumber: "WO001"}, nil)
 		// Mock the update
-		suite.mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, m *maintenance.Maintenance) error {
+		suite.mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, m *maintenance.Maintenance) error {
 			suite.Assert().Equal("MACHINE123", m.MachineSerialNumber)
 			suite.Assert().Equal("WO001", m.WorkOrderNumber)
 			suite.Assert().Equal("Updated maintenance", m.ActionTaken)

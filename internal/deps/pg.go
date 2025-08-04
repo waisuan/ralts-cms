@@ -10,11 +10,11 @@ import (
 
 // NewPostgresClient creates a new PostgreSQL connection pool using pgxpool
 func NewPostgresClient(ctx context.Context, cfg *Config) (*pgxpool.Pool, error) {
-	if cfg.DATABASE_URL == "" {
+	if cfg.DatabaseURL == "" {
 		return nil, fmt.Errorf("DATABASE_URL is required")
 	}
 
-	poolConfig, err := pgxpool.ParseConfig(cfg.DATABASE_URL)
+	poolConfig, err := pgxpool.ParseConfig(cfg.DatabaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse DATABASE_URL: %w", err)
 	}

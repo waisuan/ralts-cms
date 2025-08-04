@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// ListMachinesResponse represents the response structure for machine listing endpoints
 type ListMachinesResponse struct {
 	Machines       []*machines.Machine `json:"machines"`
 	OverdueCount   int32               `json:"overdue_count"`
@@ -23,10 +24,12 @@ type ListMachinesResponse struct {
 	Sort           string              `json:"sort"`
 }
 
+// MachinesHandler handles HTTP requests for machine-related operations
 type MachinesHandler struct {
 	deps *deps.Dependencies
 }
 
+// NewMachinesHandler creates a new machines handler instance with the given dependencies
 func NewMachinesHandler(deps *deps.Dependencies) *MachinesHandler {
 	return &MachinesHandler{
 		deps: deps,
@@ -77,7 +80,7 @@ func (h *MachinesHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse offset parameter
-	var offset int32 = 0
+	var offset int32
 	if offsetStr != "" {
 		if parsedOffset, err := strconv.ParseInt(offsetStr, 10, 32); err == nil && parsedOffset >= 0 {
 			offset = int32(parsedOffset)
@@ -102,7 +105,7 @@ func (h *MachinesHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse ppm_status_filter parameter
-	var ppmStatusFilter machines.PPMStatus = ""
+	var ppmStatusFilter machines.PPMStatus
 	if ppmStatusFilterStr != "" {
 		switch ppmStatusFilterStr {
 		case "overdue":

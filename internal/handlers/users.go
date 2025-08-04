@@ -10,10 +10,12 @@ import (
 	"ralts-cms/pkg/auth"
 )
 
+// UsersHandler handles HTTP requests for user-related operations
 type UsersHandler struct {
 	deps *deps.Dependencies
 }
 
+// CreateUserRequest represents the request structure for user creation
 type CreateUserRequest struct {
 	Name     string  `json:"name" validate:"required"`
 	Email    string  `json:"email" validate:"required,email"`
@@ -23,17 +25,20 @@ type CreateUserRequest struct {
 	Avatar   *string `json:"avatar,omitempty"`
 }
 
+// LoginRequest represents the request structure for user authentication
 type LoginRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
+// NewUsersHandler creates a new users handler instance with the given dependencies
 func NewUsersHandler(deps *deps.Dependencies) *UsersHandler {
 	return &UsersHandler{
 		deps: deps,
 	}
 }
 
+// CreateUser handles POST /api/v1/users for creating new users
 func (h *UsersHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var createUserRequest CreateUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&createUserRequest); err != nil {
@@ -61,6 +66,7 @@ func (h *UsersHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(user)
 }
 
+// Login handles POST /api/v1/users/login for user authentication
 func (h *UsersHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var loginRequest LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&loginRequest); err != nil {

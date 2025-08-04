@@ -51,11 +51,11 @@ jest.mock('../components/SearchBar', () => {
       <div data-testid="search-bar">
         <input
           data-testid="search-input"
-          placeholder="Search by serial number..."
+          placeholder="Search by any..."
           value={searchOptions?.query || ''}
           onChange={(e) => onSearch({ ...searchOptions, query: e.target.value })}
         />
-        <div>Serial Number</div>
+        <div>Any</div>
       </div>
     );
   };
@@ -71,29 +71,39 @@ jest.mock('../components/OverdueAlert', () => {
     isOverdueDismissed = false,
     isDueDismissed = false,
   }: MockOverdueAlertProps) {
+    // Provide default stats if undefined
+    const defaultStats = {
+      overdueCount: 1,
+      dueCount: 1,
+      totalCriticalCount: 2,
+      overdueMachines: [],
+      dueMachines: [],
+    };
+    const safeStats = stats || defaultStats;
+    
     if (
-      (stats.overdueCount === 0 || isOverdueDismissed) &&
-      (stats.dueCount === 0 || isDueDismissed)
+      (safeStats.overdueCount === 0 || isOverdueDismissed) &&
+      (safeStats.dueCount === 0 || isDueDismissed)
     ) {
       return null;
     }
 
     return (
       <div data-testid="overdue-alert">
-        {stats.overdueCount > 0 && !isOverdueDismissed && (
+        {safeStats.overdueCount > 0 && !isOverdueDismissed && (
           <div>
             <div>
-              {stats.overdueCount} machine{stats.overdueCount !== 1 ? 's are' : ' is'} overdue for
+              {safeStats.overdueCount} machine{safeStats.overdueCount !== 1 ? 's are' : ' is'} overdue for
               PPM maintenance
             </div>
             <button onClick={onShowOverdue}>View Overdue</button>
             {onDismissOverdue && <button onClick={onDismissOverdue}>Dismiss Overdue</button>}
           </div>
         )}
-        {stats.dueCount > 0 && !isDueDismissed && (
+        {safeStats.dueCount > 0 && !isDueDismissed && (
           <div>
             <div>
-              {stats.dueCount} machine{stats.dueCount !== 1 ? 's are' : ' is'} due for PPM
+              {safeStats.dueCount} machine{safeStats.dueCount !== 1 ? 's are' : ' is'} due for PPM
               maintenance today
             </div>
             <button onClick={onShowDue}>View Due</button>
@@ -110,10 +120,31 @@ jest.mock('../hooks/useOverdueStats', () => ({
   useOverdueStats: () => ({
     overdueCount: 1,
     dueCount: 1,
-    dueSoonCount: 1,
+    almostDueCount: 1,
     totalCriticalCount: 2,
     overdueMachines: [],
     dueMachines: [],
+  }),
+}));
+
+// Mock the useMachines hook to prevent API calls
+jest.mock('../hooks/useMachines', () => ({
+  useMachines: () => ({
+    machines: [],
+    total: 0,
+    offset: 0,
+    limit: 10,
+    totalPages: 0,
+    loading: false,
+    error: null,
+    overdueCount: 1,
+    dueCount: 1,
+    almostDueCount: 1,
+    refetch: jest.fn(),
+    setLimit: jest.fn(),
+    setFilters: jest.fn(),
+    loadMore: jest.fn(),
+    reset: jest.fn(),
   }),
 }));
 
@@ -134,10 +165,10 @@ describe('Home Page', () => {
 
     // Check that search functionality is available
     expect(screen.getByTestId('search-input')).toBeInTheDocument();
-    expect(screen.getByText('Serial Number')).toBeInTheDocument();
+    expect(screen.getByText('Any')).toBeInTheDocument();
 
     // Check that RecordsList shows default state
-    expect(screen.getByText('Search Property: serial_number')).toBeInTheDocument();
+    expect(screen.getByText('Search Property: any')).toBeInTheDocument();
     expect(screen.getByText('Filter Type: all')).toBeInTheDocument();
   });
 });

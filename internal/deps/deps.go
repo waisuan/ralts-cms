@@ -11,6 +11,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// Dependencies holds all application dependencies including configuration,
+// database connections, and repository instances
 type Dependencies struct {
 	Config *Config
 
@@ -22,6 +24,8 @@ type Dependencies struct {
 	UsersRepository       users.Repository
 }
 
+// Initialise creates and returns a new Dependencies instance with all required
+// services, repositories, and database connections initialized
 func Initialise() *Dependencies {
 	cfg, err := LoadConfig()
 	if err != nil {

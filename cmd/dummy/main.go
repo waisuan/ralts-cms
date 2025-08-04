@@ -1,3 +1,5 @@
+// Package main provides a dummy application for calculating shift rewards
+// based on special dates and hourly rates.
 package main
 
 import (

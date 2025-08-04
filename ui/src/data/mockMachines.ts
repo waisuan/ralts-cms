@@ -1,41 +1,20 @@
-import { Machine } from '../types/machine';
-
-// Helper function to get dates for different PPM statuses
-const getDateForStatus = (status: 'overdue' | 'due' | 'almost_due' | 'future') => {
-  const today = new Date();
-  switch (status) {
-    case 'overdue':
-      return new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // 7 days ago
-    case 'due':
-      return today.toISOString().split('T')[0]; // Today
-    case 'almost_due':
-      return new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // 7 days from now
-    case 'future':
-      return new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]; // 30 days from now
-    default:
-      return today.toISOString().split('T')[0];
-  }
-};
-
-// Mock Machine data with different status examples
-export const mockMachines: Machine[] = [
+export const mockMachines = [
   {
     serial_number: 'SN-001',
     customer: 'Acme Corp',
     state: 'CA',
     account_type: 'Premium',
     model: 'X100',
-    status: 'Active', // Regular status
+    status: '',
     brand: 'BrandA',
     district: 'North',
     person_in_charge: 'Alice Johnson',
     reported_by: 'Bob Smith',
-    additional_notes:
-      'Needs inspection after last maintenance check. Unit has been running well but requires quarterly review.',
-    attachment: 'inspection_report_SN001.pdf',
+    additional_notes: 'Needs inspection',
+    attachment: '',
     ppm_status: '',
     tnc_date: '2024-07-01',
-    ppm_date: getDateForStatus('overdue'), // Will show "Overdue" (Red)
+    ppm_date: '2024-06-24', // 5 days ago from mock date for Overdue status
     created_at: '2024-01-01',
     updated_at: '2024-06-01',
   },
@@ -45,16 +24,16 @@ export const mockMachines: Machine[] = [
     state: 'NY',
     account_type: 'Standard',
     model: 'Y200',
-    status: '', // Empty status
+    status: '',
     brand: 'BrandB',
     district: 'East',
     person_in_charge: 'Charlie Brown',
-    reported_by: '', // Empty reported_by
-    additional_notes: 'Regular maintenance scheduled',
+    reported_by: 'Dana White',
+    additional_notes: 'Regular maintenance',
     attachment: '',
     ppm_status: '',
     tnc_date: '2024-07-10',
-    ppm_date: getDateForStatus('due'), // Will show "Due" (Orange)
+    ppm_date: '2024-06-29', // Today for Due status
     created_at: '2024-02-01',
     updated_at: '2024-06-10',
   },
@@ -64,188 +43,17 @@ export const mockMachines: Machine[] = [
     state: 'TX',
     account_type: 'Basic',
     model: 'Z300',
-    status: 'Maintenance',
+    status: '',
     brand: 'BrandC',
     district: 'South',
     person_in_charge: 'Eve Wilson',
     reported_by: 'Frank Miller',
-    additional_notes: '', // Empty notes
-    attachment: 'maintenance_schedule.xlsx',
+    additional_notes: 'Due soon maintenance',
+    attachment: '',
     ppm_status: '',
     tnc_date: '2024-06-01',
-    ppm_date: getDateForStatus('almost_due'), // Will show "Almost Due" (Yellow)
+    ppm_date: '2024-07-02', // 3 days from mock date for Due Soon status
     created_at: '2024-03-01',
     updated_at: '2024-06-15',
   },
-  {
-    serial_number: 'SN-004',
-    customer: 'Delta Co',
-    state: 'FL',
-    account_type: 'Premium',
-    model: 'A400',
-    status: 'Inactive',
-    brand: 'BrandD',
-    district: 'West',
-    person_in_charge: 'Grace Lee',
-    reported_by: 'Heidi Klum',
-    additional_notes: 'Recently serviced, performing optimally. Next service due in 6 months.',
-    attachment: '',
-    ppm_status: '',
-    tnc_date: '2024-07-20',
-    ppm_date: getDateForStatus('future'), // Will show no status badge
-    created_at: '2024-04-01',
-    updated_at: '2024-06-20',
-  },
-  {
-    serial_number: 'SN-005',
-    customer: 'Echo Systems',
-    state: 'WA',
-    account_type: 'Enterprise',
-    model: 'B500',
-    status: 'Active',
-    brand: 'BrandE',
-    district: 'Northwest',
-    person_in_charge: 'Ian Cooper',
-    reported_by: '', // Empty reported_by
-    additional_notes: 'High priority equipment - critical for production line',
-    attachment: 'priority_specs.pdf',
-    ppm_status: '',
-    tnc_date: '2024-08-01',
-    ppm_date: getDateForStatus('overdue'), // Another "Overdue" example
-    created_at: '2024-05-01',
-    updated_at: '2024-06-25',
-  },
-  {
-    serial_number: 'SN-006',
-    customer: 'Foxtrot Industries',
-    state: 'CO',
-    account_type: 'Standard',
-    model: 'C600',
-    status: '', // Empty status
-    brand: 'BrandF',
-    district: 'Mountain',
-    person_in_charge: 'Kate Martinez',
-    reported_by: "Liam O'Connor",
-    additional_notes: '', // Empty notes
-    attachment: '',
-    ppm_status: '',
-    tnc_date: '2024-07-15',
-    ppm_date: getDateForStatus('almost_due'), // Another "Almost Due" example
-    created_at: '2024-06-01',
-    updated_at: '2024-06-28',
-  },
-  {
-    serial_number: 'SN-007',
-    customer: 'Golf Technologies',
-    state: 'AZ',
-    account_type: 'Basic',
-    model: 'D700',
-    status: 'Active',
-    brand: 'BrandG',
-    district: 'Desert',
-    person_in_charge: 'Maya Patel',
-    reported_by: 'Noah Williams',
-    additional_notes: 'Desert environment requires special maintenance considerations',
-    attachment: 'desert_maintenance.pdf',
-    ppm_status: '',
-    tnc_date: '2024-07-25',
-    ppm_date: getDateForStatus('due'),
-    created_at: '2024-06-05',
-    updated_at: '2024-06-30',
-  },
-  {
-    serial_number: 'SN-008',
-    customer: 'Hotel Services',
-    state: 'NV',
-    account_type: 'Premium',
-    model: 'E800',
-    status: 'Maintenance',
-    brand: 'BrandH',
-    district: 'Vegas',
-    person_in_charge: 'Oscar Rodriguez',
-    reported_by: 'Paula Garcia',
-    additional_notes: '24/7 operation requires frequent maintenance checks',
-    attachment: '24_7_schedule.pdf',
-    ppm_status: '',
-    tnc_date: '2024-08-05',
-    ppm_date: getDateForStatus('overdue'),
-    created_at: '2024-06-10',
-    updated_at: '2024-07-01',
-  },
-  {
-    serial_number: 'SN-009',
-    customer: 'India Manufacturing',
-    state: 'OH',
-    account_type: 'Enterprise',
-    model: 'F900',
-    status: 'Active',
-    brand: 'BrandI',
-    district: 'Rust Belt',
-    person_in_charge: 'Quinn Anderson',
-    reported_by: 'Rachel Taylor',
-    additional_notes: 'Heavy industrial use - aggressive maintenance schedule required',
-    attachment: 'industrial_maintenance.pdf',
-    ppm_status: '',
-    tnc_date: '2024-07-30',
-    ppm_date: getDateForStatus('almost_due'),
-    created_at: '2024-06-15',
-    updated_at: '2024-07-02',
-  },
-  {
-    serial_number: 'SN-010',
-    customer: 'Juliet Logistics',
-    state: 'TN',
-    account_type: 'Basic',
-    model: 'G1000',
-    status: 'Inactive',
-    brand: 'BrandJ',
-    district: 'Central',
-    person_in_charge: 'Sam Thompson',
-    reported_by: 'Tina Brown',
-    additional_notes: 'Warehouse automation system - integrated with main inventory system',
-    attachment: '',
-    ppm_status: '',
-    tnc_date: '2024-08-10',
-    ppm_date: getDateForStatus('due'),
-    created_at: '2024-06-20',
-    updated_at: '2024-07-03',
-  },
-  {
-    serial_number: 'SN-011',
-    customer: 'Kilo Solutions',
-    state: 'NC',
-    account_type: 'Standard',
-    model: 'H1100',
-    status: '', // Empty status
-    brand: 'BrandK',
-    district: 'Atlantic',
-    person_in_charge: 'Uma Patel',
-    reported_by: 'Victor Martinez',
-    additional_notes: 'Research facility equipment - handle with extreme care',
-    attachment: 'safety_protocols.pdf',
-    ppm_status: '',
-    tnc_date: '2024-08-15',
-    ppm_date: getDateForStatus('future'),
-    created_at: '2024-06-25',
-    updated_at: '2024-07-04',
-  },
-  {
-    serial_number: 'SN-012',
-    customer: 'Lima Industries',
-    state: 'SC',
-    account_type: 'Premium',
-    model: 'I1200',
-    status: 'Active',
-    brand: 'BrandL',
-    district: 'Carolina',
-    person_in_charge: 'Wendy Johnson',
-    reported_by: 'Xavier Lee',
-    additional_notes: '', // Empty notes
-    attachment: '',
-    ppm_status: '',
-    tnc_date: '2024-08-20',
-    ppm_date: getDateForStatus('almost_due'),
-    created_at: '2024-06-30',
-    updated_at: '2024-07-05',
-  },
-];
+]; 

@@ -1,13 +1,20 @@
 .PHONY: generate fmt build run test clean setup-env dev \
 	db-dev-up db-dev-down db-test-up db-test-down db-clean \
 	test-with-db dev-with-db db-status db-logs \
-	migrate-dev migrate-test migrate-up migrate-down
+	migrate-dev migrate-test migrate-up migrate-down lint
 
 generate:
 	go generate ./...
 
 fmt:
 	go fmt ./...
+
+lint:
+	@if [ ! -f bin/revive ]; then \
+		curl -L https://github.com/mgechev/revive/releases/latest/download/revive_$(shell uname -s | tr '[:upper:]' '[:lower:]')_$(shell uname -m | sed 's/x86_64/amd64/').tar.gz | tar -xz -C bin/ revive; \
+		chmod +x bin/revive; \
+	fi
+	bin/revive -formatter friendly ./...
 
 build:
 	go build -o bin/ralts-cms cmd/web/main.go

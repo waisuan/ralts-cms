@@ -1,3 +1,5 @@
+// Package users provides user management functionality including authentication,
+// user creation, and database operations for the Ralts-CMS application.
 package users
 
 import (
@@ -9,6 +11,7 @@ import (
 )
 
 //go:generate mockgen -destination=../users/mock_users_repository.go -package=users -source=repository.go
+// Repository defines the interface for user data access operations
 type Repository interface {
 	Create(ctx context.Context, user *User) error
 	Login(ctx context.Context, email string, password string) (*User, error)
@@ -22,6 +25,7 @@ type db struct {
 	client *pgxpool.Pool
 }
 
+// NewRepository creates a new user repository instance with the given database connection
 func NewRepository(client *pgxpool.Pool) Repository {
 	return &db{
 		client: client,

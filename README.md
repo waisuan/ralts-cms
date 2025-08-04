@@ -816,6 +816,17 @@ make test
 make fmt
 ```
 
+### Linting Code
+
+```bash
+make lint
+```
+
+This command will:
+- Download the [Revive](https://github.com/mgechev/revive) linter binary to the `bin/` folder if it doesn't exist
+- Run the linter with friendly formatting on all Go files in the project
+- Use the existing `revive.toml` configuration file for linting rules
+
 ## Project Structure
 
 ```

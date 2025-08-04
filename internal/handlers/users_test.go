@@ -54,7 +54,7 @@ func (suite *UsersHandlerTestSuite) TestCreateUser() {
 			Avatar:   nil,
 		}
 
-		suite.mockRepo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, u *users.User) error {
+		suite.mockRepo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, u *users.User) error {
 			u.ID = 1
 			return nil
 		})

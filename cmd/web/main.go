@@ -1,3 +1,5 @@
+// Package main provides the web server entry point for the Ralts-CMS application.
+// It handles server startup, graceful shutdown, and dependency initialization.
 package main
 
 import (

@@ -1,3 +1,5 @@
+// Package deps provides dependency injection and configuration management
+// for the Ralts-CMS application, including database and server configuration.
 package deps
 
 import (
@@ -11,12 +13,13 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// Config holds all configuration settings for the Ralts-CMS application
 type Config struct {
 	AppName string `env:"APP_NAME"`
 	Env     string `env:"APP_ENV" envDefault:"development"`
 
 	// PostgreSQL Configuration
-	DATABASE_URL string `env:"DATABASE_URL"`
+	DatabaseURL string `env:"DATABASE_URL"`
 
 	// Server Configuration
 	ServerPort string `env:"SERVER_PORT" envDefault:"8080"`
@@ -36,6 +39,7 @@ type Config struct {
 	MaxMaintenanceLimit     int64 `env:"MAX_MAINTENANCE_LIMIT" envDefault:"100"`
 }
 
+// LoadConfig loads and parses configuration from environment variables and .env files
 func LoadConfig() (*Config, error) {
 	appEnv := os.Getenv("APP_ENV")
 	cfg := Config{}

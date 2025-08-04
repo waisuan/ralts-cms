@@ -1,3 +1,5 @@
+// Package auth provides authentication and authorization functionality
+// including password hashing, JWT token generation, and validation.
 package auth
 
 import (
@@ -11,6 +13,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// GenerateSalt creates a cryptographically secure random salt for password hashing
 func GenerateSalt() (string, error) {
 	salt := make([]byte, 16)
 	_, err := rand.Read(salt)
@@ -20,7 +23,7 @@ func GenerateSalt() (string, error) {
 	return fmt.Sprintf("%x", salt), nil
 }
 
-// hashPassword hashes a password with the given salt using bcrypt
+// HashPassword hashes a password with the given salt using bcrypt
 func HashPassword(password, salt string) (string, error) {
 	// Combine password and salt and hash with SHA-256 to avoid bcrypt's 72-byte limit
 	passwordWithSalt := password + salt
@@ -38,7 +41,7 @@ func HashPassword(password, salt string) (string, error) {
 	return string(hashedBytes), nil
 }
 
-// verifyPassword verifies a password against a stored hash and salt
+// VerifyPassword verifies a password against a stored hash and salt
 func VerifyPassword(password, hash, salt string) error {
 	// Combine password and salt and hash with SHA-256 to match the hashing process
 	passwordWithSalt := password + salt
@@ -50,6 +53,7 @@ func VerifyPassword(password, hash, salt string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(passwordForBcrypt))
 }
 
+// GenerateJWTToken creates a new JWT token for the given entity ID with the provided secret
 func GenerateJWTToken(entityID int, secret string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"entity_id": strconv.Itoa(entityID),

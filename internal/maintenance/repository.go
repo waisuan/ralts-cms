@@ -12,10 +12,14 @@ import (
 type SortOrder string
 
 const (
+	// SortOrderWorkOrderDateDesc sorts maintenance records by work order date in descending order (newest first)
 	SortOrderWorkOrderDateDesc SortOrder = "work_order_date_desc" // Most recent work order date (default)
-	SortOrderWorkOrderDateAsc  SortOrder = "work_order_date_asc"  // Oldest work order date
-	SortOrderCreatedAtDesc     SortOrder = "created_at_desc"      // Most recently created
-	SortOrderCreatedAtAsc      SortOrder = "created_at_asc"       // Least recently created
+	// SortOrderWorkOrderDateAsc sorts maintenance records by work order date in ascending order (oldest first)
+	SortOrderWorkOrderDateAsc SortOrder = "work_order_date_asc" // Oldest work order date
+	// SortOrderCreatedAtDesc sorts maintenance records by creation date in descending order (newest first)
+	SortOrderCreatedAtDesc SortOrder = "created_at_desc" // Most recently created
+	// SortOrderCreatedAtAsc sorts maintenance records by creation date in ascending order (oldest first)
+	SortOrderCreatedAtAsc SortOrder = "created_at_asc" // Least recently created
 )
 
 // ListOptions defines the options for listing maintenance records
@@ -34,6 +38,8 @@ func DefaultListOptions() *ListOptions {
 	}
 }
 
+// Repository defines the interface for maintenance data access operations
+//
 //go:generate mockgen -destination=../maintenance/mock_maintenance_repository.go -package=maintenance -source=repository.go
 type Repository interface {
 	GetByWorkOrder(ctx context.Context, machineSerialNumber, workOrderNumber string) (*Maintenance, error)
@@ -50,6 +56,7 @@ type db struct {
 	client *pgxpool.Pool
 }
 
+// NewRepository creates a new maintenance repository instance with the given database connection
 func NewRepository(client *pgxpool.Pool) Repository {
 	return &db{
 		client: client,

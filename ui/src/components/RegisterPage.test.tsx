@@ -1,5 +1,6 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import RegisterPage from './RegisterPage';
+import { UserService } from '@/services/userService';
 
 // Mock Next.js Link
 jest.mock('next/link', () => {
@@ -8,12 +9,29 @@ jest.mock('next/link', () => {
   };
 });
 
-// Mock fetch
-global.fetch = jest.fn();
+// Mock the UserService
+jest.mock('@/services/userService', () => ({
+  UserService: {
+    registerUser: jest.fn(),
+  },
+}));
+
+// Mock the API client
+jest.mock('@/utils/api', () => ({
+  apiClient: {
+    post: jest.fn(),
+  },
+  handleApiError: jest.fn(),
+}));
 
 describe('RegisterPage', () => {
+  const mockRegisterUser = jest.fn();
+
   beforeEach(() => {
     jest.clearAllMocks();
+    
+    // Mock the UserService.registerUser method
+    UserService.registerUser = mockRegisterUser;
   });
 
   it('should render the registration form with all fields', () => {
@@ -39,21 +57,20 @@ describe('RegisterPage', () => {
   });
 
   it('should successfully register a new user', async () => {
-    const mockFetch = fetch as jest.MockedFunction<typeof fetch>;
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        message: 'User registered successfully',
-        user: {
-          id: '1',
-          name: 'John Doe',
-          email: 'john@example.com',
-          role: 'user',
-          avatar: 'https://ui-avatars.com/api/?name=JD&background=random&color=fff&size=150',
-          created_at: '2024-01-01T00:00:00.000Z',
-        },
-      }),
-    } as Response);
+    // Mock successful registration
+    mockRegisterUser.mockResolvedValueOnce({
+      data: {
+        id: 1,
+        name: 'John Doe',
+        email: 'john@example.com',
+        role: 'user',
+        status: 'active',
+        avatar: 'https://ui-avatars.com/api/?name=JD&background=random&color=fff&size=150',
+        created_at: '2024-01-01T00:00:00.000Z',
+        updated_at: '2024-01-01T00:00:00.000Z',
+      },
+      message: 'User registered successfully',
+    });
 
     render(<RegisterPage />);
 
@@ -72,20 +89,16 @@ describe('RegisterPage', () => {
     });
 
     // Submit the form
-    fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
+    });
 
     // Wait for the API call
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledWith('/api/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: 'John Doe',
-          email: 'john@example.com',
-          password: 'password123',
-        }),
+      expect(mockRegisterUser).toHaveBeenCalledWith({
+        name: 'John Doe',
+        email: 'john@example.com',
+        password: 'password123',
       });
     });
 
@@ -100,13 +113,12 @@ describe('RegisterPage', () => {
   });
 
   it('should show loading state during registration', async () => {
-    const mockFetch = fetch as jest.MockedFunction<typeof fetch>;
     // Create a promise that doesn't resolve immediately
-    let resolveFetch: (value: Response) => void;
-    const fetchPromise = new Promise<Response>((resolve) => {
-      resolveFetch = resolve;
+    let resolveRegister: (value: { data: { id: number; name: string; email: string; role: string; status: string }; message: string }) => void;
+    const registerPromise = new Promise<{ data: { id: number; name: string; email: string; role: string; status: string }; message: string }>((resolve) => {
+      resolveRegister = resolve;
     });
-    mockFetch.mockReturnValueOnce(fetchPromise);
+    mockRegisterUser.mockReturnValueOnce(registerPromise);
 
     render(<RegisterPage />);
 
@@ -125,7 +137,9 @@ describe('RegisterPage', () => {
     });
 
     // Submit the form
-    fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Create Account' }));
+    });
 
     // Check loading state
     await waitFor(() => {
@@ -133,13 +147,12 @@ describe('RegisterPage', () => {
       expect(screen.getByRole('button')).toBeDisabled();
     });
 
-    // Resolve the fetch
-    resolveFetch!({
-      ok: true,
-      json: async () => ({
+    // Resolve the registration
+    await act(async () => {
+      resolveRegister!({
+        data: { id: 1, name: 'John Doe', email: 'john@example.com', role: 'user', status: 'active' },
         message: 'User registered successfully',
-        user: { id: '1', name: 'John Doe', email: 'john@example.com', role: 'user' },
-      }),
-    } as Response);
+      });
+    });
   });
 });

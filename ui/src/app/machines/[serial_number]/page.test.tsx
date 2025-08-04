@@ -153,6 +153,81 @@ jest.mock('@/data/mockMaintenance', () => ({
   ],
 }));
 
+// Mock the API client
+jest.mock('@/utils/api', () => ({
+  apiClient: {
+    get: jest.fn(),
+  },
+  handleApiError: jest.fn((error) => ({
+    message: error.message || 'API Error',
+    status: error.status || 500,
+    details: error,
+  })),
+}));
+
+// Mock the useMachine hook
+jest.mock('@/hooks/useMachine', () => ({
+  useMachine: () => ({
+    machine: {
+      serial_number: 'SN-001',
+      customer: 'Test Customer',
+      model: 'Test Model',
+      brand: 'Test Brand',
+      state: 'CA',
+      district: 'Test District',
+      person_in_charge: 'Test Person',
+      reported_by: 'Test Reporter',
+      additional_notes: 'Test notes',
+      attachment: '',
+      ppm_status: '',
+      tnc_date: '2024-01-01',
+      ppm_date: '2024-02-01',
+      created_at: '2024-01-01T00:00:00Z',
+      updated_at: '2024-01-01T00:00:00Z',
+      account_type: 'Premium',
+      status: 'Active',
+    },
+    loading: false,
+    error: null,
+    fetchMachine: jest.fn(),
+    createMachine: jest.fn(),
+    updateMachine: jest.fn(),
+    deleteMachine: jest.fn(),
+    clearError: jest.fn(),
+    reset: jest.fn(),
+  }),
+}));
+
+// Mock the machine service
+jest.mock('@/services/machineService', () => ({
+  MachineService: {
+    getMachine: jest.fn().mockResolvedValue({
+      data: {
+        serial_number: 'SN-001',
+        customer: 'Test Customer',
+        model: 'Test Model',
+        brand: 'Test Brand',
+        state: 'CA',
+        district: 'Test District',
+        person_in_charge: 'Test Person',
+        reported_by: 'Test Reporter',
+        additional_notes: 'Test notes',
+        attachment: '',
+        ppm_status: '',
+        tnc_date: '2024-01-01',
+        ppm_date: '2024-02-01',
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+        account_type: 'Premium',
+        status: 'Active',
+      },
+    }),
+  },
+}));
+
+// Mock fetch globally
+global.fetch = jest.fn();
+
 describe('MachinePage', () => {
   const mockPush = jest.fn();
 
@@ -162,6 +237,32 @@ describe('MachinePage', () => {
     });
     jest.mocked(notFound).mockClear();
     mockPush.mockClear();
+    
+    // Mock successful API response
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: {
+          serial_number: 'SN-001',
+          customer: 'Test Customer',
+          model: 'Test Model',
+          brand: 'Test Brand',
+          state: 'CA',
+          district: 'Test District',
+          person_in_charge: 'Test Person',
+          reported_by: 'Test Reporter',
+          additional_notes: 'Test notes',
+          attachment: '',
+          ppm_status: '',
+          tnc_date: '2024-01-01',
+          ppm_date: '2024-02-01',
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+          account_type: 'Premium',
+          status: 'Active',
+        },
+      }),
+    });
   });
 
   it('renders MaintenanceHistory for valid machine serial number', async () => {

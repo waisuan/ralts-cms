@@ -1,3 +1,5 @@
+// Package middlewares provides HTTP middleware functionality for the Ralts-CMS application,
+// including authentication, CORS, and logging middleware.
 package middlewares
 
 import (

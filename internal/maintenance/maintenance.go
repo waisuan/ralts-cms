@@ -1,3 +1,5 @@
+// Package maintenance provides maintenance record management functionality
+// for tracking machine maintenance activities in the Ralts-CMS application.
 package maintenance
 
 import "time"

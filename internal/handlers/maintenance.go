@@ -12,6 +12,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// ListMaintenanceResponse represents the response structure for maintenance listing endpoints
 type ListMaintenanceResponse struct {
 	Maintenance       []*maintenance.Maintenance `json:"maintenance"`
 	PreventativeCount int32                      `json:"preventative_count"`
@@ -24,10 +25,12 @@ type ListMaintenanceResponse struct {
 	Sort              string                     `json:"sort"`
 }
 
+// MaintenanceHandler handles HTTP requests for maintenance-related operations
 type MaintenanceHandler struct {
 	deps *deps.Dependencies
 }
 
+// NewMaintenanceHandler creates a new maintenance handler instance with the given dependencies
 func NewMaintenanceHandler(deps *deps.Dependencies) *MaintenanceHandler {
 	return &MaintenanceHandler{
 		deps: deps,
@@ -84,7 +87,7 @@ func (h *MaintenanceHandler) ListMaintenance(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Parse offset parameter
-	var offset int32 = 0
+	var offset int32
 	if offsetStr != "" {
 		if parsedOffset, err := strconv.ParseInt(offsetStr, 10, 32); err == nil && parsedOffset >= 0 {
 			offset = int32(parsedOffset)

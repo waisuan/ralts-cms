@@ -1,3 +1,5 @@
+// Package main provides a CLI tool for generating test data
+// including machines, users, and maintenance records for the Ralts-CMS application.
 package main
 
 import (
@@ -204,20 +206,20 @@ func randomChoice(choices []string) string {
 	return choices[index]
 }
 
-func randomInt(min, max int) int {
-	if min >= max {
-		return min
+func randomInt(minVal, maxVal int) int {
+	if minVal >= maxVal {
+		return minVal
 	}
 
-	// Generate random number between min and max-1
-	delta := max - min
+	// Generate random number between minVal and maxVal-1
+	delta := maxVal - minVal
 	randomNum, err := rand.Int(rand.Reader, big.NewInt(int64(delta)))
 	if err != nil {
 		// Fallback to time-based random
-		return min + int(time.Now().UnixNano()%int64(delta))
+		return minVal + int(time.Now().UnixNano()%int64(delta))
 	}
 
-	return min + int(randomNum.Int64())
+	return minVal + int(randomNum.Int64())
 }
 
 func randomDate() time.Time {

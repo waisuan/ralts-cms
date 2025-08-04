@@ -1,3 +1,5 @@
+// Package machines provides machine management functionality for tracking
+// equipment and maintenance schedules in the Ralts-CMS application.
 package machines
 
 import (

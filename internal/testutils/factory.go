@@ -1,3 +1,5 @@
+// Package testutils provides factory functions for creating test data
+// including machines, maintenance records, and users for testing purposes.
 package testutils
 
 import (

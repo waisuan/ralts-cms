@@ -1,3 +1,5 @@
+// Package router provides HTTP routing functionality for the Ralts-CMS application.
+// It sets up all API endpoints with appropriate middleware and authentication.
 package router
 
 import (
@@ -22,7 +24,7 @@ func NewRouter(deps *deps.Dependencies) http.Handler {
 	r.HandleFunc("/health", handlers.NewHealthHandler(deps).Health).Methods(http.MethodGet)
 
 	// Global OPTIONS handler for CORS preflight
-	r.Methods(http.MethodOptions).HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	r.Methods(http.MethodOptions).HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")

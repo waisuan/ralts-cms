@@ -126,7 +126,7 @@ func (suite *MachinesHandlerTestSuite) TestCreateMachine() {
 			State:        "New",
 		}
 
-		suite.mockMachinesRepo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, m *machines.Machine) error {
+		suite.mockMachinesRepo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, m *machines.Machine) error {
 			suite.Assert().Equal("CREATE123", m.SerialNumber)
 			suite.Assert().Equal("Create Customer", m.Customer)
 			return nil
@@ -226,7 +226,7 @@ func (suite *MachinesHandlerTestSuite) TestUpdateMachine() {
 		// Mock the existence check
 		suite.mockMachinesRepo.EXPECT().GetBySerialNumber(gomock.Any(), "UPDATE123").Return(&machines.Machine{SerialNumber: "UPDATE123"}, nil)
 		// Mock the update
-		suite.mockMachinesRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(func(ctx context.Context, m *machines.Machine) error {
+		suite.mockMachinesRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, m *machines.Machine) error {
 			suite.Assert().Equal("UPDATE123", m.SerialNumber)
 			suite.Assert().Equal("Updated Customer", m.Customer)
 			return nil

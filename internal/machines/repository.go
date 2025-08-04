@@ -13,8 +13,11 @@ import (
 type PPMStatus string
 
 const (
-	PPMStatusOverdue   PPMStatus = "overdue"
-	PPMStatusDue       PPMStatus = "due"
+	// PPMStatusOverdue indicates that the PPM (Planned Preventive Maintenance) is overdue
+	PPMStatusOverdue PPMStatus = "overdue"
+	// PPMStatusDue indicates that the PPM (Planned Preventive Maintenance) is due today
+	PPMStatusDue PPMStatus = "due"
+	// PPMStatusAlmostDue indicates that the PPM (Planned Preventive Maintenance) is due within 2 weeks
 	PPMStatusAlmostDue PPMStatus = "almost_due"
 )
 
@@ -22,8 +25,10 @@ const (
 type SortOrder string
 
 const (
+	// SortOrderCreatedAtDesc sorts machines by creation date in descending order (newest first)
 	SortOrderCreatedAtDesc SortOrder = "created_at_desc" // Most recently created (default)
-	SortOrderCreatedAtAsc  SortOrder = "created_at_asc"  // Least recently created
+	// SortOrderCreatedAtAsc sorts machines by creation date in ascending order (oldest first)
+	SortOrderCreatedAtAsc SortOrder = "created_at_asc" // Least recently created
 )
 
 // ListOptions defines the options for listing machines
@@ -44,6 +49,8 @@ func DefaultListOptions() *ListOptions {
 	}
 }
 
+// Repository defines the interface for machine data access operations
+//
 //go:generate mockgen -destination=../machines/mock_machines_repository.go -package=machines -source=repository.go
 type Repository interface {
 	GetBySerialNumber(ctx context.Context, serialNumber string) (*Machine, error)
@@ -61,6 +68,7 @@ type db struct {
 	client *pgxpool.Pool
 }
 
+// NewRepository creates a new machine repository instance with the given database connection
 func NewRepository(client *pgxpool.Pool) Repository {
 	return &db{
 		client: client,
@@ -412,12 +420,13 @@ func (r *db) calculatePPMStatus(ppmDate time.Time) PPMStatus {
 
 	if diffDays < 0 {
 		return PPMStatusOverdue
-	} else if diffDays == 0 {
-		return PPMStatusDue
-	} else if diffDays <= 14 { // 2 weeks = 14 days
-		return PPMStatusAlmostDue
-	} else {
-		// More than 2 weeks in the future - return empty status
-		return ""
 	}
+	if diffDays == 0 {
+		return PPMStatusDue
+	}
+	if diffDays <= 14 { // 2 weeks = 14 days
+		return PPMStatusAlmostDue
+	}
+	// More than 2 weeks in the future - return empty status
+	return ""
 }
