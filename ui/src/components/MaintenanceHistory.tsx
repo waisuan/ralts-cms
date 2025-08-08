@@ -117,6 +117,7 @@ export default function MaintenanceHistory({
   const [workOrderSearch, setWorkOrderSearch] = useState('');
   const [reportedBySearch, setReportedBySearch] = useState('');
   const [workerOrderTypeSearch, setWorkerOrderTypeSearch] = useState('');
+  const [showSearchFilters, setShowSearchFilters] = useState(false);
 
   // API state
   const [maintenanceRecords, setMaintenanceRecords] = useState<Maintenance[]>([]);
@@ -366,6 +367,21 @@ export default function MaintenanceHistory({
     setWorkerOrderTypeSearch(e.target.value);
     setCurrentPage(1); // Reset to first page when searching
   };
+
+  // Toggle search filters visibility
+  const toggleSearchFilters = () => {
+    setShowSearchFilters(!showSearchFilters);
+    // Clear all search filters when hiding
+    if (showSearchFilters) {
+      setWorkOrderSearch('');
+      setReportedBySearch('');
+      setWorkerOrderTypeSearch('');
+      setCurrentPage(1);
+    }
+  };
+
+  // Check if any search filters are active
+  const hasActiveFilters = workOrderSearch || reportedBySearch || workerOrderTypeSearch;
 
   // Generate page numbers for pagination
   const getPageNumbers = () => {
@@ -1122,32 +1138,66 @@ export default function MaintenanceHistory({
           </div>
         </div>
 
-
+        {/* Search Controls */}
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={toggleSearchFilters}
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg border font-medium transition-colors ${
+                showSearchFilters
+                  ? 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'
+                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              {showSearchFilters ? 'Hide Filters' : 'Show Filters'}
+              {hasActiveFilters && (
+                <span className="bg-blue-600 text-white text-xs px-1.5 py-0.5 rounded-full">
+                  {[workOrderSearch, reportedBySearch, workerOrderTypeSearch].filter(Boolean).length}
+                </span>
+              )}
+            </button>
+            {hasActiveFilters && !showSearchFilters && (
+              <button
+                onClick={() => {
+                  setWorkOrderSearch('');
+                  setReportedBySearch('');
+                  setWorkerOrderTypeSearch('');
+                  setCurrentPage(1);
+                }}
+                className="text-sm text-gray-500 hover:text-gray-700 underline"
+              >
+                Clear all filters
+              </button>
+            )}
+          </div>
+          {hasActiveFilters && (
+            <div className="text-sm text-gray-500">
+              Showing filtered results ({totalCount} records)
+            </div>
+          )}
+        </div>
 
         {/* Maintenance Records Table */}
         <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-          {sortedRecords.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="text-gray-400 text-6xl mb-4">🔧</div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No Maintenance Records</h3>
-              <p className="text-gray-500">No maintenance history found for this machine.</p>
-            </div>
-          ) : (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full">
+          <div className="overflow-x-auto">
+            <table className="w-full">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         <div className="flex flex-col gap-2">
                           <span>Work Order</span>
-                          <input
-                            type="text"
-                            placeholder="Search work orders..."
-                            value={workOrderSearch}
-                            onChange={handleWorkOrderSearch}
-                            className="text-xs px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
-                          />
+                          {showSearchFilters && (
+                            <input
+                              type="text"
+                              placeholder="Search work orders..."
+                              value={workOrderSearch}
+                              onChange={handleWorkOrderSearch}
+                              className="text-xs px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                            />
+                          )}
                         </div>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -1156,17 +1206,19 @@ export default function MaintenanceHistory({
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         <div className="flex flex-col gap-2">
                           <span>Type</span>
-                          <select
-                            value={workerOrderTypeSearch}
-                            onChange={handleWorkerOrderTypeSearch}
-                            className="text-xs px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
-                          >
-                            <option value="">All Types</option>
-                            <option value="Preventive">Preventive</option>
-                            <option value="Corrective">Corrective</option>
-                            <option value="Emergency">Emergency</option>
-                            <option value="Inspection">Inspection</option>
-                          </select>
+                          {showSearchFilters && (
+                            <select
+                              value={workerOrderTypeSearch}
+                              onChange={handleWorkerOrderTypeSearch}
+                              className="text-xs px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                            >
+                              <option value="">All Types</option>
+                              <option value="Preventive">Preventive</option>
+                              <option value="Corrective">Corrective</option>
+                              <option value="Emergency">Emergency</option>
+                              <option value="Inspection">Inspection</option>
+                            </select>
+                          )}
                         </div>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -1175,13 +1227,15 @@ export default function MaintenanceHistory({
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         <div className="flex flex-col gap-2">
                           <span>Reported By</span>
-                          <input
-                            type="text"
-                            placeholder="Search by name..."
-                            value={reportedBySearch}
-                            onChange={handleReportedBySearch}
-                            className="text-xs px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
-                          />
+                          {showSearchFilters && (
+                            <input
+                              type="text"
+                              placeholder="Search by name..."
+                              value={reportedBySearch}
+                              onChange={handleReportedBySearch}
+                              className="text-xs px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                            />
+                          )}
                         </div>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -1193,7 +1247,36 @@ export default function MaintenanceHistory({
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {currentRecords.map((record) => {
+                    {sortedRecords.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-6 py-12 text-center">
+                          <div className="text-gray-400 text-6xl mb-4">🔧</div>
+                          <h3 className="text-lg font-medium text-gray-900 mb-2">
+                            {hasActiveFilters ? 'No Results Found' : 'No Maintenance Records'}
+                          </h3>
+                          <p className="text-gray-500 mb-4">
+                            {hasActiveFilters 
+                              ? 'Try adjusting your search filters to find what you\'re looking for.'
+                              : 'No maintenance history found for this machine.'
+                            }
+                          </p>
+                          {hasActiveFilters && (
+                            <button
+                              onClick={() => {
+                                setWorkOrderSearch('');
+                                setReportedBySearch('');
+                                setWorkerOrderTypeSearch('');
+                                setCurrentPage(1);
+                              }}
+                              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                            >
+                              Clear All Filters
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ) : (
+                      currentRecords.map((record) => {
                       const actionSummary =
                         record.action_taken.length > 100
                           ? record.action_taken.substring(0, 100) + '...'
@@ -1345,7 +1428,8 @@ export default function MaintenanceHistory({
                           </tr>
                         </React.Fragment>
                       );
-                    })}
+                    })
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -1449,8 +1533,6 @@ export default function MaintenanceHistory({
                   </div>
                 </div>
               )}
-            </>
-          )}
         </div>
       </div>
 
