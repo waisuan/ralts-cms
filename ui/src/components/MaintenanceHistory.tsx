@@ -113,8 +113,10 @@ export default function MaintenanceHistory({
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(ITEMS_PER_PAGE);
 
-  // Search state
-  const [searchQuery, setSearchQuery] = useState('');
+  // Search state - field-specific search
+  const [workOrderSearch, setWorkOrderSearch] = useState('');
+  const [reportedBySearch, setReportedBySearch] = useState('');
+  const [workerOrderTypeSearch, setWorkerOrderTypeSearch] = useState('');
 
   // API state
   const [maintenanceRecords, setMaintenanceRecords] = useState<Maintenance[]>([]);
@@ -182,8 +184,7 @@ export default function MaintenanceHistory({
   const [isUpdating, setIsUpdating] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Search and pagination loading states
-  const [isSearching, setIsSearching] = useState(false);
+
   const [isPaginationLoading, setIsPaginationLoading] = useState(false);
 
   // CRUD operation error states
@@ -203,10 +204,26 @@ export default function MaintenanceHistory({
       setIsLoading(true);
       setError(null);
 
+      // Create filters object with field-specific search queries
+      const filters: { work_order_q?: string; reported_by_q?: string; worker_order_type_q?: string } = {};
+      
+      if (workOrderSearch.trim()) {
+        filters.work_order_q = workOrderSearch.trim();
+      }
+      
+      if (reportedBySearch.trim()) {
+        filters.reported_by_q = reportedBySearch.trim();
+      }
+      
+      if (workerOrderTypeSearch.trim()) {
+        filters.worker_order_type_q = workerOrderTypeSearch.trim();
+      }
+
       const response = await MaintenanceService.getMaintenanceList(
         machine.serial_number,
         currentPage,
-        itemsPerPage
+        itemsPerPage,
+        filters
       );
 
       if (response.data) {
@@ -228,12 +245,34 @@ export default function MaintenanceHistory({
     } finally {
       setIsLoading(false);
     }
-  }, [machine.serial_number, currentPage, itemsPerPage]);
+  }, [machine.serial_number, currentPage, itemsPerPage, workOrderSearch, reportedBySearch, workerOrderTypeSearch]);
 
   // Load records when component mounts or dependencies change
   useEffect(() => {
     loadMaintenanceRecords();
   }, [machine.serial_number, currentPage, itemsPerPage, loadMaintenanceRecords]);
+
+  // Debounced search effects for each field
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      loadMaintenanceRecords();
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [workOrderSearch]);
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      loadMaintenanceRecords();
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [reportedBySearch]);
+
+  useEffect(() => {
+    // Worker order type is a dropdown, so no debounce needed
+    loadMaintenanceRecords();
+  }, [workerOrderTypeSearch]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -312,18 +351,20 @@ export default function MaintenanceHistory({
     setItemsPerPage(newItemsPerPage);
   };
 
-  // Search handler
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
-    // Reset to first page when searching
-    setCurrentPage(1);
-    
-    // Show search loading state
-    setIsSearching(true);
-    // Simulate search delay and hide loading after data loads
-    setTimeout(() => {
-      setIsSearching(false);
-    }, 500);
+  // Search handlers with debouncing
+  const handleWorkOrderSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setWorkOrderSearch(e.target.value);
+    setCurrentPage(1); // Reset to first page when searching
+  };
+
+  const handleReportedBySearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setReportedBySearch(e.target.value);
+    setCurrentPage(1); // Reset to first page when searching
+  };
+
+  const handleWorkerOrderTypeSearch = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setWorkerOrderTypeSearch(e.target.value);
+    setCurrentPage(1); // Reset to first page when searching
   };
 
   // Generate page numbers for pagination
@@ -1081,47 +1122,7 @@ export default function MaintenanceHistory({
           </div>
         </div>
 
-        {/* Search Bar */}
-        <div className="flex justify-end mb-2">
-          <div className="flex items-center gap-2">
-            <div className="w-64">
-              <label htmlFor="maintenance-search" className="sr-only">
-                Search maintenance records
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  {isSearching ? (
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                  ) : (
-                    <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                  )}
-                </div>
-                <input
-                  id="maintenance-search"
-                  type="text"
-                  placeholder={isSearching ? "Searching..." : "Search maintenance records..."}
-                  value={searchQuery}
-                  onChange={handleSearchChange}
-                  disabled={isSearching}
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm text-gray-900 disabled:bg-gray-50 disabled:cursor-not-allowed"
-                />
-              </div>
-            </div>
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="text-gray-400 hover:text-gray-600 focus:outline-none focus:text-gray-600 transition-colors"
-                title="Clear search"
-              >
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            )}
-          </div>
-        </div>
+
 
         {/* Maintenance Records Table */}
         <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
@@ -1138,19 +1139,50 @@ export default function MaintenanceHistory({
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Work Order
+                        <div className="flex flex-col gap-2">
+                          <span>Work Order</span>
+                          <input
+                            type="text"
+                            placeholder="Search work orders..."
+                            value={workOrderSearch}
+                            onChange={handleWorkOrderSearch}
+                            className="text-xs px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                          />
+                        </div>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Date
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Type
+                        <div className="flex flex-col gap-2">
+                          <span>Type</span>
+                          <select
+                            value={workerOrderTypeSearch}
+                            onChange={handleWorkerOrderTypeSearch}
+                            className="text-xs px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                          >
+                            <option value="">All Types</option>
+                            <option value="Preventive">Preventive</option>
+                            <option value="Corrective">Corrective</option>
+                            <option value="Emergency">Emergency</option>
+                            <option value="Inspection">Inspection</option>
+                          </select>
+                        </div>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Action Summary
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Reported By
+                        <div className="flex flex-col gap-2">
+                          <span>Reported By</span>
+                          <input
+                            type="text"
+                            placeholder="Search by name..."
+                            value={reportedBySearch}
+                            onChange={handleReportedBySearch}
+                            className="text-xs px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
+                          />
+                        </div>
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Attachment

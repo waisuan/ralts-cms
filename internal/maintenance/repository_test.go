@@ -763,6 +763,491 @@ func (suite *MaintenanceRepositoryTestSuite) TestCountByWorkOrderType() {
 	})
 }
 
+func (suite *MaintenanceRepositoryTestSuite) TestSearch() {
+	ctx := context.Background()
+
+	suite.Run("should search maintenance by work order number", func() {
+		// Create test maintenance records with different work order numbers
+		maintenance1 := testutils.CreateMaintenance("MACHINE001", "WO001")
+		maintenance1.ReportedBy = "John Tech"
+		maintenance1.WorkerOrderType = "Preventive"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance1))
+
+		maintenance2 := testutils.CreateMaintenance("MACHINE002", "WO002")
+		maintenance2.ReportedBy = "Jane Tech"
+		maintenance2.WorkerOrderType = "Corrective"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance2))
+
+		// Search for WO001
+		results, err := suite.repo.Search(ctx, "WO001", &maintenance.ListOptions{
+			Limit: 10,
+			Sort:  maintenance.SortOrderWorkOrderDateDesc,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Len(results, 1)
+		suite.Assert().Equal("WO001", results[0].WorkOrderNumber)
+		suite.Assert().Equal("MACHINE001", results[0].MachineSerialNumber)
+	})
+
+	suite.Run("should search maintenance by reported by name", func() {
+		// Create test maintenance records with different reported by names
+		maintenance1 := testutils.CreateMaintenance("MACHINE003", "WO003")
+		maintenance1.ReportedBy = "John Tech"
+		maintenance1.WorkerOrderType = "Preventive"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance1))
+
+		maintenance2 := testutils.CreateMaintenance("MACHINE004", "WO004")
+		maintenance2.ReportedBy = "Jane Tech"
+		maintenance2.WorkerOrderType = "Corrective"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance2))
+
+		// Search for "John"
+		results, err := suite.repo.Search(ctx, "John", &maintenance.ListOptions{
+			Limit: 10,
+			Sort:  maintenance.SortOrderWorkOrderDateDesc,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Len(results, 1)
+		suite.Assert().Equal("John Tech", results[0].ReportedBy)
+		suite.Assert().Equal("WO003", results[0].WorkOrderNumber)
+	})
+
+	suite.Run("should search maintenance by worker order type", func() {
+		// Create test maintenance records with different worker order types
+		maintenance1 := testutils.CreateMaintenance("MACHINE005", "WO005")
+		maintenance1.ReportedBy = "John Tech"
+		maintenance1.WorkerOrderType = "Preventive"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance1))
+
+		maintenance2 := testutils.CreateMaintenance("MACHINE006", "WO006")
+		maintenance2.ReportedBy = "Jane Tech"
+		maintenance2.WorkerOrderType = "Corrective"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance2))
+
+		// Search for "Preventive"
+		results, err := suite.repo.Search(ctx, "Preventive", &maintenance.ListOptions{
+			Limit: 10,
+			Sort:  maintenance.SortOrderWorkOrderDateDesc,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Len(results, 1)
+		suite.Assert().Equal("Preventive", results[0].WorkerOrderType)
+		suite.Assert().Equal("WO005", results[0].WorkOrderNumber)
+	})
+
+	suite.Run("should search with pagination", func() {
+		// Create multiple maintenance records
+		for i := 1; i <= 5; i++ {
+			maintenance := testutils.CreateMaintenance(fmt.Sprintf("MACHINE%03d", i), fmt.Sprintf("WO%03d", i))
+			maintenance.ReportedBy = "John Tech"
+			maintenance.WorkerOrderType = "Preventive"
+			suite.Require().NoError(suite.repo.Create(ctx, maintenance))
+		}
+
+		// Search with limit 2
+		results, err := suite.repo.Search(ctx, "John", &maintenance.ListOptions{
+			Limit:  2,
+			Offset: 0,
+			Sort:   maintenance.SortOrderWorkOrderDateDesc,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Len(results, 2)
+	})
+
+	suite.Run("should return empty results for non-matching query", func() {
+		// Create a maintenance record
+		maintenanceRecord := testutils.CreateMaintenance("MACHINE007", "WO007")
+		maintenanceRecord.ReportedBy = "John Tech"
+		maintenanceRecord.WorkerOrderType = "Preventive"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenanceRecord))
+
+		// Search for non-matching term
+		results, err := suite.repo.Search(ctx, "NonExistentTerm", &maintenance.ListOptions{
+			Limit: 10,
+			Sort:  maintenance.SortOrderWorkOrderDateDesc,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Len(results, 0)
+	})
+
+	suite.Run("should search with different sort orders", func() {
+		// Create test maintenance records
+		maintenance1 := testutils.CreateMaintenance("MACHINE008", "WO008")
+		maintenance1.ReportedBy = "John Tech"
+		maintenance1.WorkerOrderType = "Preventive"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance1))
+
+		maintenance2 := testutils.CreateMaintenance("MACHINE009", "WO009")
+		maintenance2.ReportedBy = "Jane Tech"
+		maintenance2.WorkerOrderType = "Corrective"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance2))
+
+		// Search with different sort orders
+		results, err := suite.repo.Search(ctx, "Tech", &maintenance.ListOptions{
+			Limit: 10,
+			Sort:  maintenance.SortOrderWorkOrderDateAsc,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Len(results, 2)
+	})
+}
+
+func (suite *MaintenanceRepositoryTestSuite) TestCountSearch() {
+	ctx := context.Background()
+
+	suite.Run("should count search results correctly", func() {
+		// Create test maintenance records
+		maintenance1 := testutils.CreateMaintenance("MACHINE010", "WO010")
+		maintenance1.ReportedBy = "John Tech"
+		maintenance1.WorkerOrderType = "Preventive"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance1))
+
+		maintenance2 := testutils.CreateMaintenance("MACHINE011", "WO011")
+		maintenance2.ReportedBy = "Jane Tech"
+		maintenance2.WorkerOrderType = "Corrective"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance2))
+
+		maintenance3 := testutils.CreateMaintenance("MACHINE012", "WO012")
+		maintenance3.ReportedBy = "Bob Tech"
+		maintenance3.WorkerOrderType = "Emergency"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance3))
+
+		// Count search results for "Tech"
+		count, err := suite.repo.CountSearch(ctx, "Tech", &maintenance.ListOptions{
+			Limit: 10,
+			Sort:  maintenance.SortOrderWorkOrderDateDesc,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Equal(3, count)
+	})
+
+	suite.Run("should return zero for non-matching query", func() {
+		// Create a maintenance record
+		maintenanceRecord := testutils.CreateMaintenance("MACHINE013", "WO013")
+		maintenanceRecord.ReportedBy = "John Tech"
+		maintenanceRecord.WorkerOrderType = "Preventive"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenanceRecord))
+
+		// Count search results for non-matching term
+		count, err := suite.repo.CountSearch(ctx, "NonExistentTerm", &maintenance.ListOptions{
+			Limit: 10,
+			Sort:  maintenance.SortOrderWorkOrderDateDesc,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Equal(0, count)
+	})
+}
+
+func (suite *MaintenanceRepositoryTestSuite) TestSearchByFields() {
+	ctx := context.Background()
+
+	suite.Run("should search by work order number", func() {
+		// Create test maintenance records
+		maintenance1 := testutils.CreateMaintenance("MACHINE020", "WO020")
+		maintenance1.ReportedBy = "John Tech"
+		maintenance1.WorkerOrderType = "Preventive"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance1))
+
+		maintenance2 := testutils.CreateMaintenance("MACHINE020", "WO021")
+		maintenance2.ReportedBy = "Jane Tech"
+		maintenance2.WorkerOrderType = "Corrective"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance2))
+
+		maintenance3 := testutils.CreateMaintenance("MACHINE020", "WO999")
+		maintenance3.ReportedBy = "Bob Tech"
+		maintenance3.WorkerOrderType = "Emergency"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance3))
+
+		// Search by work order number
+		filters := &maintenance.SearchFilters{
+			WorkOrderQuery: "WO02",
+		}
+		results, err := suite.repo.SearchByFields(ctx, "MACHINE020", filters, &maintenance.ListOptions{
+			Limit: 10,
+			Sort:  maintenance.SortOrderWorkOrderDateDesc,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Len(results, 2)
+		suite.Assert().Contains([]string{results[0].WorkOrderNumber, results[1].WorkOrderNumber}, "WO020")
+		suite.Assert().Contains([]string{results[0].WorkOrderNumber, results[1].WorkOrderNumber}, "WO021")
+	})
+
+	suite.Run("should search by reported by name", func() {
+		// Create test maintenance records
+		maintenance1 := testutils.CreateMaintenance("MACHINE021", "WO030")
+		maintenance1.ReportedBy = "Alice Johnson"
+		maintenance1.WorkerOrderType = "Preventive"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance1))
+
+		maintenance2 := testutils.CreateMaintenance("MACHINE021", "WO031")
+		maintenance2.ReportedBy = "Bob Johnson"
+		maintenance2.WorkerOrderType = "Corrective"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance2))
+
+		maintenance3 := testutils.CreateMaintenance("MACHINE021", "WO032")
+		maintenance3.ReportedBy = "Charlie Smith"
+		maintenance3.WorkerOrderType = "Emergency"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance3))
+
+		// Search by reported by name
+		filters := &maintenance.SearchFilters{
+			ReportedByQuery: "Johnson",
+		}
+		results, err := suite.repo.SearchByFields(ctx, "MACHINE021", filters, &maintenance.ListOptions{
+			Limit: 10,
+			Sort:  maintenance.SortOrderWorkOrderDateDesc,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Len(results, 2)
+		suite.Assert().Contains([]string{results[0].ReportedBy, results[1].ReportedBy}, "Alice Johnson")
+		suite.Assert().Contains([]string{results[0].ReportedBy, results[1].ReportedBy}, "Bob Johnson")
+	})
+
+	suite.Run("should search by worker order type", func() {
+		// Create test maintenance records
+		maintenance1 := testutils.CreateMaintenance("MACHINE022", "WO040")
+		maintenance1.ReportedBy = "Tech A"
+		maintenance1.WorkerOrderType = "Preventive"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance1))
+
+		maintenance2 := testutils.CreateMaintenance("MACHINE022", "WO041")
+		maintenance2.ReportedBy = "Tech B"
+		maintenance2.WorkerOrderType = "Preventive"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance2))
+
+		maintenance3 := testutils.CreateMaintenance("MACHINE022", "WO042")
+		maintenance3.ReportedBy = "Tech C"
+		maintenance3.WorkerOrderType = "Corrective"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance3))
+
+		// Search by worker order type
+		filters := &maintenance.SearchFilters{
+			WorkerOrderType: "Preventive",
+		}
+		results, err := suite.repo.SearchByFields(ctx, "MACHINE022", filters, &maintenance.ListOptions{
+			Limit: 10,
+			Sort:  maintenance.SortOrderWorkOrderDateDesc,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Len(results, 2)
+		suite.Assert().Equal("Preventive", results[0].WorkerOrderType)
+		suite.Assert().Equal("Preventive", results[1].WorkerOrderType)
+	})
+
+	suite.Run("should search with multiple filters", func() {
+		// Create test maintenance records
+		maintenance1 := testutils.CreateMaintenance("MACHINE023", "WO050")
+		maintenance1.ReportedBy = "John Smith"
+		maintenance1.WorkerOrderType = "Preventive"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance1))
+
+		maintenance2 := testutils.CreateMaintenance("MACHINE023", "WO051")
+		maintenance2.ReportedBy = "John Doe"
+		maintenance2.WorkerOrderType = "Corrective"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance2))
+
+		maintenance3 := testutils.CreateMaintenance("MACHINE023", "WO052")
+		maintenance3.ReportedBy = "Jane Smith"
+		maintenance3.WorkerOrderType = "Preventive"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance3))
+
+		// Search with multiple filters
+		filters := &maintenance.SearchFilters{
+			ReportedByQuery: "John",
+			WorkerOrderType: "Preventive",
+		}
+		results, err := suite.repo.SearchByFields(ctx, "MACHINE023", filters, &maintenance.ListOptions{
+			Limit: 10,
+			Sort:  maintenance.SortOrderWorkOrderDateDesc,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Len(results, 1)
+		suite.Assert().Equal("John Smith", results[0].ReportedBy)
+		suite.Assert().Equal("Preventive", results[0].WorkerOrderType)
+	})
+
+	suite.Run("should return empty results for no matches", func() {
+		// Create test maintenance record
+		maintenanceRecord := testutils.CreateMaintenance("MACHINE024", "WO060")
+		maintenanceRecord.ReportedBy = "Tech Person"
+		maintenanceRecord.WorkerOrderType = "Preventive"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenanceRecord))
+
+		// Search with non-matching filters
+		filters := &maintenance.SearchFilters{
+			WorkOrderQuery: "NONEXISTENT",
+		}
+		results, err := suite.repo.SearchByFields(ctx, "MACHINE024", filters, &maintenance.ListOptions{
+			Limit: 10,
+			Sort:  maintenance.SortOrderWorkOrderDateDesc,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Len(results, 0)
+	})
+
+	suite.Run("should handle pagination", func() {
+		// Create multiple test maintenance records
+		for i := 0; i < 5; i++ {
+			maintenanceRecord := testutils.CreateMaintenance("MACHINE025", fmt.Sprintf("WO%03d", 70+i))
+			maintenanceRecord.ReportedBy = "Pagination Tech"
+			maintenanceRecord.WorkerOrderType = "Preventive"
+			suite.Require().NoError(suite.repo.Create(ctx, maintenanceRecord))
+		}
+
+		// Search with pagination
+		filters := &maintenance.SearchFilters{
+			ReportedByQuery: "Pagination",
+		}
+		results, err := suite.repo.SearchByFields(ctx, "MACHINE025", filters, &maintenance.ListOptions{
+			Limit:  2,
+			Offset: 1,
+			Sort:   maintenance.SortOrderWorkOrderDateDesc,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Len(results, 2)
+	})
+}
+
+func (suite *MaintenanceRepositoryTestSuite) TestCountSearchByFields() {
+	ctx := context.Background()
+
+	suite.Run("should count search results by work order number", func() {
+		// Create test maintenance records
+		maintenance1 := testutils.CreateMaintenance("MACHINE030", "WO080")
+		maintenance1.ReportedBy = "Count Tech"
+		maintenance1.WorkerOrderType = "Preventive"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance1))
+
+		maintenance2 := testutils.CreateMaintenance("MACHINE030", "WO081")
+		maintenance2.ReportedBy = "Count Tech"
+		maintenance2.WorkerOrderType = "Corrective"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance2))
+
+		maintenance3 := testutils.CreateMaintenance("MACHINE030", "WO999")
+		maintenance3.ReportedBy = "Count Tech"
+		maintenance3.WorkerOrderType = "Emergency"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance3))
+
+		// Count search results by work order number
+		filters := &maintenance.SearchFilters{
+			WorkOrderQuery: "WO08",
+		}
+		count, err := suite.repo.CountSearchByFields(ctx, "MACHINE030", filters, &maintenance.ListOptions{
+			Limit: 10,
+			Sort:  maintenance.SortOrderWorkOrderDateDesc,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Equal(2, count)
+	})
+
+	suite.Run("should count search results by reported by name", func() {
+		// Create test maintenance records
+		maintenance1 := testutils.CreateMaintenance("MACHINE031", "WO090")
+		maintenance1.ReportedBy = "Alice Counter"
+		maintenance1.WorkerOrderType = "Preventive"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance1))
+
+		maintenance2 := testutils.CreateMaintenance("MACHINE031", "WO091")
+		maintenance2.ReportedBy = "Bob Counter"
+		maintenance2.WorkerOrderType = "Corrective"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance2))
+
+		maintenance3 := testutils.CreateMaintenance("MACHINE031", "WO092")
+		maintenance3.ReportedBy = "Charlie Smith"
+		maintenance3.WorkerOrderType = "Emergency"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance3))
+
+		// Count search results by reported by name
+		filters := &maintenance.SearchFilters{
+			ReportedByQuery: "Counter",
+		}
+		count, err := suite.repo.CountSearchByFields(ctx, "MACHINE031", filters, &maintenance.ListOptions{
+			Limit: 10,
+			Sort:  maintenance.SortOrderWorkOrderDateDesc,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Equal(2, count)
+	})
+
+	suite.Run("should count search results by worker order type", func() {
+		// Create test maintenance records
+		maintenance1 := testutils.CreateMaintenance("MACHINE032", "WO100")
+		maintenance1.ReportedBy = "Type Counter"
+		maintenance1.WorkerOrderType = "Preventive"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance1))
+
+		maintenance2 := testutils.CreateMaintenance("MACHINE032", "WO101")
+		maintenance2.ReportedBy = "Type Counter"
+		maintenance2.WorkerOrderType = "Preventive"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance2))
+
+		maintenance3 := testutils.CreateMaintenance("MACHINE032", "WO102")
+		maintenance3.ReportedBy = "Type Counter"
+		maintenance3.WorkerOrderType = "Corrective"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance3))
+
+		// Count search results by worker order type
+		filters := &maintenance.SearchFilters{
+			WorkerOrderType: "Preventive",
+		}
+		count, err := suite.repo.CountSearchByFields(ctx, "MACHINE032", filters, &maintenance.ListOptions{
+			Limit: 10,
+			Sort:  maintenance.SortOrderWorkOrderDateDesc,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Equal(2, count)
+	})
+
+	suite.Run("should count with multiple filters", func() {
+		// Create test maintenance records
+		maintenance1 := testutils.CreateMaintenance("MACHINE033", "WO110")
+		maintenance1.ReportedBy = "Multi Filter"
+		maintenance1.WorkerOrderType = "Preventive"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance1))
+
+		maintenance2 := testutils.CreateMaintenance("MACHINE033", "WO111")
+		maintenance2.ReportedBy = "Multi Filter"
+		maintenance2.WorkerOrderType = "Corrective"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance2))
+
+		maintenance3 := testutils.CreateMaintenance("MACHINE033", "WO112")
+		maintenance3.ReportedBy = "Other Person"
+		maintenance3.WorkerOrderType = "Preventive"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenance3))
+
+		// Count with multiple filters
+		filters := &maintenance.SearchFilters{
+			ReportedByQuery: "Multi",
+			WorkerOrderType: "Preventive",
+		}
+		count, err := suite.repo.CountSearchByFields(ctx, "MACHINE033", filters, &maintenance.ListOptions{
+			Limit: 10,
+			Sort:  maintenance.SortOrderWorkOrderDateDesc,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Equal(1, count)
+	})
+
+	suite.Run("should return zero for no matches", func() {
+		// Create test maintenance record
+		maintenanceRecord := testutils.CreateMaintenance("MACHINE034", "WO120")
+		maintenanceRecord.ReportedBy = "Zero Counter"
+		maintenanceRecord.WorkerOrderType = "Preventive"
+		suite.Require().NoError(suite.repo.Create(ctx, maintenanceRecord))
+
+		// Count with non-matching filters
+		filters := &maintenance.SearchFilters{
+			WorkOrderQuery: "NONEXISTENT",
+		}
+		count, err := suite.repo.CountSearchByFields(ctx, "MACHINE034", filters, &maintenance.ListOptions{
+			Limit: 10,
+			Sort:  maintenance.SortOrderWorkOrderDateDesc,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Equal(0, count)
+	})
+}
+
 // TestMaintenanceRepositoryTestSuite runs the test suite
 func TestMaintenanceRepositoryTestSuite(t *testing.T) {
 	suite.Run(t, new(MaintenanceRepositoryTestSuite))

@@ -82,6 +82,36 @@ func (mr *MockRepositoryMockRecorder) CountByWorkOrderType(ctx, machineSerialNum
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountByWorkOrderType", reflect.TypeOf((*MockRepository)(nil).CountByWorkOrderType), ctx, machineSerialNumber)
 }
 
+// CountSearch mocks base method.
+func (m *MockRepository) CountSearch(ctx context.Context, query string, options *ListOptions) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CountSearch", ctx, query, options)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CountSearch indicates an expected call of CountSearch.
+func (mr *MockRepositoryMockRecorder) CountSearch(ctx, query, options interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountSearch", reflect.TypeOf((*MockRepository)(nil).CountSearch), ctx, query, options)
+}
+
+// CountSearchByFields mocks base method.
+func (m *MockRepository) CountSearchByFields(ctx context.Context, machineSerialNumber string, filters *SearchFilters, options *ListOptions) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CountSearchByFields", ctx, machineSerialNumber, filters, options)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CountSearchByFields indicates an expected call of CountSearchByFields.
+func (mr *MockRepositoryMockRecorder) CountSearchByFields(ctx, machineSerialNumber, filters, options interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountSearchByFields", reflect.TypeOf((*MockRepository)(nil).CountSearchByFields), ctx, machineSerialNumber, filters, options)
+}
+
 // Create mocks base method.
 func (m *MockRepository) Create(ctx context.Context, maintenance *Maintenance) error {
 	m.ctrl.T.Helper()
@@ -138,6 +168,36 @@ func (m *MockRepository) ListByMachine(ctx context.Context, machineSerialNumber 
 func (mr *MockRepositoryMockRecorder) ListByMachine(ctx, machineSerialNumber, options interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListByMachine", reflect.TypeOf((*MockRepository)(nil).ListByMachine), ctx, machineSerialNumber, options)
+}
+
+// Search mocks base method.
+func (m *MockRepository) Search(ctx context.Context, query string, options *ListOptions) ([]*Maintenance, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Search", ctx, query, options)
+	ret0, _ := ret[0].([]*Maintenance)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Search indicates an expected call of Search.
+func (mr *MockRepositoryMockRecorder) Search(ctx, query, options interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Search", reflect.TypeOf((*MockRepository)(nil).Search), ctx, query, options)
+}
+
+// SearchByFields mocks base method.
+func (m *MockRepository) SearchByFields(ctx context.Context, machineSerialNumber string, filters *SearchFilters, options *ListOptions) ([]*Maintenance, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SearchByFields", ctx, machineSerialNumber, filters, options)
+	ret0, _ := ret[0].([]*Maintenance)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SearchByFields indicates an expected call of SearchByFields.
+func (mr *MockRepositoryMockRecorder) SearchByFields(ctx, machineSerialNumber, filters, options interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchByFields", reflect.TypeOf((*MockRepository)(nil).SearchByFields), ctx, machineSerialNumber, filters, options)
 }
 
 // Update mocks base method.

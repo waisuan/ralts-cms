@@ -70,10 +70,14 @@ func (h *MaintenanceHandler) ListMaintenance(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Parse query parameters for pagination and sorting
+	// Parse query parameters for pagination, sorting, and search
 	limitStr := r.URL.Query().Get("limit")
 	offsetStr := r.URL.Query().Get("offset")
 	sortStr := r.URL.Query().Get("sort")
+	query := r.URL.Query().Get("q")
+	workOrderQuery := r.URL.Query().Get("work_order_q")
+	reportedByQuery := r.URL.Query().Get("reported_by_q")
+	workerOrderTypeQuery := r.URL.Query().Get("worker_order_type_q")
 
 	// Parse limit parameter
 	limit := h.deps.Config.DefaultMaintenanceLimit
@@ -122,16 +126,60 @@ func (h *MaintenanceHandler) ListMaintenance(w http.ResponseWriter, r *http.Requ
 		Sort:   sort,
 	}
 
-	maintenanceList, err := h.deps.MaintenanceRepository.ListByMachine(r.Context(), machineSerialNumber, options)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to list maintenance: %v", err), http.StatusInternalServerError)
-		return
-	}
+	// Get maintenance records from repository
+	var maintenanceList []*maintenance.Maintenance
+	var count int
+	var err error
 
-	count, err := h.deps.MaintenanceRepository.CountByMachine(r.Context(), machineSerialNumber)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to count maintenance: %v", err), http.StatusInternalServerError)
-		return
+	// Check if we have any search parameters
+	hasFieldSearch := workOrderQuery != "" || reportedByQuery != "" || workerOrderTypeQuery != ""
+	hasGeneralSearch := query != ""
+
+	if hasFieldSearch {
+		// Use field-specific search
+		filters := &maintenance.SearchFilters{
+			WorkOrderQuery:  workOrderQuery,
+			ReportedByQuery: reportedByQuery,
+			WorkerOrderType: workerOrderTypeQuery,
+		}
+
+		maintenanceList, err = h.deps.MaintenanceRepository.SearchByFields(r.Context(), machineSerialNumber, filters, options)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to search maintenance by fields: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		count, err = h.deps.MaintenanceRepository.CountSearchByFields(r.Context(), machineSerialNumber, filters, options)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to count field search results: %v", err), http.StatusInternalServerError)
+			return
+		}
+	} else if hasGeneralSearch {
+		// Use general full-text search
+		maintenanceList, err = h.deps.MaintenanceRepository.Search(r.Context(), query, options)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to search maintenance: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		count, err = h.deps.MaintenanceRepository.CountSearch(r.Context(), query, options)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to count search results: %v", err), http.StatusInternalServerError)
+			return
+		}
+	} else {
+		// No search, just list by machine
+		maintenanceList, err = h.deps.MaintenanceRepository.ListByMachine(r.Context(), machineSerialNumber, options)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to list maintenance: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		count, err = h.deps.MaintenanceRepository.CountByMachine(r.Context(), machineSerialNumber)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to count maintenance: %v", err), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	// Get counts by work order type
