@@ -37,6 +37,9 @@ type Config struct {
 	MaxMachinesLimit        int64 `env:"MAX_MACHINE_LIMIT" envDefault:"100"`
 	DefaultMaintenanceLimit int32 `env:"DEFAULT_MAINTENANCE_LIMIT" envDefault:"50"`
 	MaxMaintenanceLimit     int64 `env:"MAX_MAINTENANCE_LIMIT" envDefault:"100"`
+
+	// S3 Configuration
+	S3BucketName string `env:"S3_BUCKET_NAME" envDefault:"ralts-cms-attachments"`
 }
 
 // LoadConfig loads and parses configuration from environment variables and .env files

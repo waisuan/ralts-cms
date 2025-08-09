@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Machine } from '../types/machine';
 import { Maintenance, MaintenanceOrderType } from '../types/maintenance';
 import { MaintenanceService, CreateMaintenanceRequest, UpdateMaintenanceRequest } from '../services/maintenanceService';
 import { handleApiError } from '../utils/api';
 import { isAuthError } from '../utils/auth';
 import { backendDateToHtmlDate } from '../utils/dateUtils';
+import { useDebounce } from '../hooks/useDebounce';
 import FullPageLoader from './FullPageLoader';
 import LoadingOverlay from './LoadingOverlay';
 
@@ -115,10 +116,13 @@ export default function MaintenanceHistory({
 
   // Search state - generic search
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+  const prevDebouncedSearchQuery = useRef(debouncedSearchQuery);
 
   // API state
   const [maintenanceRecords, setMaintenanceRecords] = useState<Maintenance[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isSearchLoading, setIsSearchLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [totalCount, setTotalCount] = useState(0);
   const [preventativeCount, setPreventativeCount] = useState(0);
@@ -197,16 +201,24 @@ export default function MaintenanceHistory({
   };
 
   // Load maintenance records from API
-  const loadMaintenanceRecords = useCallback(async () => {
+  const loadMaintenanceRecords = useCallback(async (loadingType: 'initial' | 'search' | 'pagination' = 'initial') => {
     try {
-      setIsLoading(true);
+      // Set appropriate loading state
+      if (loadingType === 'search') {
+        setIsSearchLoading(true);
+      } else if (loadingType === 'pagination') {
+        setIsPaginationLoading(true);
+      } else {
+        setIsInitialLoading(true);
+      }
+      
       setError(null);
 
       // Create filters object with generic search query
       const filters: { q?: string } = {};
       
-      if (searchQuery.trim()) {
-        filters.q = searchQuery.trim();
+      if (debouncedSearchQuery.trim()) {
+        filters.q = debouncedSearchQuery.trim();
       }
 
       const response = await MaintenanceService.getMaintenanceList(
@@ -233,23 +245,42 @@ export default function MaintenanceHistory({
         setError(apiError.message);
       }
     } finally {
-      setIsLoading(false);
+      setIsInitialLoading(false);
+      setIsSearchLoading(false);
+      setIsPaginationLoading(false);
     }
-  }, [machine.serial_number, currentPage, itemsPerPage, searchQuery]);
+  }, [machine.serial_number, currentPage, itemsPerPage, debouncedSearchQuery]);
 
-  // Load records when component mounts or dependencies change
+  // Load records when component mounts or pagination changes
   useEffect(() => {
-    loadMaintenanceRecords();
-  }, [machine.serial_number, currentPage, itemsPerPage, loadMaintenanceRecords]);
+    if (machine.serial_number) {
+      loadMaintenanceRecords('initial');
+    }
+  }, [machine.serial_number]);
 
-  // Debounced search effect
+  // Handle pagination changes (after initial load)
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      loadMaintenanceRecords();
-    }, 300); // 300ms debounce
+    if (!isInitialLoading && machine.serial_number) {
+      loadMaintenanceRecords('pagination');
+    }
+  }, [currentPage, itemsPerPage]);
 
-    return () => clearTimeout(timeoutId);
-  }, [searchQuery, loadMaintenanceRecords]);
+  // Handle search query changes
+  useEffect(() => {
+    if (debouncedSearchQuery !== prevDebouncedSearchQuery.current) {
+      prevDebouncedSearchQuery.current = debouncedSearchQuery;
+      
+      // Reset to page 1 if not already there
+      if (currentPage !== 1) {
+        setCurrentPage(1);
+      } else {
+        // If already on page 1, trigger search directly
+        if (machine.serial_number) {
+          loadMaintenanceRecords('search');
+        }
+      }
+    }
+  }, [debouncedSearchQuery, currentPage, machine.serial_number]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -331,7 +362,6 @@ export default function MaintenanceHistory({
   // Search handler with debouncing
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
-    setCurrentPage(1); // Reset to first page when searching
   };
 
   // Clear search
@@ -341,7 +371,7 @@ export default function MaintenanceHistory({
   };
 
   // Check if search is active
-  const hasActiveSearch = searchQuery.trim() !== '';
+  const hasActiveSearch = debouncedSearchQuery.trim() !== '';
 
   // Generate page numbers for pagination
   const getPageNumbers = () => {
@@ -526,7 +556,7 @@ export default function MaintenanceHistory({
       await MaintenanceService.createMaintenance(machine.serial_number, createData);
       
       // Reload the maintenance records
-      await loadMaintenanceRecords();
+      await loadMaintenanceRecords('initial');
       closeAddRecordModal();
       setIsCreating(false); // Reset loading state on success
     } catch (error) {
@@ -699,7 +729,7 @@ export default function MaintenanceHistory({
       );
 
       // Reload the maintenance records
-      await loadMaintenanceRecords();
+      await loadMaintenanceRecords('initial');
       closeEditRecordModal();
       setIsUpdating(false); // Reset loading state on success
     } catch (error) {
@@ -734,7 +764,7 @@ export default function MaintenanceHistory({
         );
 
         // Reload the maintenance records
-        await loadMaintenanceRecords();
+        await loadMaintenanceRecords('initial');
         closeDeleteConfirm();
         setIsDeleting(false); // Reset loading state on success
       } catch (error) {
@@ -776,8 +806,8 @@ export default function MaintenanceHistory({
 
 
 
-  // Show loading state
-  if (isLoading && maintenanceRecords.length === 0) {
+  // Show initial loading state (only for first load)
+  if (isInitialLoading && maintenanceRecords.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 py-8">
         <div className="container mx-auto px-4">
@@ -803,7 +833,7 @@ export default function MaintenanceHistory({
               <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Maintenance Records</h3>
               <p className="text-gray-500 mb-4">{error}</p>
               <button
-                onClick={loadMaintenanceRecords}
+                onClick={() => loadMaintenanceRecords('initial')}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 Try Again
@@ -1169,7 +1199,16 @@ export default function MaintenanceHistory({
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {sortedRecords.length === 0 ? (
+                    {isSearchLoading ? (
+                      <tr>
+                        <td colSpan={7} className="px-6 py-8 text-center">
+                          <div className="flex items-center justify-center">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-2"></div>
+                            <span className="text-gray-600">Searching...</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : sortedRecords.length === 0 ? (
                       <tr>
                         <td colSpan={7} className="px-6 py-12 text-center">
                           <div className="text-gray-400 text-6xl mb-4">🔧</div>
@@ -1362,14 +1401,24 @@ export default function MaintenanceHistory({
                       </div>
                     </div>
                   )}
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className={`relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 ${isPaginationLoading ? 'opacity-60' : ''}`}>
+                    {isPaginationLoading && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 z-10">
+                        <div className="flex items-center">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                          <span className="text-sm text-gray-600">Loading...</span>
+                        </div>
+                      </div>
+                    )}
+                    
                     {/* Items per page selector */}
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-gray-900 font-medium">Show:</span>
                       <select
                         value={itemsPerPage}
                         onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-                        className="border border-gray-300 rounded-md px-3 py-1 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        disabled={isPaginationLoading}
+                        className="border border-gray-300 rounded-md px-3 py-1 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {PAGE_SIZE_OPTIONS.map((option) => (
                           <option key={option} value={option}>
@@ -1391,7 +1440,7 @@ export default function MaintenanceHistory({
                       {/* First page button */}
                       <button
                         onClick={goToFirstPage}
-                        disabled={currentPage === 1}
+                        disabled={currentPage === 1 || isPaginationLoading}
                         className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 text-gray-900 font-medium"
                         title="Go to first page"
                       >
@@ -1403,7 +1452,7 @@ export default function MaintenanceHistory({
                       {/* Previous button */}
                       <button
                         onClick={goToPreviousPage}
-                        disabled={currentPage === 1}
+                        disabled={currentPage === 1 || isPaginationLoading}
                         className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 text-gray-900 font-medium"
                       >
                         Previous
@@ -1415,7 +1464,8 @@ export default function MaintenanceHistory({
                           <button
                             key={page}
                             onClick={() => goToPage(page)}
-                            className={`px-3 py-1 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 font-medium ${
+                            disabled={isPaginationLoading}
+                            className={`px-3 py-1 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 font-medium disabled:opacity-50 disabled:cursor-not-allowed ${
                               currentPage === page
                                 ? 'bg-blue-600 text-white border-blue-600'
                                 : 'border-gray-300 text-gray-900 hover:bg-gray-50'
@@ -1429,7 +1479,7 @@ export default function MaintenanceHistory({
                       {/* Next button */}
                       <button
                         onClick={goToNextPage}
-                        disabled={currentPage === totalPages}
+                        disabled={currentPage === totalPages || isPaginationLoading}
                         className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 text-gray-900 font-medium"
                       >
                         Next
@@ -1438,7 +1488,7 @@ export default function MaintenanceHistory({
                       {/* Last page button */}
                       <button
                         onClick={goToLastPage}
-                        disabled={currentPage === totalPages}
+                        disabled={currentPage === totalPages || isPaginationLoading}
                         className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 text-gray-900 font-medium"
                         title="Go to last page"
                       >
