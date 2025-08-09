@@ -3,7 +3,6 @@ package maintenance
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -39,23 +38,14 @@ func DefaultListOptions() *ListOptions {
 	}
 }
 
-// SearchFilters defines field-specific search filters
-type SearchFilters struct {
-	WorkOrderQuery  string
-	ReportedByQuery string
-	WorkerOrderType string
-}
-
 // Repository defines the interface for maintenance data access operations
 //
 //go:generate mockgen -destination=../maintenance/mock_maintenance_repository.go -package=maintenance -source=repository.go
 type Repository interface {
 	GetByWorkOrder(ctx context.Context, machineSerialNumber, workOrderNumber string) (*Maintenance, error)
 	ListByMachine(ctx context.Context, machineSerialNumber string, options *ListOptions) ([]*Maintenance, error)
-	Search(ctx context.Context, query string, options *ListOptions) ([]*Maintenance, error)
-	CountSearch(ctx context.Context, query string, options *ListOptions) (int, error)
-	SearchByFields(ctx context.Context, machineSerialNumber string, filters *SearchFilters, options *ListOptions) ([]*Maintenance, error)
-	CountSearchByFields(ctx context.Context, machineSerialNumber string, filters *SearchFilters, options *ListOptions) (int, error)
+	SearchByMachine(ctx context.Context, machineSerialNumber, query string, options *ListOptions) ([]*Maintenance, error)
+	CountSearchByMachine(ctx context.Context, machineSerialNumber, query string) (int, error)
 	Create(ctx context.Context, maintenance *Maintenance) error
 	Update(ctx context.Context, maintenance *Maintenance) error
 	Delete(ctx context.Context, machineSerialNumber, workOrderNumber string) error
@@ -268,19 +258,19 @@ func (r *db) CountByWorkOrderType(ctx context.Context, machineSerialNumber strin
 	return preventativeCount, correctiveCount, emergencyCount, inspectionCount, nil
 }
 
-func (r *db) Search(ctx context.Context, query string, options *ListOptions) ([]*Maintenance, error) {
+func (r *db) SearchByMachine(ctx context.Context, machineSerialNumber, query string, options *ListOptions) ([]*Maintenance, error) {
 	// Use default options if none provided
 	if options == nil {
 		options = DefaultListOptions()
 	}
 
-	// Build the base query with full-text search
+	// Build the base query with full-text search filtered by machine
 	baseQuery := `
 		SELECT id, machine_serial_number, work_order_number, work_order_date, action_taken,
 		       reported_by, worker_order_type, attachment, created_at, updated_at,
-		       ts_rank(search_vector, plainto_tsquery('english', $1)) as rank
+		       ts_rank(search_vector, plainto_tsquery('english', $2)) as rank
 		FROM maintenance 
-		WHERE search_vector @@ plainto_tsquery('english', $1)
+		WHERE machine_serial_number = $1 AND search_vector @@ plainto_tsquery('english', $2)
 	`
 
 	// Build ORDER BY clause based on sort option
@@ -299,11 +289,11 @@ func (r *db) Search(ctx context.Context, query string, options *ListOptions) ([]
 	}
 
 	// Add pagination
-	finalQuery := fmt.Sprintf("%s %s LIMIT $2 OFFSET $3", baseQuery, orderByClause)
+	finalQuery := fmt.Sprintf("%s %s LIMIT $3 OFFSET $4", baseQuery, orderByClause)
 
-	rows, err := r.client.Query(ctx, finalQuery, query, options.Limit, options.Offset)
+	rows, err := r.client.Query(ctx, finalQuery, machineSerialNumber, query, options.Limit, options.Offset)
 	if err != nil {
-		return nil, fmt.Errorf("failed to search maintenance records: %w", err)
+		return nil, fmt.Errorf("failed to search maintenance records by machine: %w", err)
 	}
 	defer rows.Close()
 
@@ -330,162 +320,17 @@ func (r *db) Search(ctx context.Context, query string, options *ListOptions) ([]
 	return maintenanceRecords, nil
 }
 
-func (r *db) CountSearch(ctx context.Context, searchQuery string, options *ListOptions) (int, error) {
-	// Use default options if none provided
-	if options == nil {
-		options = DefaultListOptions()
-	}
-
+func (r *db) CountSearchByMachine(ctx context.Context, machineSerialNumber, searchQuery string) (int, error) {
 	sqlQuery := `
 		SELECT COUNT(*)
 		FROM maintenance 
-		WHERE search_vector @@ plainto_tsquery('english', $1)
+		WHERE machine_serial_number = $1 AND search_vector @@ plainto_tsquery('english', $2)
 	`
 
 	var count int
-	err := r.client.QueryRow(ctx, sqlQuery, searchQuery).Scan(&count)
+	err := r.client.QueryRow(ctx, sqlQuery, machineSerialNumber, searchQuery).Scan(&count)
 	if err != nil {
-		return 0, fmt.Errorf("failed to count search results: %w", err)
-	}
-
-	return count, nil
-}
-
-func (r *db) SearchByFields(ctx context.Context, machineSerialNumber string, filters *SearchFilters, options *ListOptions) ([]*Maintenance, error) {
-	// Use default options if none provided
-	if options == nil {
-		options = DefaultListOptions()
-	}
-
-	// Build the base query
-	baseQuery := `
-		SELECT id, machine_serial_number, work_order_number, work_order_date, action_taken,
-		       reported_by, worker_order_type, attachment, created_at, updated_at
-		FROM maintenance 
-		WHERE machine_serial_number = $1
-	`
-
-	// Build WHERE clause conditions and arguments
-	var conditions []string
-	var args []interface{}
-	args = append(args, machineSerialNumber)
-	argIndex := 2
-
-	if filters.WorkOrderQuery != "" {
-		conditions = append(conditions, fmt.Sprintf("work_order_number ILIKE $%d", argIndex))
-		args = append(args, "%"+filters.WorkOrderQuery+"%")
-		argIndex++
-	}
-
-	if filters.ReportedByQuery != "" {
-		conditions = append(conditions, fmt.Sprintf("reported_by ILIKE $%d", argIndex))
-		args = append(args, "%"+filters.ReportedByQuery+"%")
-		argIndex++
-	}
-
-	if filters.WorkerOrderType != "" {
-		conditions = append(conditions, fmt.Sprintf("worker_order_type = $%d", argIndex))
-		args = append(args, filters.WorkerOrderType)
-		argIndex++
-	}
-
-	// Add conditions to query
-	if len(conditions) > 0 {
-		baseQuery += " AND " + strings.Join(conditions, " AND ")
-	}
-
-	// Build ORDER BY clause based on sort option
-	var orderByClause string
-	switch options.Sort {
-	case SortOrderWorkOrderDateAsc:
-		orderByClause = "ORDER BY work_order_date ASC, created_at ASC"
-	case SortOrderCreatedAtDesc:
-		orderByClause = "ORDER BY created_at DESC, work_order_date DESC"
-	case SortOrderCreatedAtAsc:
-		orderByClause = "ORDER BY created_at ASC, work_order_date ASC"
-	case SortOrderWorkOrderDateDesc:
-		orderByClause = "ORDER BY work_order_date DESC, created_at DESC"
-	default:
-		orderByClause = "ORDER BY work_order_date DESC, created_at DESC"
-	}
-
-	// Add pagination
-	finalQuery := fmt.Sprintf("%s %s LIMIT $%d OFFSET $%d", baseQuery, orderByClause, argIndex, argIndex+1)
-	args = append(args, options.Limit, options.Offset)
-
-	rows, err := r.client.Query(ctx, finalQuery, args...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to search maintenance records by fields: %w", err)
-	}
-	defer rows.Close()
-
-	var maintenanceRecords []*Maintenance
-	for rows.Next() {
-		var maintenance Maintenance
-		err := rows.Scan(
-			&maintenance.ID, &maintenance.MachineSerialNumber, &maintenance.WorkOrderNumber,
-			&maintenance.WorkOrderDate, &maintenance.ActionTaken, &maintenance.ReportedBy,
-			&maintenance.WorkerOrderType, &maintenance.Attachment, &maintenance.CreatedAt, &maintenance.UpdatedAt,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan maintenance: %w", err)
-		}
-		maintenanceRecords = append(maintenanceRecords, &maintenance)
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating maintenance records: %w", err)
-	}
-
-	return maintenanceRecords, nil
-}
-
-func (r *db) CountSearchByFields(ctx context.Context, machineSerialNumber string, filters *SearchFilters, options *ListOptions) (int, error) {
-	// Use default options if none provided
-	if options == nil {
-		options = DefaultListOptions()
-	}
-
-	// Build the base query
-	baseQuery := `
-		SELECT COUNT(*)
-		FROM maintenance 
-		WHERE machine_serial_number = $1
-	`
-
-	// Build WHERE clause conditions and arguments
-	var conditions []string
-	var args []interface{}
-	args = append(args, machineSerialNumber)
-	argIndex := 2
-
-	if filters.WorkOrderQuery != "" {
-		conditions = append(conditions, fmt.Sprintf("work_order_number ILIKE $%d", argIndex))
-		args = append(args, "%"+filters.WorkOrderQuery+"%")
-		argIndex++
-	}
-
-	if filters.ReportedByQuery != "" {
-		conditions = append(conditions, fmt.Sprintf("reported_by ILIKE $%d", argIndex))
-		args = append(args, "%"+filters.ReportedByQuery+"%")
-		argIndex++
-	}
-
-	if filters.WorkerOrderType != "" {
-		conditions = append(conditions, fmt.Sprintf("worker_order_type = $%d", argIndex))
-		args = append(args, filters.WorkerOrderType)
-		argIndex++
-	}
-
-	// Add conditions to query
-	if len(conditions) > 0 {
-		baseQuery += " AND " + strings.Join(conditions, " AND ")
-	}
-
-	var count int
-	err := r.client.QueryRow(ctx, baseQuery, args...).Scan(&count)
-	if err != nil {
-		return 0, fmt.Errorf("failed to count search results by fields: %w", err)
+		return 0, fmt.Errorf("failed to count search results by machine: %w", err)
 	}
 
 	return count, nil

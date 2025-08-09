@@ -75,9 +75,6 @@ func (h *MaintenanceHandler) ListMaintenance(w http.ResponseWriter, r *http.Requ
 	offsetStr := r.URL.Query().Get("offset")
 	sortStr := r.URL.Query().Get("sort")
 	query := r.URL.Query().Get("q")
-	workOrderQuery := r.URL.Query().Get("work_order_q")
-	reportedByQuery := r.URL.Query().Get("reported_by_q")
-	workerOrderTypeQuery := r.URL.Query().Get("worker_order_type_q")
 
 	// Parse limit parameter
 	limit := h.deps.Config.DefaultMaintenanceLimit
@@ -131,38 +128,15 @@ func (h *MaintenanceHandler) ListMaintenance(w http.ResponseWriter, r *http.Requ
 	var count int
 	var err error
 
-	// Check if we have any search parameters
-	hasFieldSearch := workOrderQuery != "" || reportedByQuery != "" || workerOrderTypeQuery != ""
-	hasGeneralSearch := query != ""
-
-	if hasFieldSearch {
-		// Use field-specific search
-		filters := &maintenance.SearchFilters{
-			WorkOrderQuery:  workOrderQuery,
-			ReportedByQuery: reportedByQuery,
-			WorkerOrderType: workerOrderTypeQuery,
-		}
-
-		maintenanceList, err = h.deps.MaintenanceRepository.SearchByFields(r.Context(), machineSerialNumber, filters, options)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Failed to search maintenance by fields: %v", err), http.StatusInternalServerError)
-			return
-		}
-
-		count, err = h.deps.MaintenanceRepository.CountSearchByFields(r.Context(), machineSerialNumber, filters, options)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Failed to count field search results: %v", err), http.StatusInternalServerError)
-			return
-		}
-	} else if hasGeneralSearch {
-		// Use general full-text search
-		maintenanceList, err = h.deps.MaintenanceRepository.Search(r.Context(), query, options)
+	if query != "" {
+		// Use general full-text search filtered by machine
+		maintenanceList, err = h.deps.MaintenanceRepository.SearchByMachine(r.Context(), machineSerialNumber, query, options)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to search maintenance: %v", err), http.StatusInternalServerError)
 			return
 		}
 
-		count, err = h.deps.MaintenanceRepository.CountSearch(r.Context(), query, options)
+		count, err = h.deps.MaintenanceRepository.CountSearchByMachine(r.Context(), machineSerialNumber, query)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to count search results: %v", err), http.StatusInternalServerError)
 			return

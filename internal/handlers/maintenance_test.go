@@ -497,6 +497,133 @@ func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
 		suite.Assert().Equal(http.StatusInternalServerError, w.Code)
 		suite.Assert().Contains(w.Body.String(), "Failed to count maintenance by work order type")
 	})
+
+	suite.Run("should use SearchByMachine when q parameter is provided", func() {
+		expectedMaintenance := []*maintenance.Maintenance{
+			{
+				MachineSerialNumber: "MACHINE123",
+				WorkOrderNumber:     "WO005",
+				ActionTaken:         "General search result",
+				ReportedBy:          "Search Tech",
+				WorkerOrderType:     "Corrective",
+			},
+		}
+
+		expectedOptions := &maintenance.ListOptions{
+			Limit:  50,
+			Offset: 0,
+			Sort:   maintenance.SortOrderWorkOrderDateDesc,
+		}
+
+		suite.mockRepo.EXPECT().SearchByMachine(gomock.Any(), "MACHINE123", "search term", expectedOptions).Return(expectedMaintenance, nil)
+		suite.mockRepo.EXPECT().CountSearchByMachine(gomock.Any(), "MACHINE123", "search term").Return(1, nil)
+		suite.mockRepo.EXPECT().CountByWorkOrderType(gomock.Any(), "MACHINE123").Return(0, 1, 0, 0, nil)
+
+		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance?q=search%20term", nil)
+		w := httptest.NewRecorder()
+
+		router := mux.NewRouter()
+		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.ListMaintenance)
+		router.ServeHTTP(w, req)
+
+		suite.Assert().Equal(http.StatusOK, w.Code)
+
+		var response map[string]interface{}
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		suite.Require().NoError(err)
+
+		// Verify that the count reflects filtered search results (from CountSearchByMachine)
+		suite.Assert().Equal(float64(1), response["count"])
+		maintenanceList := response["maintenance"].([]interface{})
+		suite.Assert().Len(maintenanceList, 1)
+		// Ensure count consistency: returned count should match actual result length
+		suite.Assert().Equal(len(maintenanceList), int(response["count"].(float64)))
+	})
+
+	suite.Run("should combine search with other parameters", func() {
+		expectedMaintenance := []*maintenance.Maintenance{
+			{
+				MachineSerialNumber: "MACHINE123",
+				WorkOrderNumber:     "WO006",
+				ActionTaken:         "Combined search result",
+				ReportedBy:          "Combined Tech",
+				WorkerOrderType:     "Emergency",
+			},
+		}
+
+		expectedOptions := &maintenance.ListOptions{
+			Limit:  25,
+			Offset: 10,
+			Sort:   maintenance.SortOrderCreatedAtAsc,
+		}
+
+		suite.mockRepo.EXPECT().SearchByMachine(gomock.Any(), "MACHINE123", "combined", expectedOptions).Return(expectedMaintenance, nil)
+		suite.mockRepo.EXPECT().CountSearchByMachine(gomock.Any(), "MACHINE123", "combined").Return(1, nil)
+		suite.mockRepo.EXPECT().CountByWorkOrderType(gomock.Any(), "MACHINE123").Return(0, 0, 1, 0, nil)
+
+		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance?q=combined&limit=25&offset=10&sort=created_at_asc", nil)
+		w := httptest.NewRecorder()
+
+		router := mux.NewRouter()
+		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.ListMaintenance)
+		router.ServeHTTP(w, req)
+
+		suite.Assert().Equal(http.StatusOK, w.Code)
+
+		var response map[string]interface{}
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		suite.Require().NoError(err)
+
+		suite.Assert().Equal(float64(1), response["count"])
+		suite.Assert().Equal(float64(25), response["limit"])
+		suite.Assert().Equal(float64(10), response["offset"])
+		suite.Assert().Equal("created_at_asc", response["sort"])
+		maintenanceList := response["maintenance"].([]interface{})
+		suite.Assert().Len(maintenanceList, 1)
+	})
+
+	suite.Run("should handle SearchByMachine error", func() {
+		expectedOptions := &maintenance.ListOptions{
+			Limit:  50,
+			Offset: 0,
+			Sort:   maintenance.SortOrderWorkOrderDateDesc,
+		}
+
+		suite.mockRepo.EXPECT().SearchByMachine(gomock.Any(), "MACHINE123", "error term", expectedOptions).Return(nil, fmt.Errorf("search error"))
+
+		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance?q=error%20term", nil)
+		w := httptest.NewRecorder()
+
+		router := mux.NewRouter()
+		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.ListMaintenance)
+		router.ServeHTTP(w, req)
+
+		suite.Assert().Equal(http.StatusInternalServerError, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Failed to search maintenance")
+	})
+
+	suite.Run("should handle CountSearchByMachine error", func() {
+		expectedMaintenance := []*maintenance.Maintenance{}
+
+		expectedOptions := &maintenance.ListOptions{
+			Limit:  50,
+			Offset: 0,
+			Sort:   maintenance.SortOrderWorkOrderDateDesc,
+		}
+
+		suite.mockRepo.EXPECT().SearchByMachine(gomock.Any(), "MACHINE123", "count error", expectedOptions).Return(expectedMaintenance, nil)
+		suite.mockRepo.EXPECT().CountSearchByMachine(gomock.Any(), "MACHINE123", "count error").Return(0, fmt.Errorf("count error"))
+
+		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance?q=count%20error", nil)
+		w := httptest.NewRecorder()
+
+		router := mux.NewRouter()
+		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.ListMaintenance)
+		router.ServeHTTP(w, req)
+
+		suite.Assert().Equal(http.StatusInternalServerError, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Failed to count search results")
+	})
 }
 
 func (suite *MaintenanceHandlerTestSuite) TestCreateMaintenance() {
@@ -764,337 +891,6 @@ func (suite *MaintenanceHandlerTestSuite) TestDeleteMaintenance() {
 
 		suite.Assert().Equal(http.StatusInternalServerError, w.Code)
 		suite.Assert().Contains(w.Body.String(), "Failed to delete maintenance")
-	})
-}
-
-func (suite *MaintenanceHandlerTestSuite) TestListMaintenanceWithFieldSearch() {
-	suite.Run("should use SearchByFields when work_order_q is provided", func() {
-		expectedMaintenance := []*maintenance.Maintenance{
-			{
-				MachineSerialNumber: "MACHINE123",
-				WorkOrderNumber:     "WO001",
-				ActionTaken:         "Test maintenance",
-				ReportedBy:          "Tech1",
-				WorkerOrderType:     "Preventive",
-			},
-		}
-
-		expectedOptions := &maintenance.ListOptions{
-			Limit:  50,
-			Offset: 0,
-			Sort:   maintenance.SortOrderWorkOrderDateDesc,
-		}
-
-		expectedFilters := &maintenance.SearchFilters{
-			WorkOrderQuery:  "WO001",
-			ReportedByQuery: "",
-			WorkerOrderType: "",
-		}
-
-		suite.mockRepo.EXPECT().SearchByFields(gomock.Any(), "MACHINE123", expectedFilters, expectedOptions).Return(expectedMaintenance, nil)
-		suite.mockRepo.EXPECT().CountSearchByFields(gomock.Any(), "MACHINE123", expectedFilters, expectedOptions).Return(1, nil)
-		suite.mockRepo.EXPECT().CountByWorkOrderType(gomock.Any(), "MACHINE123").Return(1, 0, 0, 0, nil)
-
-		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance?work_order_q=WO001", nil)
-		w := httptest.NewRecorder()
-
-		router := mux.NewRouter()
-		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.ListMaintenance)
-		router.ServeHTTP(w, req)
-
-		suite.Assert().Equal(http.StatusOK, w.Code)
-		suite.Assert().Equal("application/json", w.Header().Get("Content-Type"))
-
-		var response map[string]interface{}
-		err := json.Unmarshal(w.Body.Bytes(), &response)
-		suite.Require().NoError(err)
-
-		suite.Assert().Equal(float64(1), response["count"])
-		maintenanceList := response["maintenance"].([]interface{})
-		suite.Assert().Len(maintenanceList, 1)
-	})
-
-	suite.Run("should use SearchByFields when reported_by_q is provided", func() {
-		expectedMaintenance := []*maintenance.Maintenance{
-			{
-				MachineSerialNumber: "MACHINE123",
-				WorkOrderNumber:     "WO002",
-				ActionTaken:         "Reported maintenance",
-				ReportedBy:          "John Tech",
-				WorkerOrderType:     "Corrective",
-			},
-		}
-
-		expectedOptions := &maintenance.ListOptions{
-			Limit:  50,
-			Offset: 0,
-			Sort:   maintenance.SortOrderWorkOrderDateDesc,
-		}
-
-		expectedFilters := &maintenance.SearchFilters{
-			WorkOrderQuery:  "",
-			ReportedByQuery: "John",
-			WorkerOrderType: "",
-		}
-
-		suite.mockRepo.EXPECT().SearchByFields(gomock.Any(), "MACHINE123", expectedFilters, expectedOptions).Return(expectedMaintenance, nil)
-		suite.mockRepo.EXPECT().CountSearchByFields(gomock.Any(), "MACHINE123", expectedFilters, expectedOptions).Return(1, nil)
-		suite.mockRepo.EXPECT().CountByWorkOrderType(gomock.Any(), "MACHINE123").Return(0, 1, 0, 0, nil)
-
-		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance?reported_by_q=John", nil)
-		w := httptest.NewRecorder()
-
-		router := mux.NewRouter()
-		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.ListMaintenance)
-		router.ServeHTTP(w, req)
-
-		suite.Assert().Equal(http.StatusOK, w.Code)
-
-		var response map[string]interface{}
-		err := json.Unmarshal(w.Body.Bytes(), &response)
-		suite.Require().NoError(err)
-
-		suite.Assert().Equal(float64(1), response["count"])
-		maintenanceList := response["maintenance"].([]interface{})
-		suite.Assert().Len(maintenanceList, 1)
-	})
-
-	suite.Run("should use SearchByFields when worker_order_type_q is provided", func() {
-		expectedMaintenance := []*maintenance.Maintenance{
-			{
-				MachineSerialNumber: "MACHINE123",
-				WorkOrderNumber:     "WO003",
-				ActionTaken:         "Emergency repair",
-				ReportedBy:          "Emergency Tech",
-				WorkerOrderType:     "Emergency",
-			},
-		}
-
-		expectedOptions := &maintenance.ListOptions{
-			Limit:  50,
-			Offset: 0,
-			Sort:   maintenance.SortOrderWorkOrderDateDesc,
-		}
-
-		expectedFilters := &maintenance.SearchFilters{
-			WorkOrderQuery:  "",
-			ReportedByQuery: "",
-			WorkerOrderType: "Emergency",
-		}
-
-		suite.mockRepo.EXPECT().SearchByFields(gomock.Any(), "MACHINE123", expectedFilters, expectedOptions).Return(expectedMaintenance, nil)
-		suite.mockRepo.EXPECT().CountSearchByFields(gomock.Any(), "MACHINE123", expectedFilters, expectedOptions).Return(1, nil)
-		suite.mockRepo.EXPECT().CountByWorkOrderType(gomock.Any(), "MACHINE123").Return(0, 0, 1, 0, nil)
-
-		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance?worker_order_type_q=Emergency", nil)
-		w := httptest.NewRecorder()
-
-		router := mux.NewRouter()
-		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.ListMaintenance)
-		router.ServeHTTP(w, req)
-
-		suite.Assert().Equal(http.StatusOK, w.Code)
-
-		var response map[string]interface{}
-		err := json.Unmarshal(w.Body.Bytes(), &response)
-		suite.Require().NoError(err)
-
-		suite.Assert().Equal(float64(1), response["count"])
-		maintenanceList := response["maintenance"].([]interface{})
-		suite.Assert().Len(maintenanceList, 1)
-	})
-
-	suite.Run("should use SearchByFields with multiple filters", func() {
-		expectedMaintenance := []*maintenance.Maintenance{
-			{
-				MachineSerialNumber: "MACHINE123",
-				WorkOrderNumber:     "WO004",
-				ActionTaken:         "Preventive check",
-				ReportedBy:          "Alice Tech",
-				WorkerOrderType:     "Preventive",
-			},
-		}
-
-		expectedOptions := &maintenance.ListOptions{
-			Limit:  50,
-			Offset: 0,
-			Sort:   maintenance.SortOrderWorkOrderDateDesc,
-		}
-
-		expectedFilters := &maintenance.SearchFilters{
-			WorkOrderQuery:  "WO004",
-			ReportedByQuery: "Alice",
-			WorkerOrderType: "Preventive",
-		}
-
-		suite.mockRepo.EXPECT().SearchByFields(gomock.Any(), "MACHINE123", expectedFilters, expectedOptions).Return(expectedMaintenance, nil)
-		suite.mockRepo.EXPECT().CountSearchByFields(gomock.Any(), "MACHINE123", expectedFilters, expectedOptions).Return(1, nil)
-		suite.mockRepo.EXPECT().CountByWorkOrderType(gomock.Any(), "MACHINE123").Return(1, 0, 0, 0, nil)
-
-		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance?work_order_q=WO004&reported_by_q=Alice&worker_order_type_q=Preventive", nil)
-		w := httptest.NewRecorder()
-
-		router := mux.NewRouter()
-		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.ListMaintenance)
-		router.ServeHTTP(w, req)
-
-		suite.Assert().Equal(http.StatusOK, w.Code)
-
-		var response map[string]interface{}
-		err := json.Unmarshal(w.Body.Bytes(), &response)
-		suite.Require().NoError(err)
-
-		suite.Assert().Equal(float64(1), response["count"])
-		maintenanceList := response["maintenance"].([]interface{})
-		suite.Assert().Len(maintenanceList, 1)
-	})
-
-	suite.Run("should use general Search when q parameter is provided", func() {
-		expectedMaintenance := []*maintenance.Maintenance{
-			{
-				MachineSerialNumber: "MACHINE123",
-				WorkOrderNumber:     "WO005",
-				ActionTaken:         "General search result",
-				ReportedBy:          "Search Tech",
-				WorkerOrderType:     "Corrective",
-			},
-		}
-
-		expectedOptions := &maintenance.ListOptions{
-			Limit:  50,
-			Offset: 0,
-			Sort:   maintenance.SortOrderWorkOrderDateDesc,
-		}
-
-		suite.mockRepo.EXPECT().Search(gomock.Any(), "search term", expectedOptions).Return(expectedMaintenance, nil)
-		suite.mockRepo.EXPECT().CountSearch(gomock.Any(), "search term", expectedOptions).Return(1, nil)
-		suite.mockRepo.EXPECT().CountByWorkOrderType(gomock.Any(), "MACHINE123").Return(0, 1, 0, 0, nil)
-
-		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance?q=search%20term", nil)
-		w := httptest.NewRecorder()
-
-		router := mux.NewRouter()
-		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.ListMaintenance)
-		router.ServeHTTP(w, req)
-
-		suite.Assert().Equal(http.StatusOK, w.Code)
-
-		var response map[string]interface{}
-		err := json.Unmarshal(w.Body.Bytes(), &response)
-		suite.Require().NoError(err)
-
-		suite.Assert().Equal(float64(1), response["count"])
-		maintenanceList := response["maintenance"].([]interface{})
-		suite.Assert().Len(maintenanceList, 1)
-	})
-
-	suite.Run("should prioritize field search over general search when both are provided", func() {
-		expectedMaintenance := []*maintenance.Maintenance{
-			{
-				MachineSerialNumber: "MACHINE123",
-				WorkOrderNumber:     "WO006",
-				ActionTaken:         "Field search priority test",
-				ReportedBy:          "Priority Tech",
-				WorkerOrderType:     "Inspection",
-			},
-		}
-
-		expectedOptions := &maintenance.ListOptions{
-			Limit:  50,
-			Offset: 0,
-			Sort:   maintenance.SortOrderWorkOrderDateDesc,
-		}
-
-		expectedFilters := &maintenance.SearchFilters{
-			WorkOrderQuery:  "WO006",
-			ReportedByQuery: "",
-			WorkerOrderType: "",
-		}
-
-		// Should call SearchByFields, not Search, even though q is also provided
-		suite.mockRepo.EXPECT().SearchByFields(gomock.Any(), "MACHINE123", expectedFilters, expectedOptions).Return(expectedMaintenance, nil)
-		suite.mockRepo.EXPECT().CountSearchByFields(gomock.Any(), "MACHINE123", expectedFilters, expectedOptions).Return(1, nil)
-		suite.mockRepo.EXPECT().CountByWorkOrderType(gomock.Any(), "MACHINE123").Return(0, 0, 0, 1, nil)
-
-		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance?q=general&work_order_q=WO006", nil)
-		w := httptest.NewRecorder()
-
-		router := mux.NewRouter()
-		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.ListMaintenance)
-		router.ServeHTTP(w, req)
-
-		suite.Assert().Equal(http.StatusOK, w.Code)
-
-		var response map[string]interface{}
-		err := json.Unmarshal(w.Body.Bytes(), &response)
-		suite.Require().NoError(err)
-
-		suite.Assert().Equal(float64(1), response["count"])
-		maintenanceList := response["maintenance"].([]interface{})
-		suite.Assert().Len(maintenanceList, 1)
-	})
-
-	suite.Run("should handle SearchByFields error", func() {
-		expectedOptions := &maintenance.ListOptions{
-			Limit:  50,
-			Offset: 0,
-			Sort:   maintenance.SortOrderWorkOrderDateDesc,
-		}
-
-		expectedFilters := &maintenance.SearchFilters{
-			WorkOrderQuery:  "ERROR",
-			ReportedByQuery: "",
-			WorkerOrderType: "",
-		}
-
-		suite.mockRepo.EXPECT().SearchByFields(gomock.Any(), "MACHINE123", expectedFilters, expectedOptions).Return(nil, fmt.Errorf("search error"))
-
-		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance?work_order_q=ERROR", nil)
-		w := httptest.NewRecorder()
-
-		router := mux.NewRouter()
-		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.ListMaintenance)
-		router.ServeHTTP(w, req)
-
-		suite.Assert().Equal(http.StatusInternalServerError, w.Code)
-		suite.Assert().Contains(w.Body.String(), "Failed to search maintenance by fields")
-	})
-
-	suite.Run("should handle CountSearchByFields error", func() {
-		expectedMaintenance := []*maintenance.Maintenance{
-			{
-				MachineSerialNumber: "MACHINE123",
-				WorkOrderNumber:     "WO007",
-				ActionTaken:         "Count error test",
-				ReportedBy:          "Count Tech",
-				WorkerOrderType:     "Preventive",
-			},
-		}
-
-		expectedOptions := &maintenance.ListOptions{
-			Limit:  50,
-			Offset: 0,
-			Sort:   maintenance.SortOrderWorkOrderDateDesc,
-		}
-
-		expectedFilters := &maintenance.SearchFilters{
-			WorkOrderQuery:  "WO007",
-			ReportedByQuery: "",
-			WorkerOrderType: "",
-		}
-
-		suite.mockRepo.EXPECT().SearchByFields(gomock.Any(), "MACHINE123", expectedFilters, expectedOptions).Return(expectedMaintenance, nil)
-		suite.mockRepo.EXPECT().CountSearchByFields(gomock.Any(), "MACHINE123", expectedFilters, expectedOptions).Return(0, fmt.Errorf("count error"))
-
-		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance?work_order_q=WO007", nil)
-		w := httptest.NewRecorder()
-
-		router := mux.NewRouter()
-		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.ListMaintenance)
-		router.ServeHTTP(w, req)
-
-		suite.Assert().Equal(http.StatusInternalServerError, w.Code)
-		suite.Assert().Contains(w.Body.String(), "Failed to count field search results")
 	})
 }
 
