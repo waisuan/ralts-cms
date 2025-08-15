@@ -13,10 +13,13 @@ import (
 
 const (
 	// MaxFileSize represents the maximum allowed file size in bytes (5MB)
-	MaxFileSize          = 5 * 1024 * 1024
-	MaxFilenameLength    = 100
+	MaxFileSize = 5 * 1024 * 1024
+	// MaxFilenameLength represents the maximum allowed filename length in characters
+	MaxFilenameLength = 100
+	// AllowedFileExtension represents the only allowed file extension for uploads
 	AllowedFileExtension = "pdf"
-	DefaultContentType   = "application/pdf"
+	// DefaultContentType represents the default content type for uploaded files
+	DefaultContentType = "application/pdf"
 )
 
 // AttachmentHandler handles HTTP requests for attachment-related operations
@@ -87,6 +90,42 @@ func (h *AttachmentHandler) CreateMachineAttachment(w http.ResponseWriter, r *ht
 	}
 
 	w.WriteHeader(http.StatusCreated)
+}
+
+// GetMachineAttachment handles GET /machines/{serial_number}/attachments/{attachment_name}
+// Retrieves and returns a specific machine attachment
+func (h *AttachmentHandler) GetMachineAttachment(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	machineSerialNumber := vars["serial_number"]
+	attachmentName := vars["attachment_name"]
+
+	if machineSerialNumber == "" || attachmentName == "" {
+		http.Error(w, "Machine serial number and attachment name are required", http.StatusBadRequest)
+		return
+	}
+
+	// Get attachment from service
+	attachment, err := h.deps.AttachmentService.GetMachineAttachment(r.Context(), machineSerialNumber, attachmentName)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, "Attachment not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, fmt.Sprintf("Failed to get attachment: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Set headers for file download
+	w.Header().Set("Content-Type", attachment.ContentType)
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", attachment.Name))
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", attachment.Size))
+
+	// Write file content
+	w.WriteHeader(http.StatusOK)
+	if _, err := w.Write(attachment.Object); err != nil {
+		// Log error but don't send HTTP error as headers are already written
+		fmt.Printf("Failed to write attachment content: %v\n", err)
+	}
 }
 
 // ReplaceMachineAttachment handles PUT /machines/{serial_number}/attachments/{attachment_name}

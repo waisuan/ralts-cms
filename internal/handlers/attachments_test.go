@@ -778,6 +778,131 @@ func (suite *AttachmentHandlerTestSuite) TestReplaceMachineAttachmentMultipartFo
 	}
 }
 
+// TestGetMachineAttachment tests the GetMachineAttachment handler
+func (suite *AttachmentHandlerTestSuite) TestGetMachineAttachment() {
+	testCases := []struct {
+		name                 string
+		machineSerialNumber  string
+		attachmentName       string
+		setupMocks           func()
+		expectedStatusCode   int
+		expectedResponseBody string
+		expectedHeaders      map[string]string
+	}{
+		{
+			name:                "successful get attachment",
+			machineSerialNumber: "SN123456",
+			attachmentName:      "manual.pdf",
+			setupMocks: func() {
+				suite.mockAttachmentService.EXPECT().
+					GetMachineAttachment(
+						gomock.Any(),
+						"SN123456",
+						"manual.pdf",
+					).
+					Return(&attachments.Attachment{
+						Name:        "manual.pdf",
+						Size:        16,
+						Object:      []byte("test pdf content"),
+						ContentType: "application/pdf",
+						Type:        attachments.AttachmentTypeMachine,
+					}, nil)
+			},
+			expectedStatusCode:   http.StatusOK,
+			expectedResponseBody: "test pdf content",
+			expectedHeaders: map[string]string{
+				"Content-Type":        "application/pdf",
+				"Content-Disposition": "attachment; filename=\"manual.pdf\"",
+				"Content-Length":      "16",
+			},
+		},
+		{
+			name:                "attachment not found",
+			machineSerialNumber: "SN123456",
+			attachmentName:      "nonexistent.pdf",
+			setupMocks: func() {
+				suite.mockAttachmentService.EXPECT().
+					GetMachineAttachment(
+						gomock.Any(),
+						"SN123456",
+						"nonexistent.pdf",
+					).
+					Return(nil, errors.New("attachment not found"))
+			},
+			expectedStatusCode:   http.StatusNotFound,
+			expectedResponseBody: "Attachment not found",
+		},
+		{
+			name:                "service error",
+			machineSerialNumber: "SN123456",
+			attachmentName:      "manual.pdf",
+			setupMocks: func() {
+				suite.mockAttachmentService.EXPECT().
+					GetMachineAttachment(
+						gomock.Any(),
+						"SN123456",
+						"manual.pdf",
+					).
+					Return(nil, errors.New("S3 connection failed"))
+			},
+			expectedStatusCode:   http.StatusInternalServerError,
+			expectedResponseBody: "Failed to get attachment: S3 connection failed",
+		},
+		{
+			name:                 "missing machine serial number",
+			machineSerialNumber:  "",
+			attachmentName:       "manual.pdf",
+			setupMocks:           func() {},
+			expectedStatusCode:   http.StatusBadRequest,
+			expectedResponseBody: "Machine serial number and attachment name are required",
+		},
+		{
+			name:                 "missing attachment name",
+			machineSerialNumber:  "SN123456",
+			attachmentName:       "",
+			setupMocks:           func() {},
+			expectedStatusCode:   http.StatusBadRequest,
+			expectedResponseBody: "Machine serial number and attachment name are required",
+		},
+	}
+
+	for _, tc := range testCases {
+		suite.Run(tc.name, func() {
+			// Setup mocks
+			tc.setupMocks()
+
+			// Create HTTP request
+			req := httptest.NewRequest(http.MethodGet, "/machines/"+tc.machineSerialNumber+"/attachments/"+tc.attachmentName, nil)
+
+			// Set URL vars manually to simulate router behavior
+			req = mux.SetURLVars(req, map[string]string{
+				"serial_number":   tc.machineSerialNumber,
+				"attachment_name": tc.attachmentName,
+			})
+
+			// Create response recorder
+			w := httptest.NewRecorder()
+
+			// Execute request directly through handler
+			suite.handler.GetMachineAttachment(w, req)
+
+			// Assertions
+			suite.Equal(tc.expectedStatusCode, w.Code)
+
+			if tc.expectedResponseBody != "" {
+				suite.Contains(w.Body.String(), tc.expectedResponseBody)
+			}
+
+			// Check expected headers if provided
+			if tc.expectedHeaders != nil {
+				for headerName, expectedValue := range tc.expectedHeaders {
+					suite.Equal(expectedValue, w.Header().Get(headerName))
+				}
+			}
+		})
+	}
+}
+
 // TestAttachmentHandlerTestSuite runs the attachment handler test suite
 func TestAttachmentHandlerTestSuite(t *testing.T) {
 	suite.Run(t, new(AttachmentHandlerTestSuite))

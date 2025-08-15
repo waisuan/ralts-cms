@@ -10,8 +10,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-//go:generate mockgen -destination=../users/mock_users_repository.go -package=users -source=repository.go
 // Repository defines the interface for user data access operations
+//
+//go:generate mockgen -destination=../users/mock_users_repository.go -package=users -source=repository.go
 type Repository interface {
 	Create(ctx context.Context, user *User) error
 	Login(ctx context.Context, email string, password string) (*User, error)

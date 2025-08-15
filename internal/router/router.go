@@ -54,6 +54,7 @@ func NewRouter(deps *deps.Dependencies) http.Handler {
 
 	// Machine attachment endpoints (protected)
 	api.HandleFunc("/machines/{serial_number}/attachments", handlers.NewAttachmentHandler(deps).CreateMachineAttachment).Methods(http.MethodPost)
+	api.HandleFunc("/machines/{serial_number}/attachments/{attachment_name}", handlers.NewAttachmentHandler(deps).GetMachineAttachment).Methods(http.MethodGet)
 	api.HandleFunc("/machines/{serial_number}/attachments/{attachment_name}", handlers.NewAttachmentHandler(deps).ReplaceMachineAttachment).Methods(http.MethodPut)
 	api.HandleFunc("/machines/{serial_number}/attachments/{attachment_name}", handlers.NewAttachmentHandler(deps).DeleteMachineAttachment).Methods(http.MethodDelete)
 
