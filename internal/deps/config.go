@@ -40,6 +40,13 @@ type Config struct {
 
 	// S3 Configuration
 	S3BucketName string `env:"S3_BUCKET_NAME" envDefault:"ralts-cms-attachments"`
+
+	// AWS Configuration
+	AWSAccessKeyID      string `env:"AWS_ACCESS_KEY_ID"`
+	AWSSecretAccessKey  string `env:"AWS_SECRET_ACCESS_KEY"`
+	AWSDefaultRegion    string `env:"AWS_DEFAULT_REGION"`
+	AWSEndpointURL      string `env:"AWS_ENDPOINT_URL"`
+	AWSS3ForcePathStyle bool   `env:"AWS_S3_FORCE_PATH_STYLE" envDefault:"false"`
 }
 
 // LoadConfig loads and parses configuration from environment variables and .env files
