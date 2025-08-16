@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Machine } from '../types/machine';
 import { PPM_STATUSES, PPM_STATUS_COLORS } from '../utils/constants';
+import { AttachmentService } from '../services/attachmentService';
 
 interface RecordCardProps {
   machine: Machine;
@@ -43,16 +44,46 @@ export default function RecordCard({ machine, onView, onEdit, onDelete }: Record
   // Use server-driven maintenance count, fallback to 0 if not available
   const maintenanceCount = machine.maintenance_count ?? 0;
 
+  // Helper function to truncate serial number
+  const getTruncatedSerialNumber = (serialNumber: string, maxLength: number = 10) => {
+    if (serialNumber.length <= maxLength) {
+      return serialNumber;
+    }
+    return serialNumber.slice(0, maxLength) + '...';
+  };
+
+  // Check if serial number is truncated
+  const isSerialNumberTruncated = machine.serial_number.length > 10;
+
   const formatDate = (dateString: string) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString();
   };
 
-  const handleDownloadAttachment = () => {
+  const handleDownloadAttachment = async () => {
     if (machine.attachment) {
-      // In a real app, this would trigger the actual download
-      // For now, just show an alert
-      alert(`Downloading attachment: ${machine.attachment}`);
+      try {
+        console.log('🔧 Downloading attachment:', machine.attachment);
+        const blob = await AttachmentService.downloadMachineAttachment(
+          machine.serial_number,
+          machine.attachment
+        );
+        
+        // Create download link
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = machine.attachment;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        console.log('✅ Attachment downloaded successfully:', machine.attachment);
+      } catch (error) {
+        console.error('❌ Failed to download attachment:', error);
+        alert(`Failed to download attachment: ${machine.attachment}`);
+      }
     }
   };
 
@@ -76,8 +107,11 @@ export default function RecordCard({ machine, onView, onEdit, onDelete }: Record
         <div className="p-6">
           <div className="flex justify-between items-start mb-4">
             <div className="flex-1">
-              <h3 className="text-lg font-semibold text-gray-900 truncate">
-                {machine.serial_number}{' '}
+              <h3 
+                className="text-lg font-semibold text-gray-900 truncate"
+                title={isSerialNumberTruncated ? machine.serial_number : undefined}
+              >
+                {getTruncatedSerialNumber(machine.serial_number)}{' '}
                 <span className="text-xs text-gray-500">({machine.model})</span>
               </h3>
               <div className="text-xs text-gray-500 mt-1">
@@ -252,7 +286,10 @@ export default function RecordCard({ machine, onView, onEdit, onDelete }: Record
               </button>
             </div>
             <div className="text-sm text-gray-700 mb-4">
-              <strong>Machine:</strong> {machine.serial_number} ({machine.model})
+              <strong>Machine:</strong> 
+              <span title={isSerialNumberTruncated ? machine.serial_number : undefined}>
+                {getTruncatedSerialNumber(machine.serial_number)}
+              </span> ({machine.model})
             </div>
             <div className="text-sm text-gray-700 whitespace-pre-wrap">
               {machine.additional_notes || 'No additional notes available.'}

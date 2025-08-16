@@ -59,7 +59,7 @@ func NewRouter(deps *deps.Dependencies) http.Handler {
 	api.HandleFunc("/machines/{serial_number}/attachments/{attachment_name}", handlers.NewAttachmentHandler(deps).DeleteMachineAttachment).Methods(http.MethodDelete)
 
 	// Apply middleware to protected endpoints only
-	// api.Use(middlewares.AuthenticationMiddleware(deps.Config.JWTSecret))
+	api.Use(middlewares.AuthenticationMiddleware(deps.Config.JWTSecret))
 
 	return r
 }

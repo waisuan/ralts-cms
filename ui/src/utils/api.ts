@@ -167,6 +167,232 @@ export class ApiClient {
       method: 'DELETE',
     });
   }
+
+  async postFormData<T>(endpoint: string, formData: FormData): Promise<ApiResponse<T>> {
+    // Get JWT token from localStorage if available
+    const token = typeof window !== 'undefined' ? localStorage.getItem('ralts_token') : null;
+    
+    const config: RequestInit = {
+      method: 'POST',
+      headers: {
+        // Don't set Content-Type for FormData - let browser set it with boundary
+        ...(token && { 'Authorization': `Bearer ${token}` }),
+      },
+      body: formData,
+    };
+
+    const url = `${this.baseURL}${endpoint}`;
+    
+    try {
+      const response = await fetch(url, config);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        
+        let errorMessage = errorData.message;
+        if (!errorMessage) {
+          switch (response.status) {
+            case 501:
+              errorMessage = 'This feature is not yet implemented on the server.';
+              break;
+            case 404:
+              errorMessage = 'The requested resource was not found.';
+              break;
+            case 400:
+              errorMessage = 'Invalid request. Please check your input.';
+              break;
+            case 401:
+              errorMessage = 'Authentication required. Please log in again.';
+              break;
+            case 403:
+              errorMessage = 'You do not have permission to perform this action.';
+              break;
+            case 500:
+              errorMessage = 'Server error. Please try again later.';
+              break;
+            default:
+              errorMessage = `HTTP error! status: ${response.status}`;
+          }
+        }
+        
+        throw new ApiError(
+          errorMessage,
+          response.status,
+          errorData
+        );
+      }
+
+      // Handle responses with no body (like 201 Created with no content)
+      if (response.status === 204 || response.headers.get('content-length') === '0') {
+        return { data: undefined as T };
+      }
+
+      // For successful responses, don't try to parse JSON if status is 2xx and no content
+      if (response.status >= 200 && response.status < 300) {
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          return { data: undefined as T };
+        }
+      }
+
+      // Try to parse JSON response
+      const responseData = await response.json().catch(() => null);
+      
+      if (responseData === null) {
+        return { data: undefined as T };
+      }
+      
+      // Handle both wrapped and unwrapped responses
+      if (responseData.data !== undefined) {
+        return responseData;
+      } else {
+        return { data: responseData };
+      }
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      
+      throw new ApiError(
+        error instanceof Error ? error.message : 'Network error occurred',
+        0,
+        error
+      );
+    }
+  }
+
+  async putFormData<T>(endpoint: string, formData: FormData): Promise<ApiResponse<T>> {
+    // Get JWT token from localStorage if available
+    const token = typeof window !== 'undefined' ? localStorage.getItem('ralts_token') : null;
+    
+    const config: RequestInit = {
+      method: 'PUT',
+      headers: {
+        // Don't set Content-Type for FormData - let browser set it with boundary
+        ...(token && { 'Authorization': `Bearer ${token}` }),
+      },
+      body: formData,
+    };
+
+    const url = `${this.baseURL}${endpoint}`;
+    
+    try {
+      const response = await fetch(url, config);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        
+        let errorMessage = errorData.message;
+        if (!errorMessage) {
+          switch (response.status) {
+            case 501:
+              errorMessage = 'This feature is not yet implemented on the server.';
+              break;
+            case 404:
+              errorMessage = 'The requested resource was not found.';
+              break;
+            case 400:
+              errorMessage = 'Invalid request. Please check your input.';
+              break;
+            case 401:
+              errorMessage = 'Authentication required. Please log in again.';
+              break;
+            case 403:
+              errorMessage = 'You do not have permission to perform this action.';
+              break;
+            case 500:
+              errorMessage = 'Server error. Please try again later.';
+              break;
+            default:
+              errorMessage = `HTTP error! status: ${response.status}`;
+          }
+        }
+        
+        throw new ApiError(
+          errorMessage,
+          response.status,
+          errorData
+        );
+      }
+
+      // Handle responses with no body
+      if (response.status === 204 || response.headers.get('content-length') === '0') {
+        return { data: undefined as T };
+      }
+
+      if (response.status >= 200 && response.status < 300) {
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          return { data: undefined as T };
+        }
+      }
+
+      const responseData = await response.json().catch(() => null);
+      
+      if (responseData === null) {
+        return { data: undefined as T };
+      }
+      
+      if (responseData.data !== undefined) {
+        return responseData;
+      } else {
+        return { data: responseData };
+      }
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      
+      throw new ApiError(
+        error instanceof Error ? error.message : 'Network error occurred',
+        0,
+        error
+      );
+    }
+  }
+
+  async getBlob(endpoint: string, params?: Record<string, string>): Promise<Blob> {
+    const url = new URL(`${this.baseURL}${endpoint}`);
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        url.searchParams.append(key, value);
+      });
+    }
+    
+    // Get JWT token from localStorage if available
+    const token = typeof window !== 'undefined' ? localStorage.getItem('ralts_token') : null;
+    
+    const config: RequestInit = {
+      headers: {
+        ...(token && { 'Authorization': `Bearer ${token}` }),
+      },
+    };
+
+    try {
+      const response = await fetch(url.toString(), config);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new ApiError(
+          `Request failed: ${errorText || response.statusText}`,
+          response.status,
+          errorText
+        );
+      }
+
+      return await response.blob();
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw error;
+      }
+      
+      throw new ApiError(
+        error instanceof Error ? error.message : 'Network error occurred',
+        0,
+        error
+      );
+    }
+  }
 }
 
 // Global API client instance

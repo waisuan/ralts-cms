@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Machine } from '../types/machine';
 import { MALAYSIAN_STATES, MalaysianState, getDistrictsForState } from '../utils/constants';
 import { backendDateToHtmlDate, htmlDateToBackendDate } from '../utils/dateUtils';
+import { AttachmentService } from '../services/attachmentService';
 
 type MachineModalMode = 'add' | 'edit';
 
@@ -47,6 +48,7 @@ export default function MachineModal({
   const [showCancelConfirm, setShowCancelConfirm] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [attachmentChanged, setAttachmentChanged] = useState<boolean>(false);
 
   // Pre-populate form when in edit mode and machine data is available
   useEffect(() => {
@@ -71,6 +73,7 @@ export default function MachineModal({
       // Reset submission state when opening modal
       setIsSubmitting(false);
       setSubmitError(null);
+      setAttachmentChanged(false);
     } else if (mode === 'add' && isOpen) {
       // Reset form for add mode
       setFormData({
@@ -93,6 +96,7 @@ export default function MachineModal({
       // Reset submission state when opening modal
       setIsSubmitting(false);
       setSubmitError(null);
+      setAttachmentChanged(false);
     }
   }, [mode, machine, isOpen]);
 
@@ -170,14 +174,18 @@ export default function MachineModal({
     setIsSubmitting(true);
     setSubmitError(null);
 
-    // Convert HTML date format back to backend format
-    const submissionData = {
-      ...formData,
-      tnc_date: htmlDateToBackendDate(formData.tnc_date),
-      ppm_date: htmlDateToBackendDate(formData.ppm_date),
-    };
-
     try {
+      // Convert HTML date format back to backend format
+      const submissionData = {
+        ...formData,
+        tnc_date: htmlDateToBackendDate(formData.tnc_date),
+        ppm_date: htmlDateToBackendDate(formData.ppm_date),
+        // For now, just set attachment to filename if file is selected
+        attachment: selectedFile ? selectedFile.name : formData.attachment,
+      };
+
+      let savedMachine: Machine;
+
       if (mode === 'edit' && machine) {
         // Create updated machine with existing timestamps
         const updatedMachine: Machine = {
@@ -186,13 +194,89 @@ export default function MachineModal({
           updated_at: new Date().toISOString(),
         };
         await onSubmit(updatedMachine);
+        savedMachine = updatedMachine;
       } else {
         // Create new machine (timestamps will be added by parent)
         await onSubmit(submissionData);
+        // For new machines, we need to use the submissionData with a serial number
+        savedMachine = {
+          ...submissionData,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        } as Machine;
       }
-      // Only close if successful
+
+      // Upload attachment if user actually changed it
+      if (attachmentChanged && savedMachine.serial_number) {
+        try {
+          setUploadProgress(0);
+          setIsUploading(true);
+          
+          // Simulate upload progress for better UX
+          const progressInterval = setInterval(() => {
+            setUploadProgress((prev) => {
+              if (prev >= 90) {
+                clearInterval(progressInterval);
+                return 90; // Keep at 90% until actual upload completes
+              }
+              return prev + Math.random() * 20 + 5; // Random increment
+            });
+          }, 100);
+
+          // Determine if this is a replacement or new upload
+          const originalAttachment = mode === 'edit' ? machine?.attachment || '' : '';
+          const hasOriginalAttachment = originalAttachment.trim() !== '';
+          
+          if (selectedFile) {
+            // User selected a new file
+            if (hasOriginalAttachment) {
+              // Use PUT to replace existing attachment
+              console.log('🔄 Replacing existing attachment:', originalAttachment, '→', selectedFile.name);
+              await AttachmentService.replaceMachineAttachment(
+                savedMachine.serial_number,
+                originalAttachment, // old attachment name
+                selectedFile
+              );
+            } else {
+              // Use POST to create new attachment (no existing attachment)
+              console.log('📎 Creating new attachment:', selectedFile.name);
+              await AttachmentService.uploadMachineAttachment(
+                savedMachine.serial_number,
+                selectedFile
+              );
+            }
+          } else if (hasOriginalAttachment) {
+            // User removed the attachment
+            console.log('🗑️ Removing existing attachment:', originalAttachment);
+            await AttachmentService.deleteMachineAttachment(
+              savedMachine.serial_number,
+              originalAttachment
+            );
+          }
+
+          // Complete the progress
+          clearInterval(progressInterval);
+          setUploadProgress(100);
+          setIsUploading(false);
+          
+          console.log('✅ Attachment changes processed successfully');
+        } catch (uploadError) {
+          console.error('❌ Attachment upload failed:', uploadError);
+          setIsUploading(false);
+          setUploadProgress(0);
+          // Show a warning but don't prevent machine creation
+          setSubmitError(
+            'Machine saved successfully, but attachment upload failed. You can try uploading the attachment again later.'
+          );
+          setIsSubmitting(false);
+          return; // Don't close modal so user can see the error
+        }
+      }
+
+      // Only close if everything successful
       handleClose();
-    } catch {
+    } catch (machineError) {
+      console.error('❌ Machine save failed:', machineError);
       setSubmitError('An error occurred while saving the machine. Please try again.');
       setIsSubmitting(false);
     }
@@ -220,24 +304,30 @@ export default function MachineModal({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Validate file type (PDF only as per Go backend)
+      if (!file.name.toLowerCase().endsWith('.pdf')) {
+        setSubmitError('Only PDF files are allowed for attachments.');
+        // Clear the file input
+        e.target.value = '';
+        return;
+      }
+
+      // Validate file size (5MB max as per Go backend)
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSize) {
+        setSubmitError('File size must be less than 5MB.');
+        // Clear the file input
+        e.target.value = '';
+        return;
+      }
+
       setSelectedFile(file);
-      setIsUploading(true);
       setUploadProgress(0);
+      setIsUploading(false); // Don't show upload progress until actual submission
+      setSubmitError(null); // Clear any previous errors
+      setAttachmentChanged(true); // Mark that user changed the attachment
 
-      // Simulate upload progress
-      const progressInterval = setInterval(() => {
-        setUploadProgress((prev) => {
-          if (prev >= 100) {
-            clearInterval(progressInterval);
-            setIsUploading(false);
-            return 100;
-          }
-          // Ensure progress never exceeds 100%
-          const increment = Math.random() * 25 + 10; // Random increment between 10-35%
-          return Math.min(prev + increment, 100);
-        });
-      }, 150); // Update every 150ms for smooth progress
-
+      // Update form data to show the filename
       setFormData((prev) => ({
         ...prev,
         attachment: file.name,
@@ -257,6 +347,7 @@ export default function MachineModal({
     setSelectedFile(null);
     setUploadProgress(0);
     setIsUploading(false);
+    setAttachmentChanged(true); // Mark that user removed the attachment
     setFormData((prev) => ({
       ...prev,
       attachment: '',
@@ -324,6 +415,7 @@ export default function MachineModal({
     setIsUploading(false);
     setShowCancelConfirm(false);
     setSubmitError(null);
+    setAttachmentChanged(false);
     onClose();
   };
 
@@ -613,8 +705,8 @@ export default function MachineModal({
                     type="file"
                     onChange={handleFileChange}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                    accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.txt"
-                    disabled={isUploading}
+                    accept=".pdf"
+                    disabled={isUploading || isSubmitting}
                   />
 
                   {/* Upload Progress */}
@@ -633,12 +725,12 @@ export default function MachineModal({
                     </div>
                   )}
 
-                  {/* File Info */}
+                  {/* File Info - Selected but not uploaded yet */}
                   {selectedFile && !isUploading && (
-                    <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-3">
+                    <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-3">
                       <div className="flex items-center space-x-2">
                         <svg
-                          className="h-5 w-5 text-green-600"
+                          className="h-5 w-5 text-blue-600"
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -647,13 +739,13 @@ export default function MachineModal({
                             strokeLinecap="round"
                             strokeLinejoin="round"
                             strokeWidth={2}
-                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                           />
                         </svg>
                         <div>
-                          <p className="text-sm font-medium text-green-800">{selectedFile.name}</p>
-                          <p className="text-xs text-green-600">
-                            {(selectedFile.size / 1024).toFixed(1)} KB - Upload successful
+                          <p className="text-sm font-medium text-blue-800">{selectedFile.name}</p>
+                          <p className="text-xs text-blue-600">
+                            {(selectedFile.size / 1024).toFixed(1)} KB - Ready to upload
                           </p>
                         </div>
                       </div>
@@ -662,6 +754,7 @@ export default function MachineModal({
                         onClick={handleRemoveFile}
                         className="text-red-500 hover:text-red-700 focus:outline-none focus:text-red-700 transition-colors"
                         title="Remove file"
+                        disabled={isSubmitting}
                       >
                         <svg
                           className="h-5 w-5"
@@ -704,7 +797,10 @@ export default function MachineModal({
                       </div>
                       <button
                         type="button"
-                        onClick={() => handleInputChange('attachment', '')}
+                        onClick={() => {
+                          handleInputChange('attachment', '');
+                          setAttachmentChanged(true);
+                        }}
                         className="text-red-500 hover:text-red-700 focus:outline-none focus:text-red-700 transition-colors"
                         title="Remove attachment"
                       >

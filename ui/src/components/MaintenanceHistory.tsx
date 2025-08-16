@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Machine } from '../types/machine';
 import { Maintenance, MaintenanceOrderType } from '../types/maintenance';
 import { MaintenanceService, CreateMaintenanceRequest, UpdateMaintenanceRequest } from '../services/maintenanceService';
+import { AttachmentService } from '../services/attachmentService';
 import { handleApiError } from '../utils/api';
 import { isAuthError } from '../utils/auth';
 import { backendDateToHtmlDate } from '../utils/dateUtils';
@@ -427,11 +428,42 @@ export default function MaintenanceHistory({
     });
   };
 
-  const handleDownloadAttachment = (attachment: string) => {
-    if (attachment) {
-      console.log('Downloading attachment:', attachment);
-      alert(`Downloading attachment: ${attachment}`);
+  // Machine attachment download handler
+  const handleDownloadMachineAttachment = async (attachment: string) => {
+    if (!attachment) return;
+    
+    try {
+      console.log('🔧 Downloading machine attachment:', attachment);
+      const blob = await AttachmentService.downloadMachineAttachment(
+        machine.serial_number,
+        attachment
+      );
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = attachment;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      console.log('✅ Machine attachment downloaded successfully:', attachment);
+    } catch (error) {
+      console.error('❌ Failed to download machine attachment:', error);
+      alert(`Failed to download attachment: ${attachment}`);
     }
+  };
+
+  // Maintenance record attachment download handler
+  const handleDownloadMaintenanceAttachment = async (workOrderNumber: string, attachment: string) => {
+    if (!attachment) return;
+    
+    // TODO: Implement maintenance record attachment download API
+    // The backend currently doesn't expose maintenance attachment endpoints
+    console.log('🔧 Maintenance attachment download not yet implemented:', { workOrderNumber, attachment });
+    alert(`Maintenance attachment download not yet implemented. File: ${attachment}`);
   };
 
   // New record form handlers
@@ -1016,9 +1048,9 @@ export default function MaintenanceHistory({
                     <div>
                       <h4 className="text-sm font-semibold text-gray-700 mb-2">Attachment</h4>
                       <button
-                        onClick={() => handleDownloadAttachment(machine.attachment)}
+                        onClick={() => handleDownloadMachineAttachment(machine.attachment)}
                         className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 transition-colors"
-                        title="Download attachment"
+                        title="Download machine attachment"
                       >
                         <svg
                           className="h-4 w-4"
@@ -1283,9 +1315,9 @@ export default function MaintenanceHistory({
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               {record.attachment ? (
                                 <button
-                                  onClick={() => handleDownloadAttachment(record.attachment)}
+                                  onClick={() => handleDownloadMaintenanceAttachment(record.work_order_number, record.attachment)}
                                   className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
-                                  title="Download attachment"
+                                  title="Download maintenance attachment"
                                 >
                                   <svg
                                     className="h-4 w-4"
