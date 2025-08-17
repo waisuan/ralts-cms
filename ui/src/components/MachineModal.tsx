@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Machine } from '../types/machine';
 import { MALAYSIAN_STATES, MalaysianState, getDistrictsForState } from '../utils/constants';
 import { backendDateToHtmlDate, htmlDateToBackendDate } from '../utils/dateUtils';
@@ -49,6 +49,18 @@ export default function MachineModal({
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [attachmentChanged, setAttachmentChanged] = useState<boolean>(false);
+  
+  // Use ref to track progress intervals for cleanup
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup interval on unmount
+  useEffect(() => {
+    return () => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+      }
+    };
+  }, []);
 
   // Pre-populate form when in edit mode and machine data is available
   useEffect(() => {
@@ -209,19 +221,6 @@ export default function MachineModal({
       // Upload attachment if user actually changed it
       if (attachmentChanged && savedMachine.serial_number) {
         try {
-          setUploadProgress(0);
-          setIsUploading(true);
-          
-          // Simulate upload progress for better UX
-          const progressInterval = setInterval(() => {
-            setUploadProgress((prev) => {
-              if (prev >= 90) {
-                clearInterval(progressInterval);
-                return 90; // Keep at 90% until actual upload completes
-              }
-              return prev + Math.random() * 20 + 5; // Random increment
-            });
-          }, 100);
 
           // Determine if this is a replacement or new upload
           const originalAttachment = mode === 'edit' ? machine?.attachment || '' : '';
@@ -253,17 +252,10 @@ export default function MachineModal({
               originalAttachment
             );
           }
-
-          // Complete the progress
-          clearInterval(progressInterval);
-          setUploadProgress(100);
-          setIsUploading(false);
           
           console.log('✅ Attachment changes processed successfully');
         } catch (uploadError) {
           console.error('❌ Attachment upload failed:', uploadError);
-          setIsUploading(false);
-          setUploadProgress(0);
           // Show a warning but don't prevent machine creation
           setSubmitError(
             'Machine saved successfully, but attachment upload failed. You can try uploading the attachment again later.'
@@ -322,10 +314,32 @@ export default function MachineModal({
       }
 
       setSelectedFile(file);
+      setIsUploading(true);
       setUploadProgress(0);
-      setIsUploading(false); // Don't show upload progress until actual submission
       setSubmitError(null); // Clear any previous errors
       setAttachmentChanged(true); // Mark that user changed the attachment
+
+      // Clear any existing interval
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+      }
+      
+      // Simulate upload progress for better UX
+      progressIntervalRef.current = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev >= 100) {
+            if (progressIntervalRef.current) {
+              clearInterval(progressIntervalRef.current);
+              progressIntervalRef.current = null;
+            }
+            setIsUploading(false);
+            return 100;
+          }
+          const increment = Math.random() * 15 + 5; // Random increment between 5-20%
+          const newProgress = prev + increment;
+          return Math.min(newProgress, 100); // Ensure progress never exceeds 100%
+        });
+      }, 150);
 
       // Update form data to show the filename
       setFormData((prev) => ({
@@ -344,6 +358,12 @@ export default function MachineModal({
   };
 
   const handleRemoveFile = () => {
+    // Clear any progress intervals
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
+    
     setSelectedFile(null);
     setUploadProgress(0);
     setIsUploading(false);
@@ -410,6 +430,12 @@ export default function MachineModal({
       ppm_date: '',
     });
     setErrors({});
+    // Clear any progress intervals
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
+    
     setSelectedFile(null);
     setUploadProgress(0);
     setIsUploading(false);
@@ -713,7 +739,7 @@ export default function MachineModal({
                   {isUploading && (
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm text-gray-600">
-                        <span>Uploading...</span>
+                        <span>Processing file...</span>
                         <span>{Math.round(uploadProgress)}%</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
