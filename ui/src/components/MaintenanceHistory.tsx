@@ -257,14 +257,14 @@ export default function MaintenanceHistory({
     if (machine.serial_number) {
       loadMaintenanceRecords('initial');
     }
-  }, [machine.serial_number]);
+  }, [machine.serial_number, loadMaintenanceRecords]);
 
   // Handle pagination changes (after initial load)
   useEffect(() => {
     if (!isInitialLoading && machine.serial_number) {
       loadMaintenanceRecords('pagination');
     }
-  }, [currentPage, itemsPerPage]);
+  }, [currentPage, itemsPerPage, isInitialLoading, machine.serial_number, loadMaintenanceRecords]);
 
   // Handle search query changes
   useEffect(() => {
@@ -281,7 +281,7 @@ export default function MaintenanceHistory({
         }
       }
     }
-  }, [debouncedSearchQuery, currentPage, machine.serial_number]);
+  }, [debouncedSearchQuery, currentPage, machine.serial_number, loadMaintenanceRecords]);
 
   // Close dropdown when clicking outside
   useEffect(() => {

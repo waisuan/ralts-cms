@@ -24,7 +24,7 @@ export class AttachmentService {
       });
 
       // Use the centralized API client for consistency
-      const response = await apiClient.postFormData<{ message: string }>(endpoint, formData);
+      await apiClient.postFormData<{ message: string }>(endpoint, formData);
 
       console.log('🔧 API: POST attachment upload success', { fileName: file.name });
       
@@ -70,7 +70,7 @@ export class AttachmentService {
       });
 
       // Use the centralized API client for consistency
-      const response = await apiClient.putFormData<{ message: string }>(endpoint, formData);
+      await apiClient.putFormData<{ message: string }>(endpoint, formData);
 
       console.log('🔧 API: PUT attachment replacement success', { 
         oldFileName: oldAttachmentName,
@@ -208,7 +208,7 @@ export class AttachmentService {
       });
 
       // Use the centralized API client for consistency
-      const response = await apiClient.postFormData<{ message: string }>(endpoint, formData);
+      await apiClient.postFormData<{ message: string }>(endpoint, formData);
 
       console.log('🔧 API: POST maintenance attachment upload success', { 
         workOrderNumber,
@@ -261,7 +261,7 @@ export class AttachmentService {
       });
 
       // Use the centralized API client for consistency
-      const response = await apiClient.putFormData<{ message: string }>(endpoint, formData);
+      await apiClient.putFormData<{ message: string }>(endpoint, formData);
 
       console.log('🔧 API: PUT maintenance attachment replacement success', { 
         workOrderNumber,
