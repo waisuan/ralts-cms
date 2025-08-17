@@ -460,10 +460,38 @@ export default function MaintenanceHistory({
   const handleDownloadMaintenanceAttachment = async (workOrderNumber: string, attachment: string) => {
     if (!attachment) return;
     
-    // TODO: Implement maintenance record attachment download API
-    // The backend currently doesn't expose maintenance attachment endpoints
-    console.log('🔧 Maintenance attachment download not yet implemented:', { workOrderNumber, attachment });
-    alert(`Maintenance attachment download not yet implemented. File: ${attachment}`);
+    try {
+      console.log('🔧 Downloading maintenance attachment:', { workOrderNumber, attachment });
+      const blob = await AttachmentService.downloadMaintenanceAttachment(
+        machine.serial_number,
+        workOrderNumber,
+        attachment
+      );
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = attachment;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      console.log('✅ Maintenance attachment downloaded successfully:', { workOrderNumber, attachment });
+    } catch (error) {
+      console.error('❌ Failed to download maintenance attachment:', error);
+      
+      // Handle authentication errors
+      if (isAuthError(error)) {
+        alert('Your session has expired. Please log in again.');
+        window.location.href = '/login';
+        return;
+      }
+      
+      const errorMessage = handleApiError(error);
+      alert(`Failed to download attachment: ${errorMessage}`);
+    }
   };
 
   // New record form handlers
@@ -585,7 +613,33 @@ export default function MaintenanceHistory({
         attachment: newRecordForm.attachment || undefined,
       };
 
+      // Create the maintenance record first
       await MaintenanceService.createMaintenance(machine.serial_number, createData);
+      
+      // Upload attachment if one was selected
+      if (selectedFile) {
+        try {
+          console.log('🔧 Uploading maintenance attachment after creating record...');
+          await AttachmentService.uploadMaintenanceAttachment(
+            machine.serial_number,
+            newRecordForm.work_order_number.trim(),
+            selectedFile
+          );
+          console.log('✅ Maintenance attachment uploaded successfully');
+        } catch (attachmentError) {
+          console.error('❌ Failed to upload maintenance attachment:', attachmentError);
+          
+          // Handle authentication errors
+          if (isAuthError(attachmentError)) {
+            alert('Your session has expired. Please log in again.');
+            window.location.href = '/login';
+            return;
+          }
+          
+          const errorMessage = handleApiError(attachmentError);
+          alert(`Maintenance record created but attachment upload failed: ${errorMessage}`);
+        }
+      }
       
       // Reload the maintenance records
       await loadMaintenanceRecords('initial');
@@ -593,7 +647,16 @@ export default function MaintenanceHistory({
       setIsCreating(false); // Reset loading state on success
     } catch (error) {
       console.error('Failed to create maintenance record:', error);
-      setCreateError('An error occurred while creating the maintenance record. Please try again.');
+      
+      // Handle authentication errors
+      if (isAuthError(error)) {
+        alert('Your session has expired. Please log in again.');
+        window.location.href = '/login';
+        return;
+      }
+      
+      const errorMessage = handleApiError(error);
+      setCreateError(`An error occurred while creating the maintenance record: ${errorMessage}`);
       setIsCreating(false);
     }
   };
@@ -754,11 +817,72 @@ export default function MaintenanceHistory({
         attachment: editRecordForm.attachment || undefined,
       };
 
+      // Update the maintenance record first
       await MaintenanceService.updateMaintenance(
         machine.serial_number,
         editingRecord.work_order_number,
         updateData
       );
+
+      // Handle attachment changes
+      if (editSelectedFile) {
+        try {
+          // If there was an old attachment, replace it; otherwise just upload new one
+          if (originalEditFormData.attachment) {
+            console.log('🔧 Replacing maintenance attachment...');
+            await AttachmentService.replaceMaintenanceAttachment(
+              machine.serial_number,
+              editingRecord.work_order_number,
+              originalEditFormData.attachment,
+              editSelectedFile
+            );
+            console.log('✅ Maintenance attachment replaced successfully');
+          } else {
+            console.log('🔧 Uploading new maintenance attachment...');
+            await AttachmentService.uploadMaintenanceAttachment(
+              machine.serial_number,
+              editingRecord.work_order_number,
+              editSelectedFile
+            );
+            console.log('✅ Maintenance attachment uploaded successfully');
+          }
+        } catch (attachmentError) {
+          console.error('❌ Failed to handle maintenance attachment:', attachmentError);
+          
+          // Handle authentication errors
+          if (isAuthError(attachmentError)) {
+            alert('Your session has expired. Please log in again.');
+            window.location.href = '/login';
+            return;
+          }
+          
+          const errorMessage = handleApiError(attachmentError);
+          alert(`Maintenance record updated but attachment operation failed: ${errorMessage}`);
+        }
+      } else if (originalEditFormData.attachment && !editRecordForm.attachment) {
+        // User removed the attachment (cleared the field)
+        try {
+          console.log('🔧 Deleting maintenance attachment...');
+          await AttachmentService.deleteMaintenanceAttachment(
+            machine.serial_number,
+            editingRecord.work_order_number,
+            originalEditFormData.attachment
+          );
+          console.log('✅ Maintenance attachment deleted successfully');
+        } catch (attachmentError) {
+          console.error('❌ Failed to delete maintenance attachment:', attachmentError);
+          
+          // Handle authentication errors
+          if (isAuthError(attachmentError)) {
+            alert('Your session has expired. Please log in again.');
+            window.location.href = '/login';
+            return;
+          }
+          
+          const errorMessage = handleApiError(attachmentError);
+          alert(`Maintenance record updated but attachment deletion failed: ${errorMessage}`);
+        }
+      }
 
       // Reload the maintenance records
       await loadMaintenanceRecords('initial');
@@ -766,7 +890,16 @@ export default function MaintenanceHistory({
       setIsUpdating(false); // Reset loading state on success
     } catch (error) {
       console.error('Failed to update maintenance record:', error);
-      setUpdateError('An error occurred while updating the maintenance record. Please try again.');
+      
+      // Handle authentication errors
+      if (isAuthError(error)) {
+        alert('Your session has expired. Please log in again.');
+        window.location.href = '/login';
+        return;
+      }
+      
+      const errorMessage = handleApiError(error);
+      setUpdateError(`An error occurred while updating the maintenance record: ${errorMessage}`);
       setIsUpdating(false);
     }
   };
@@ -790,6 +923,34 @@ export default function MaintenanceHistory({
       try {
         setIsDeleting(true);
         setDeleteError(null); // Clear previous errors
+        
+        // Delete attachment first if it exists
+        if (recordToDelete.attachment) {
+          try {
+            console.log('🔧 Deleting maintenance attachment before deleting record...');
+            await AttachmentService.deleteMaintenanceAttachment(
+              machine.serial_number,
+              recordToDelete.work_order_number,
+              recordToDelete.attachment
+            );
+            console.log('✅ Maintenance attachment deleted successfully');
+          } catch (attachmentError) {
+            console.error('❌ Failed to delete maintenance attachment:', attachmentError);
+            
+            // Handle authentication errors
+            if (isAuthError(attachmentError)) {
+              alert('Your session has expired. Please log in again.');
+              window.location.href = '/login';
+              return;
+            }
+            
+            const errorMessage = handleApiError(attachmentError);
+            console.warn(`Attachment deletion failed but continuing with record deletion: ${errorMessage}`);
+            // Continue with record deletion even if attachment deletion fails
+          }
+        }
+        
+        // Delete the maintenance record
         await MaintenanceService.deleteMaintenance(
           machine.serial_number,
           recordToDelete.work_order_number
@@ -801,7 +962,16 @@ export default function MaintenanceHistory({
         setIsDeleting(false); // Reset loading state on success
       } catch (error) {
         console.error('Failed to delete maintenance record:', error);
-        setDeleteError('Failed to delete maintenance record. Please try again.');
+        
+        // Handle authentication errors
+        if (isAuthError(error)) {
+          alert('Your session has expired. Please log in again.');
+          window.location.href = '/login';
+          return;
+        }
+        
+        const errorMessage = handleApiError(error);
+        setDeleteError(`Failed to delete maintenance record: ${errorMessage}`);
         setIsDeleting(false);
       }
     }
