@@ -39,11 +39,18 @@ jobs:
       with:
         go-version: '1.24'
 
-    - name: Install migrate tool
+    - name: Install tools
       run: |
-        curl -L https://github.com/golang-migrate/migrate/releases/download/v4.17.0/migrate.linux-amd64.tar.gz | tar xvz
-        sudo mv migrate /usr/local/bin/migrate
-        migrate -version
+        mkdir -p bin
+        # Install migrate tool
+        curl -L https://github.com/golang-migrate/migrate/releases/download/v4.17.0/migrate.linux-amd64.tar.gz | tar xvz -C bin/
+        chmod +x bin/migrate
+        # Install revive linter
+        curl -L https://github.com/mgechev/revive/releases/latest/download/revive_linux_amd64.tar.gz | tar -xz -C bin/ revive
+        chmod +x bin/revive
+        # Verify installations
+        bin/migrate -version
+        bin/revive --version
 
     - name: Wait for PostgreSQL
       run: |
@@ -54,16 +61,10 @@ jobs:
 
     - name: Run database migrations
       run: |
-        migrate -path ./db/migrations -database "postgresql://ralts_user:ralts_password@localhost:5433/ralts_cms_test?sslmode=disable" up
+        bin/migrate -path ./db/migrations -database "postgresql://ralts_user:ralts_password@localhost:5433/ralts_cms_test?sslmode=disable" up
 
     - name: Vet
       run: go vet ./...
-
-    - name: Install revive linter
-      run: |
-        mkdir -p bin
-        curl -L https://github.com/mgechev/revive/releases/latest/download/revive_linux_amd64.tar.gz | tar -xz -C bin/ revive
-        chmod +x bin/revive
 
     - name: Lint
       run: bin/revive -formatter friendly ./...
