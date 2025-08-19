@@ -12,8 +12,8 @@ type Maintenance struct {
 	WorkOrderDate       time.Time `json:"work_order_date" db:"work_order_date"`
 	ActionTaken         string    `json:"action_taken" db:"action_taken"`
 	ReportedBy          string    `json:"reported_by" db:"reported_by"`
-	WorkerOrderType     string    `json:"worker_order_type" db:"worker_order_type"`
-	Attachment          string    `json:"attachment" db:"attachment"`
+	WorkOrderType       string    `json:"work_order_type" db:"work_order_type"`
+	Attachment          *string   `json:"attachment" db:"attachment"`
 	CreatedAt           time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt           time.Time `json:"updated_at" db:"updated_at"`
 }

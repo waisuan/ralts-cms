@@ -33,6 +33,11 @@ func main() {
 
 	deps := deps.Initialise()
 
+	// Wipe all data from the database
+	deps.PostgresClient.Exec(context.Background(), "DELETE FROM machines")
+	deps.PostgresClient.Exec(context.Background(), "DELETE FROM maintenance")
+	deps.PostgresClient.Exec(context.Background(), "DELETE FROM users")
+
 	switch *entityType {
 	case "machine":
 		createMachines(deps, *entityCount)
@@ -128,8 +133,8 @@ func createMachines(deps *deps.Dependencies, count int) {
 				WorkOrderDate:       randomDate(),
 				ActionTaken:         randomChoice(maintenanceActions),
 				ReportedBy:          randomChoice(maintenanceTechs),
-				WorkerOrderType:     randomChoice(maintenanceTypes),
-				Attachment:          randomChoice(attachments),
+				WorkOrderType:       randomChoice(maintenanceTypes),
+				Attachment:          stringPtr(randomChoice(attachments)),
 			}
 
 			err := deps.MaintenanceRepository.Create(ctx, maintenance)
@@ -254,4 +259,12 @@ func randomDate() time.Time {
 		targetDate.Year(), targetDate.Month(), targetDate.Day(),
 		hours, minutes, seconds, 0, time.UTC,
 	)
+}
+
+// stringPtr returns a pointer to a string value, returning nil for empty strings
+func stringPtr(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
 }

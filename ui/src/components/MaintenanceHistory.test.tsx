@@ -63,7 +63,7 @@ describe('MaintenanceHistory', () => {
             work_order_date: '2024-06-15',
             action_taken: 'Performed routine maintenance and cleaning',
             reported_by: 'John Doe',
-            worker_order_type: 'Preventive',
+            work_order_type: 'Preventive',
             attachment: 'maintenance_report.pdf',
             created_at: '2024-06-15T09:00:00Z',
             updated_at: '2024-06-15T10:30:00Z',

@@ -3,7 +3,6 @@ package deps
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -30,6 +29,5 @@ func NewPostgresClient(ctx context.Context, cfg *Config) (*pgxpool.Pool, error) 
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	log.Printf("Successfully connected to database")
 	return pool, nil
 }

@@ -138,7 +138,7 @@ export default function MaintenanceHistory({
     work_order_date: '',
     action_taken: '',
     reported_by: '',
-    worker_order_type: 'Preventive' as MaintenanceOrderType,
+    work_order_type: 'Preventive' as MaintenanceOrderType,
     attachment: '',
   });
   const [newRecordErrors, setNewRecordErrors] = useState<Record<string, string>>({});
@@ -154,7 +154,7 @@ export default function MaintenanceHistory({
     work_order_date: '',
     action_taken: '',
     reported_by: '',
-    worker_order_type: 'Preventive' as MaintenanceOrderType,
+    work_order_type: 'Preventive' as MaintenanceOrderType,
     attachment: '',
   });
   const [editRecordErrors, setEditRecordErrors] = useState<Record<string, string>>({});
@@ -167,7 +167,7 @@ export default function MaintenanceHistory({
     work_order_date: '',
     action_taken: '',
     reported_by: '',
-    worker_order_type: 'Preventive' as MaintenanceOrderType,
+    work_order_type: 'Preventive' as MaintenanceOrderType,
     attachment: '',
   });
 
@@ -502,7 +502,7 @@ export default function MaintenanceHistory({
       work_order_date: '',
       action_taken: '',
       reported_by: '',
-      worker_order_type: 'Preventive',
+      work_order_type: 'Preventive',
       attachment: '',
     });
     setNewRecordErrors({});
@@ -519,7 +519,7 @@ export default function MaintenanceHistory({
       work_order_date: '',
       action_taken: '',
       reported_by: '',
-      worker_order_type: 'Preventive',
+      work_order_type: 'Preventive',
       attachment: '',
     });
     setNewRecordErrors({});
@@ -609,7 +609,7 @@ export default function MaintenanceHistory({
         work_order_date: newRecordForm.work_order_date,
         action_taken: newRecordForm.action_taken.trim(),
         reported_by: newRecordForm.reported_by.trim(),
-        worker_order_type: newRecordForm.worker_order_type,
+        work_order_type: newRecordForm.work_order_type,
         attachment: newRecordForm.attachment || undefined,
       };
 
@@ -668,8 +668,8 @@ export default function MaintenanceHistory({
       work_order_date: backendDateToHtmlDate(record.work_order_date), // Convert backend date to HTML format
       action_taken: record.action_taken,
       reported_by: record.reported_by,
-      worker_order_type: record.worker_order_type as MaintenanceOrderType,
-      attachment: record.attachment,
+      work_order_type: record.work_order_type as MaintenanceOrderType,
+      attachment: record.attachment || '',
     };
 
     setEditingRecord(record);
@@ -692,7 +692,7 @@ export default function MaintenanceHistory({
       work_order_date: '',
       action_taken: '',
       reported_by: '',
-      worker_order_type: 'Preventive',
+      work_order_type: 'Preventive',
       attachment: '',
     });
     setOriginalEditFormData({
@@ -700,7 +700,7 @@ export default function MaintenanceHistory({
       work_order_date: '',
       action_taken: '',
       reported_by: '',
-      worker_order_type: 'Preventive',
+      work_order_type: 'Preventive',
       attachment: '',
     });
     setEditRecordErrors({});
@@ -813,7 +813,7 @@ export default function MaintenanceHistory({
         work_order_date: editRecordForm.work_order_date,
         action_taken: editRecordForm.action_taken.trim(),
         reported_by: editRecordForm.reported_by.trim(),
-        worker_order_type: editRecordForm.worker_order_type,
+        work_order_type: editRecordForm.work_order_type,
         attachment: editRecordForm.attachment || undefined,
       };
 
@@ -1458,10 +1458,10 @@ export default function MaintenanceHistory({
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span
-                                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${getMaintenanceTypeColor(record.worker_order_type)}`}
+                                className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${getMaintenanceTypeColor(record.work_order_type)}`}
                               >
-                                {getMaintenanceTypeIcon(record.worker_order_type)}
-                                {record.worker_order_type}
+                                {getMaintenanceTypeIcon(record.work_order_type)}
+                                {record.work_order_type}
                               </span>
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-900 max-w-md">
@@ -1485,7 +1485,7 @@ export default function MaintenanceHistory({
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               {record.attachment ? (
                                 <button
-                                  onClick={() => handleDownloadMaintenanceAttachment(record.work_order_number, record.attachment)}
+                                  onClick={() => handleDownloadMaintenanceAttachment(record.work_order_number, record.attachment!)}
                                   className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
                                   title="Download maintenance attachment"
                                 >
@@ -1837,16 +1837,16 @@ export default function MaintenanceHistory({
                   {/* Maintenance Type */}
                   <div>
                     <label
-                      htmlFor="worker_order_type"
+                      htmlFor="work_order_type"
                       className="block text-sm font-medium text-gray-700 mb-2"
                     >
                       Maintenance Type <span className="text-red-500">*</span>
                     </label>
                     <select
-                      id="worker_order_type"
-                      value={newRecordForm.worker_order_type}
+                      id="work_order_type"
+                      value={newRecordForm.work_order_type}
                       onChange={(e) =>
-                        handleNewRecordInputChange('worker_order_type', e.target.value)
+                        handleNewRecordInputChange('work_order_type', e.target.value)
                       }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                     >
@@ -2132,16 +2132,16 @@ export default function MaintenanceHistory({
                   {/* Maintenance Type */}
                   <div>
                     <label
-                      htmlFor="edit_worker_order_type"
+                      htmlFor="edit_work_order_type"
                       className="block text-sm font-medium text-gray-700 mb-2"
                     >
                       Maintenance Type <span className="text-red-500">*</span>
                     </label>
                     <select
-                      id="edit_worker_order_type"
-                      value={editRecordForm.worker_order_type}
+                      id="edit_work_order_type"
+                      value={editRecordForm.work_order_type}
                       onChange={(e) =>
-                        handleEditRecordInputChange('worker_order_type', e.target.value)
+                        handleEditRecordInputChange('work_order_type', e.target.value)
                       }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                     >

@@ -4,8 +4,8 @@ export interface Maintenance {
   work_order_date: string; // ISO 8601 format
   action_taken: string;
   reported_by: string;
-  worker_order_type: string;
-  attachment: string;
+  work_order_type: string;
+  attachment: string | null;
   created_at: string; // ISO 8601 format
   updated_at: string; // ISO 8601 format
 }

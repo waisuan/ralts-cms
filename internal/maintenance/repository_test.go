@@ -138,8 +138,8 @@ func (suite *MaintenanceRepositoryTestSuite) TestGetByWorkOrder() {
 	suite.Run("should get maintenance with all fields populated", func() {
 		maintenance := testutils.CreateMaintenance("MACHINE007", "WO008")
 		maintenance.WorkOrderDate = time.Date(2025, 1, 15, 10, 30, 0, 0, time.UTC)
-		maintenance.WorkerOrderType = "Emergency"
-		maintenance.Attachment = "emergency-maintenance.pdf"
+		maintenance.WorkOrderType = "Emergency"
+		maintenance.Attachment = testutils.StringPtr("emergency-maintenance.pdf")
 
 		err := suite.repo.Create(ctx, maintenance)
 		suite.Require().NoError(err)
@@ -149,8 +149,9 @@ func (suite *MaintenanceRepositoryTestSuite) TestGetByWorkOrder() {
 		// PostgreSQL DATE type only stores the date part, not time
 		expectedDate := time.Date(2025, 1, 15, 0, 0, 0, 0, time.UTC)
 		suite.Assert().Equal(expectedDate, retrieved.WorkOrderDate)
-		suite.Assert().Equal("Emergency", retrieved.WorkerOrderType)
-		suite.Assert().Equal("emergency-maintenance.pdf", retrieved.Attachment)
+		suite.Assert().Equal("Emergency", retrieved.WorkOrderType)
+		suite.Assert().NotNil(retrieved.Attachment)
+		suite.Assert().Equal("emergency-maintenance.pdf", *retrieved.Attachment)
 	})
 }
 
@@ -486,8 +487,8 @@ func (suite *MaintenanceRepositoryTestSuite) TestUpdate() {
 		// Update maintenance fields
 		maintenance.ActionTaken = "Updated action"
 		maintenance.ReportedBy = "Jane Doe"
-		maintenance.WorkerOrderType = "Corrective"
-		maintenance.Attachment = "updated-maintenance.pdf"
+		maintenance.WorkOrderType = "Corrective"
+		maintenance.Attachment = testutils.StringPtr("updated-maintenance.pdf")
 
 		err = suite.repo.Update(ctx, maintenance)
 		suite.Require().NoError(err)
@@ -497,8 +498,9 @@ func (suite *MaintenanceRepositoryTestSuite) TestUpdate() {
 		suite.Require().NoError(err)
 		suite.Assert().Equal("Updated action", retrieved.ActionTaken)
 		suite.Assert().Equal("Jane Doe", retrieved.ReportedBy)
-		suite.Assert().Equal("Corrective", retrieved.WorkerOrderType)
-		suite.Assert().Equal("updated-maintenance.pdf", retrieved.Attachment)
+		suite.Assert().Equal("Corrective", retrieved.WorkOrderType)
+		suite.Assert().NotNil(retrieved.Attachment)
+		suite.Assert().Equal("updated-maintenance.pdf", *retrieved.Attachment)
 		delta := retrieved.CreatedAt.Sub(originalCreatedAt)
 		suite.Assert().True(delta < 2*time.Millisecond && delta > -2*time.Millisecond, "CreatedAt should be nearly unchanged")
 		// UpdatedAt should be different or at least not older
@@ -694,26 +696,26 @@ func (suite *MaintenanceRepositoryTestSuite) TestCountByWorkOrderType() {
 
 		// Create maintenance records with different work order types
 		maintenance1 := testutils.CreateMaintenance(machineSerial, "WO001")
-		maintenance1.WorkerOrderType = "Preventive"
+		maintenance1.WorkOrderType = "Preventive"
 
 		maintenance2 := testutils.CreateMaintenance(machineSerial, "WO002")
-		maintenance2.WorkerOrderType = "Corrective"
+		maintenance2.WorkOrderType = "Corrective"
 
 		maintenance3 := testutils.CreateMaintenance(machineSerial, "WO003")
-		maintenance3.WorkerOrderType = "Emergency"
+		maintenance3.WorkOrderType = "Emergency"
 
 		maintenance4 := testutils.CreateMaintenance(machineSerial, "WO004")
-		maintenance4.WorkerOrderType = "Inspection"
+		maintenance4.WorkOrderType = "Inspection"
 
 		maintenance5 := testutils.CreateMaintenance(machineSerial, "WO005")
-		maintenance5.WorkerOrderType = "Preventive"
+		maintenance5.WorkOrderType = "Preventive"
 
 		maintenance6 := testutils.CreateMaintenance(machineSerial, "WO006")
-		maintenance6.WorkerOrderType = "Corrective"
+		maintenance6.WorkOrderType = "Corrective"
 
 		// Create maintenance for a different machine
 		otherMaintenance := testutils.CreateMaintenance("OTHER_MACHINE", "WO007")
-		otherMaintenance.WorkerOrderType = "Preventive"
+		otherMaintenance.WorkOrderType = "Preventive"
 
 		// Create all maintenance records
 		err := suite.repo.Create(ctx, maintenance1)
@@ -770,12 +772,12 @@ func (suite *MaintenanceRepositoryTestSuite) TestSearchByMachine() {
 		// Create test maintenance records for different machines
 		maintenance1 := testutils.CreateMaintenance("MACHINE003", "WO004")
 		maintenance1.ReportedBy = "Alice Tech"
-		maintenance1.WorkerOrderType = "Emergency"
+		maintenance1.WorkOrderType = "Emergency"
 		suite.Require().NoError(suite.repo.Create(ctx, maintenance1))
 
 		maintenance2 := testutils.CreateMaintenance("MACHINE004", "WO004")
 		maintenance2.ReportedBy = "Bob Tech"
-		maintenance2.WorkerOrderType = "Inspection"
+		maintenance2.WorkOrderType = "Inspection"
 		suite.Require().NoError(suite.repo.Create(ctx, maintenance2))
 
 		// Search for "WO004" in MACHINE003 - should find only MACHINE003's record
@@ -794,17 +796,17 @@ func (suite *MaintenanceRepositoryTestSuite) TestSearchByMachine() {
 		// Create test maintenance records
 		maintenance1 := testutils.CreateMaintenance("MACHINE005", "WO005")
 		maintenance1.ReportedBy = "Charlie Tech"
-		maintenance1.WorkerOrderType = "Preventive"
+		maintenance1.WorkOrderType = "Preventive"
 		suite.Require().NoError(suite.repo.Create(ctx, maintenance1))
 
 		maintenance2 := testutils.CreateMaintenance("MACHINE005", "WO006")
 		maintenance2.ReportedBy = "David Tech"
-		maintenance2.WorkerOrderType = "Corrective"
+		maintenance2.WorkOrderType = "Corrective"
 		suite.Require().NoError(suite.repo.Create(ctx, maintenance2))
 
 		maintenance3 := testutils.CreateMaintenance("MACHINE006", "WO007")
 		maintenance3.ReportedBy = "Charlie Tech"
-		maintenance3.WorkerOrderType = "Emergency"
+		maintenance3.WorkOrderType = "Emergency"
 		suite.Require().NoError(suite.repo.Create(ctx, maintenance3))
 
 		// Search for "Charlie" in MACHINE005 - should find only MACHINE005's record
@@ -823,17 +825,17 @@ func (suite *MaintenanceRepositoryTestSuite) TestSearchByMachine() {
 		// Create test maintenance records
 		maintenance1 := testutils.CreateMaintenance("MACHINE007", "WO008")
 		maintenance1.ReportedBy = "Eve Tech"
-		maintenance1.WorkerOrderType = "Emergency"
+		maintenance1.WorkOrderType = "Emergency"
 		suite.Require().NoError(suite.repo.Create(ctx, maintenance1))
 
 		maintenance2 := testutils.CreateMaintenance("MACHINE007", "WO009")
 		maintenance2.ReportedBy = "Frank Tech"
-		maintenance2.WorkerOrderType = "Preventive"
+		maintenance2.WorkOrderType = "Preventive"
 		suite.Require().NoError(suite.repo.Create(ctx, maintenance2))
 
 		maintenance3 := testutils.CreateMaintenance("MACHINE008", "WO010")
 		maintenance3.ReportedBy = "Grace Tech"
-		maintenance3.WorkerOrderType = "Emergency"
+		maintenance3.WorkOrderType = "Emergency"
 		suite.Require().NoError(suite.repo.Create(ctx, maintenance3))
 
 		// Search for "Emergency" in MACHINE007 - should find only MACHINE007's record
@@ -845,7 +847,7 @@ func (suite *MaintenanceRepositoryTestSuite) TestSearchByMachine() {
 		suite.Assert().Len(results, 1)
 		suite.Assert().Equal("WO008", results[0].WorkOrderNumber)
 		suite.Assert().Equal("MACHINE007", results[0].MachineSerialNumber)
-		suite.Assert().Equal("Emergency", results[0].WorkerOrderType)
+		suite.Assert().Equal("Emergency", results[0].WorkOrderType)
 	})
 
 	suite.Run("should search with pagination", func() {
@@ -853,7 +855,7 @@ func (suite *MaintenanceRepositoryTestSuite) TestSearchByMachine() {
 		for i := 1; i <= 5; i++ {
 			maintenance := testutils.CreateMaintenance("MACHINE009", fmt.Sprintf("WO%03d", i+10))
 			maintenance.ReportedBy = "Test Tech"
-			maintenance.WorkerOrderType = "Preventive"
+			maintenance.WorkOrderType = "Preventive"
 			maintenance.ActionTaken = fmt.Sprintf("Action %d", i)
 			suite.Require().NoError(suite.repo.Create(ctx, maintenance))
 		}
@@ -885,7 +887,7 @@ func (suite *MaintenanceRepositoryTestSuite) TestSearchByMachine() {
 		// Create a maintenance record
 		maintenanceRecord := testutils.CreateMaintenance("MACHINE010", "WO020")
 		maintenanceRecord.ReportedBy = "Henry Tech"
-		maintenanceRecord.WorkerOrderType = "Inspection"
+		maintenanceRecord.WorkOrderType = "Inspection"
 		suite.Require().NoError(suite.repo.Create(ctx, maintenanceRecord))
 
 		// Search for non-matching term
@@ -901,7 +903,7 @@ func (suite *MaintenanceRepositoryTestSuite) TestSearchByMachine() {
 		// Create a maintenance record for one machine
 		maintenanceRecord := testutils.CreateMaintenance("MACHINE011", "WO021")
 		maintenanceRecord.ReportedBy = "Iris Tech"
-		maintenanceRecord.WorkerOrderType = "Preventive"
+		maintenanceRecord.WorkOrderType = "Preventive"
 		suite.Require().NoError(suite.repo.Create(ctx, maintenanceRecord))
 
 		// Search for the same term but in a different machine
@@ -919,19 +921,19 @@ func (suite *MaintenanceRepositoryTestSuite) TestSearchByMachine() {
 
 		maintenance1 := testutils.CreateMaintenance("MACHINE012", "WO022")
 		maintenance1.ReportedBy = "Jack Tech"
-		maintenance1.WorkerOrderType = "Preventive"
+		maintenance1.WorkOrderType = "Preventive"
 		maintenance1.WorkOrderDate = baseTime.AddDate(0, 0, 1) // Jan 2nd
 		suite.Require().NoError(suite.repo.Create(ctx, maintenance1))
 
 		maintenance2 := testutils.CreateMaintenance("MACHINE012", "WO023")
 		maintenance2.ReportedBy = "Jack Tech"
-		maintenance2.WorkerOrderType = "Corrective"
+		maintenance2.WorkOrderType = "Corrective"
 		maintenance2.WorkOrderDate = baseTime.AddDate(0, 0, 3) // Jan 4th
 		suite.Require().NoError(suite.repo.Create(ctx, maintenance2))
 
 		maintenance3 := testutils.CreateMaintenance("MACHINE012", "WO024")
 		maintenance3.ReportedBy = "Jack Tech"
-		maintenance3.WorkerOrderType = "Emergency"
+		maintenance3.WorkOrderType = "Emergency"
 		maintenance3.WorkOrderDate = baseTime.AddDate(0, 0, 2) // Jan 3rd
 		suite.Require().NoError(suite.repo.Create(ctx, maintenance3))
 
@@ -966,23 +968,23 @@ func (suite *MaintenanceRepositoryTestSuite) TestCountSearchByMachine() {
 		// Create test maintenance records for different machines
 		maintenance1 := testutils.CreateMaintenance("MACHINE020", "WO030")
 		maintenance1.ReportedBy = "Alpha Tech"
-		maintenance1.WorkerOrderType = "Preventive"
+		maintenance1.WorkOrderType = "Preventive"
 		suite.Require().NoError(suite.repo.Create(ctx, maintenance1))
 
 		maintenance2 := testutils.CreateMaintenance("MACHINE020", "WO031")
 		maintenance2.ReportedBy = "Beta Tech"
-		maintenance2.WorkerOrderType = "Corrective"
+		maintenance2.WorkOrderType = "Corrective"
 		suite.Require().NoError(suite.repo.Create(ctx, maintenance2))
 
 		maintenance3 := testutils.CreateMaintenance("MACHINE020", "WO032")
 		maintenance3.ReportedBy = "Gamma Tech"
-		maintenance3.WorkerOrderType = "Emergency"
+		maintenance3.WorkOrderType = "Emergency"
 		suite.Require().NoError(suite.repo.Create(ctx, maintenance3))
 
 		// Create a record for a different machine
 		maintenance4 := testutils.CreateMaintenance("MACHINE021", "WO033")
 		maintenance4.ReportedBy = "Delta Tech"
-		maintenance4.WorkerOrderType = "Inspection"
+		maintenance4.WorkOrderType = "Inspection"
 		suite.Require().NoError(suite.repo.Create(ctx, maintenance4))
 
 		// Count search results for "Tech" in MACHINE020 - should find 3 records
@@ -995,12 +997,12 @@ func (suite *MaintenanceRepositoryTestSuite) TestCountSearchByMachine() {
 		// Create test maintenance records
 		maintenance1 := testutils.CreateMaintenance("MACHINE022", "WO034")
 		maintenance1.ReportedBy = "Echo Tech"
-		maintenance1.WorkerOrderType = "Preventive"
+		maintenance1.WorkOrderType = "Preventive"
 		suite.Require().NoError(suite.repo.Create(ctx, maintenance1))
 
 		maintenance2 := testutils.CreateMaintenance("MACHINE023", "WO034")
 		maintenance2.ReportedBy = "Foxtrot Tech"
-		maintenance2.WorkerOrderType = "Corrective"
+		maintenance2.WorkOrderType = "Corrective"
 		suite.Require().NoError(suite.repo.Create(ctx, maintenance2))
 
 		// Count search results for "WO034" in MACHINE022 - should find 1 record
@@ -1013,7 +1015,7 @@ func (suite *MaintenanceRepositoryTestSuite) TestCountSearchByMachine() {
 		// Create a maintenance record
 		maintenanceRecord := testutils.CreateMaintenance("MACHINE024", "WO035")
 		maintenanceRecord.ReportedBy = "Golf Tech"
-		maintenanceRecord.WorkerOrderType = "Inspection"
+		maintenanceRecord.WorkOrderType = "Inspection"
 		suite.Require().NoError(suite.repo.Create(ctx, maintenanceRecord))
 
 		// Count search results for non-matching term
@@ -1026,7 +1028,7 @@ func (suite *MaintenanceRepositoryTestSuite) TestCountSearchByMachine() {
 		// Create a maintenance record for one machine
 		maintenanceRecord := testutils.CreateMaintenance("MACHINE025", "WO036")
 		maintenanceRecord.ReportedBy = "Hotel Tech"
-		maintenanceRecord.WorkerOrderType = "Emergency"
+		maintenanceRecord.WorkOrderType = "Emergency"
 		suite.Require().NoError(suite.repo.Create(ctx, maintenanceRecord))
 
 		// Count search results for the same term but in a different machine
@@ -1039,17 +1041,17 @@ func (suite *MaintenanceRepositoryTestSuite) TestCountSearchByMachine() {
 		// Create test maintenance records
 		maintenance1 := testutils.CreateMaintenance("MACHINE026", "WO037")
 		maintenance1.ReportedBy = "India Tech"
-		maintenance1.WorkerOrderType = "Preventive"
+		maintenance1.WorkOrderType = "Preventive"
 		suite.Require().NoError(suite.repo.Create(ctx, maintenance1))
 
 		maintenance2 := testutils.CreateMaintenance("MACHINE026", "WO038")
 		maintenance2.ReportedBy = "India Tech"
-		maintenance2.WorkerOrderType = "Corrective"
+		maintenance2.WorkOrderType = "Corrective"
 		suite.Require().NoError(suite.repo.Create(ctx, maintenance2))
 
 		maintenance3 := testutils.CreateMaintenance("MACHINE027", "WO039")
 		maintenance3.ReportedBy = "India Tech"
-		maintenance3.WorkerOrderType = "Emergency"
+		maintenance3.WorkOrderType = "Emergency"
 		suite.Require().NoError(suite.repo.Create(ctx, maintenance3))
 
 		// Count search results for "India" in MACHINE026 - should find 2 records
@@ -1062,22 +1064,22 @@ func (suite *MaintenanceRepositoryTestSuite) TestCountSearchByMachine() {
 		// Create test maintenance records
 		maintenance1 := testutils.CreateMaintenance("MACHINE028", "WO040")
 		maintenance1.ReportedBy = "Juliet Tech"
-		maintenance1.WorkerOrderType = "Preventive"
+		maintenance1.WorkOrderType = "Preventive"
 		suite.Require().NoError(suite.repo.Create(ctx, maintenance1))
 
 		maintenance2 := testutils.CreateMaintenance("MACHINE028", "WO041")
 		maintenance2.ReportedBy = "Kilo Tech"
-		maintenance2.WorkerOrderType = "Preventive"
+		maintenance2.WorkOrderType = "Preventive"
 		suite.Require().NoError(suite.repo.Create(ctx, maintenance2))
 
 		maintenance3 := testutils.CreateMaintenance("MACHINE028", "WO042")
 		maintenance3.ReportedBy = "Lima Tech"
-		maintenance3.WorkerOrderType = "Corrective"
+		maintenance3.WorkOrderType = "Corrective"
 		suite.Require().NoError(suite.repo.Create(ctx, maintenance3))
 
 		maintenance4 := testutils.CreateMaintenance("MACHINE029", "WO043")
 		maintenance4.ReportedBy = "Mike Tech"
-		maintenance4.WorkerOrderType = "Preventive"
+		maintenance4.WorkOrderType = "Preventive"
 		suite.Require().NoError(suite.repo.Create(ctx, maintenance4))
 
 		// Count search results for "Preventive" in MACHINE028 - should find 2 records

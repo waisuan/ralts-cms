@@ -9,7 +9,7 @@ export interface MaintenanceFilters {
   q?: string; // General search query parameter
   work_order_q?: string; // Work order specific search
   reported_by_q?: string; // Reported by specific search
-  worker_order_type_q?: string; // Worker order type specific search
+  work_order_type_q?: string; // Work order type specific search
 }
 
 export interface MaintenanceListResponse {
@@ -29,7 +29,7 @@ export interface CreateMaintenanceRequest {
   work_order_date: string;
   action_taken: string;
   reported_by: string;
-  worker_order_type: string;
+  work_order_type: string;
   attachment?: string;
 }
 
@@ -68,7 +68,7 @@ export class MaintenanceService {
             params[key] = value.toString();
           } else if (key === 'offset' && typeof value === 'number') {
             params[key] = value.toString();
-          } else if (typeof value === 'string' && ['q', 'work_order_q', 'reported_by_q', 'worker_order_type_q'].includes(key)) {
+          } else if (typeof value === 'string' && ['q', 'work_order_q', 'reported_by_q', 'work_order_type_q'].includes(key)) {
             params[key] = value;
           }
         }

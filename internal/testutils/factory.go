@@ -9,6 +9,11 @@ import (
 	"time"
 )
 
+// StringPtr returns a pointer to a string value
+func StringPtr(s string) *string {
+	return &s
+}
+
 // CreateMachine creates a basic machine with default values
 func CreateMachine(serialNumber string) *machines.Machine {
 	return &machines.Machine{
@@ -55,8 +60,8 @@ func CreateMaintenance(machineSerialNumber, workOrderNumber string) *maintenance
 		WorkOrderDate:       time.Now().UTC(),
 		ActionTaken:         "Routine maintenance",
 		ReportedBy:          "John Doe",
-		WorkerOrderType:     "Preventive",
-		Attachment:          "maintenance.pdf",
+		WorkOrderType:       "Preventive",
+		Attachment:          StringPtr("maintenance.pdf"),
 	}
 }
 

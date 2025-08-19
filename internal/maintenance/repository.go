@@ -68,7 +68,7 @@ func NewRepository(client *pgxpool.Pool) Repository {
 func (r *db) GetByWorkOrder(ctx context.Context, machineSerialNumber, workOrderNumber string) (*Maintenance, error) {
 	query := `
 		SELECT id, machine_serial_number, work_order_number, work_order_date, action_taken,
-		       reported_by, worker_order_type, attachment, created_at, updated_at
+		       reported_by, work_order_type, attachment, created_at, updated_at
 		FROM maintenance 
 		WHERE machine_serial_number = $1 AND work_order_number = $2
 	`
@@ -77,7 +77,7 @@ func (r *db) GetByWorkOrder(ctx context.Context, machineSerialNumber, workOrderN
 	err := r.client.QueryRow(ctx, query, machineSerialNumber, workOrderNumber).Scan(
 		&maintenance.ID, &maintenance.MachineSerialNumber, &maintenance.WorkOrderNumber,
 		&maintenance.WorkOrderDate, &maintenance.ActionTaken, &maintenance.ReportedBy,
-		&maintenance.WorkerOrderType, &maintenance.Attachment, &maintenance.CreatedAt, &maintenance.UpdatedAt,
+		&maintenance.WorkOrderType, &maintenance.Attachment, &maintenance.CreatedAt, &maintenance.UpdatedAt,
 	)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -112,7 +112,7 @@ func (r *db) ListByMachine(ctx context.Context, machineSerialNumber string, opti
 
 	query := fmt.Sprintf(`
 		SELECT id, machine_serial_number, work_order_number, work_order_date, action_taken,
-		       reported_by, worker_order_type, attachment, created_at, updated_at
+		       reported_by, work_order_type, attachment, created_at, updated_at
 		FROM maintenance 
 		WHERE machine_serial_number = $1
 		%s
@@ -131,7 +131,7 @@ func (r *db) ListByMachine(ctx context.Context, machineSerialNumber string, opti
 		err := rows.Scan(
 			&maintenance.ID, &maintenance.MachineSerialNumber, &maintenance.WorkOrderNumber,
 			&maintenance.WorkOrderDate, &maintenance.ActionTaken, &maintenance.ReportedBy,
-			&maintenance.WorkerOrderType, &maintenance.Attachment, &maintenance.CreatedAt, &maintenance.UpdatedAt,
+			&maintenance.WorkOrderType, &maintenance.Attachment, &maintenance.CreatedAt, &maintenance.UpdatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan maintenance: %w", err)
@@ -152,7 +152,7 @@ func (r *db) Create(ctx context.Context, maintenance *Maintenance) error {
 	query := `
 		INSERT INTO maintenance (
 			machine_serial_number, work_order_number, work_order_date, action_taken,
-			reported_by, worker_order_type, attachment, created_at, updated_at
+			reported_by, work_order_type, attachment, created_at, updated_at
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9
 		) RETURNING id
@@ -160,7 +160,7 @@ func (r *db) Create(ctx context.Context, maintenance *Maintenance) error {
 
 	err := r.client.QueryRow(ctx, query,
 		maintenance.MachineSerialNumber, maintenance.WorkOrderNumber, maintenance.WorkOrderDate,
-		maintenance.ActionTaken, maintenance.ReportedBy, maintenance.WorkerOrderType,
+		maintenance.ActionTaken, maintenance.ReportedBy, maintenance.WorkOrderType,
 		maintenance.Attachment, maintenance.CreatedAt, maintenance.UpdatedAt,
 	).Scan(&maintenance.ID)
 
@@ -177,13 +177,13 @@ func (r *db) Update(ctx context.Context, maintenance *Maintenance) error {
 	query := `
 		UPDATE maintenance SET
 			work_order_date = $1, action_taken = $2, reported_by = $3,
-			worker_order_type = $4, attachment = $5, updated_at = $6
+			work_order_type = $4, attachment = $5, updated_at = $6
 		WHERE machine_serial_number = $7 AND work_order_number = $8
 	`
 
 	result, err := r.client.Exec(ctx, query,
 		maintenance.WorkOrderDate, maintenance.ActionTaken, maintenance.ReportedBy,
-		maintenance.WorkerOrderType, maintenance.Attachment, maintenance.UpdatedAt,
+		maintenance.WorkOrderType, maintenance.Attachment, maintenance.UpdatedAt,
 		maintenance.MachineSerialNumber, maintenance.WorkOrderNumber,
 	)
 	if err != nil {
@@ -239,10 +239,10 @@ func (r *db) CountByMachine(ctx context.Context, machineSerialNumber string) (in
 func (r *db) CountByWorkOrderType(ctx context.Context, machineSerialNumber string) (int, int, int, int, error) {
 	query := `
 		SELECT 
-			COUNT(CASE WHEN worker_order_type = 'Preventive' THEN 1 END) as preventative_count,
-			COUNT(CASE WHEN worker_order_type = 'Corrective' THEN 1 END) as corrective_count,
-			COUNT(CASE WHEN worker_order_type = 'Emergency' THEN 1 END) as emergency_count,
-			COUNT(CASE WHEN worker_order_type = 'Inspection' THEN 1 END) as inspection_count
+			COUNT(CASE WHEN work_order_type = 'Preventive' THEN 1 END) as preventative_count,
+			COUNT(CASE WHEN work_order_type = 'Corrective' THEN 1 END) as corrective_count,
+			COUNT(CASE WHEN work_order_type = 'Emergency' THEN 1 END) as emergency_count,
+			COUNT(CASE WHEN work_order_type = 'Inspection' THEN 1 END) as inspection_count
 		FROM maintenance 
 		WHERE machine_serial_number = $1
 	`
@@ -267,7 +267,7 @@ func (r *db) SearchByMachine(ctx context.Context, machineSerialNumber, query str
 	// Build the base query with full-text search filtered by machine
 	baseQuery := `
 		SELECT id, machine_serial_number, work_order_number, work_order_date, action_taken,
-		       reported_by, worker_order_type, attachment, created_at, updated_at,
+		       reported_by, work_order_type, attachment, created_at, updated_at,
 		       ts_rank(search_vector, plainto_tsquery('english', $2)) as rank
 		FROM maintenance 
 		WHERE machine_serial_number = $1 AND search_vector @@ plainto_tsquery('english', $2)
@@ -304,7 +304,7 @@ func (r *db) SearchByMachine(ctx context.Context, machineSerialNumber, query str
 		err := rows.Scan(
 			&maintenance.ID, &maintenance.MachineSerialNumber, &maintenance.WorkOrderNumber,
 			&maintenance.WorkOrderDate, &maintenance.ActionTaken, &maintenance.ReportedBy,
-			&maintenance.WorkerOrderType, &maintenance.Attachment, &maintenance.CreatedAt, &maintenance.UpdatedAt,
+			&maintenance.WorkOrderType, &maintenance.Attachment, &maintenance.CreatedAt, &maintenance.UpdatedAt,
 			&rank,
 		)
 		if err != nil {

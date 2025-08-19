@@ -505,7 +505,7 @@ func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
 				WorkOrderNumber:     "WO005",
 				ActionTaken:         "General search result",
 				ReportedBy:          "Search Tech",
-				WorkerOrderType:     "Corrective",
+				WorkOrderType:       "Corrective",
 			},
 		}
 
@@ -547,7 +547,7 @@ func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
 				WorkOrderNumber:     "WO006",
 				ActionTaken:         "Combined search result",
 				ReportedBy:          "Combined Tech",
-				WorkerOrderType:     "Emergency",
+				WorkOrderType:       "Emergency",
 			},
 		}
 

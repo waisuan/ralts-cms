@@ -775,7 +775,7 @@ curl -H "Authorization: Bearer <your-jwt-token>" \
   "work_order_date": "2024-01-01T00:00:00Z",
   "action_taken": "string",
   "reported_by": "string",
-  "worker_order_type": "string",
+  "work_order_type": "string",
   "attachment": "string",
   "created_at": "2024-01-01T00:00:00Z",
   "updated_at": "2024-01-01T00:00:00Z"
@@ -827,6 +827,37 @@ This command will:
 - Run the linter with friendly formatting on all Go files in the project
 - Use the existing `revive.toml` configuration file for linting rules
 
+## Frontend
+
+The frontend is a modern Next.js application built with React and TypeScript, providing a user-friendly interface for machine and maintenance management.
+
+### Frontend Architecture
+
+- **Framework**: Next.js 15 with React 19
+- **Language**: TypeScript for type safety
+- **Styling**: Tailwind CSS for modern, responsive design
+- **Testing**: Jest with Testing Library for comprehensive testing
+
+### Key Features
+
+- Machine management interface (view, create, edit, delete)
+- Maintenance record tracking and management
+- Responsive design for desktop and mobile devices
+- JWT authentication integration with the backend API
+- Real-time data synchronization with the Go backend
+
+### Getting Started
+
+Navigate to the `ui/` directory and follow the setup instructions in [`ui/README.md`](ui/README.md) for detailed frontend development information.
+
+### Backend Integration
+
+The frontend communicates with the Go backend through RESTful API calls, handling:
+- JWT authentication for secure access
+- Machine data CRUD operations
+- Maintenance record management
+- Real-time updates and error handling
+
 ## Project Structure
 
 ```
@@ -852,6 +883,16 @@ ralts-cms/
 │   │   └── repository.go    # Maintenance data access
 │   └── router/
 │       └── router.go        # HTTP routing
+├── ui/                      # Next.js frontend application
+│   ├── src/
+│   │   ├── app/             # Next.js app router pages
+│   │   ├── components/      # Reusable UI components
+│   │   ├── services/        # API client services
+│   │   ├── hooks/           # Custom React hooks
+│   │   ├── types/           # TypeScript type definitions
+│   │   └── utils/           # Utility functions
+│   ├── package.json         # Frontend dependencies
+│   └── README.md           # Frontend setup guide
 ├── db/
 │   └── migrations/          # Database migrations
 │       ├── 000001_add_machine_table.up.sql
