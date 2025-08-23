@@ -24,6 +24,8 @@ jobs:
 
     - name: Install tools
       run: |
+        mkdir -p bin
+
         # Install revive linter
         curl -L https://github.com/mgechev/revive/releases/latest/download/revive_linux_amd64.tar.gz | tar -xz -C bin/ revive
         chmod +x bin/revive
