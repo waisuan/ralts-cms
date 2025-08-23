@@ -40,19 +40,19 @@ export default function UserMenu() {
             <Image
               className="h-8 w-8 rounded-full object-cover"
               src={user.avatar}
-              alt={user.name}
+              alt={user.username}
               width={32}
               height={32}
             />
           ) : (
             <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center">
               <span className="text-white text-sm font-medium">
-                {user.name.charAt(0).toUpperCase()}
+                {user.username.charAt(0).toUpperCase()}
               </span>
             </div>
           )}
           <div className="hidden md:block text-left">
-            <p className="text-sm font-medium text-gray-700">{user.name}</p>
+            <p className="text-sm font-medium text-gray-700">{user.username}</p>
             <p className="text-xs text-gray-500">{user.role}</p>
           </div>
           <svg
@@ -69,7 +69,7 @@ export default function UserMenu() {
       {isOpen && (
         <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
           <div className="px-4 py-2 border-b border-gray-100">
-            <p className="text-sm font-medium text-gray-900">{user.name}</p>
+            <p className="text-sm font-medium text-gray-900">{user.username}</p>
             <p className="text-xs text-gray-500">{user.email}</p>
             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mt-1">
               {user.role}

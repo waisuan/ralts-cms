@@ -33,15 +33,13 @@ func main() {
 
 	deps := deps.Initialise()
 
-	// Wipe all data from the database
-	deps.PostgresClient.Exec(context.Background(), "DELETE FROM machines")
-	deps.PostgresClient.Exec(context.Background(), "DELETE FROM maintenance")
-	deps.PostgresClient.Exec(context.Background(), "DELETE FROM users")
-
 	switch *entityType {
 	case "machine":
+		deps.PostgresClient.Exec(context.Background(), "DELETE FROM machines")
+		deps.PostgresClient.Exec(context.Background(), "DELETE FROM maintenance")
 		createMachines(deps, *entityCount)
 	case "user":
+		deps.PostgresClient.Exec(context.Background(), "DELETE FROM users")
 		createUsers(deps, *entityCount)
 	default:
 		log.Fatalf("Invalid entity type: %s", *entityType)

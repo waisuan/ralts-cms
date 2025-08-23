@@ -45,13 +45,16 @@ setup-env:
 	fi
 
 # Development setup
-dev: setup-env db-up
+dev: setup-env db-up localstack-up
 	@echo "Development environment setup complete!"
 	@echo ""
 	@echo "Next steps:"
 	@echo "1. Run migrations: make migrate-up"
 	@echo "2. Start development server: make run"
 	@echo "3. Or start with database: make dev-with-db"
+
+localstack-up:
+	docker compose -f docker-compose.dev.yml up -d localstack
 
 # Database Management Commands
 
@@ -184,3 +187,7 @@ migrate-down:
 	@echo "Rolling back migrations on test database..."
 	migrate -path ./db/migrations -database "postgresql://ralts_user:ralts_password@localhost:5433/ralts_cms_test?sslmode=disable" down
 	@echo "All database migrations rolled back!"
+
+seed-dev:
+	APP_ENV=development go run cmd/cli/main.go -type machine -count 100
+	APP_ENV=development go run cmd/cli/main.go -type user -count 10

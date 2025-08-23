@@ -44,7 +44,7 @@ describe('RegisterPage', () => {
     expect(screen.getByText('Join the system to manage your content')).toBeInTheDocument();
 
     // Check form fields
-    expect(screen.getByLabelText('Full Name')).toBeInTheDocument();
+    expect(screen.getByLabelText('Username')).toBeInTheDocument();
     expect(screen.getByLabelText('Email address')).toBeInTheDocument();
     expect(screen.getByLabelText('Password')).toBeInTheDocument();
     expect(screen.getByLabelText('Confirm Password')).toBeInTheDocument();
@@ -61,7 +61,7 @@ describe('RegisterPage', () => {
     mockRegisterUser.mockResolvedValueOnce({
       data: {
         id: 1,
-        name: 'John Doe',
+        username: 'johndoe',
         email: 'john@example.com',
         role: 'user',
         status: 'active',
@@ -75,8 +75,8 @@ describe('RegisterPage', () => {
     render(<RegisterPage />);
 
     // Fill out the form
-    fireEvent.change(screen.getByLabelText('Full Name'), {
-      target: { value: 'John Doe' },
+    fireEvent.change(screen.getByLabelText('Username'), {
+      target: { value: 'johndoe' },
     });
     fireEvent.change(screen.getByLabelText('Email address'), {
       target: { value: 'john@example.com' },
@@ -96,7 +96,7 @@ describe('RegisterPage', () => {
     // Wait for the API call
     await waitFor(() => {
       expect(mockRegisterUser).toHaveBeenCalledWith({
-        name: 'John Doe',
+        username: 'johndoe',
         email: 'john@example.com',
         password: 'password123',
       });
@@ -114,8 +114,8 @@ describe('RegisterPage', () => {
 
   it('should show loading state during registration', async () => {
     // Create a promise that doesn't resolve immediately
-    let resolveRegister: (value: { data: { id: number; name: string; email: string; role: string; status: string }; message: string }) => void;
-    const registerPromise = new Promise<{ data: { id: number; name: string; email: string; role: string; status: string }; message: string }>((resolve) => {
+    let resolveRegister: (value: { data: { id: number; username: string; email: string; role: string; status: string }; message: string }) => void;
+    const registerPromise = new Promise<{ data: { id: number; username: string; email: string; role: string; status: string }; message: string }>((resolve) => {
       resolveRegister = resolve;
     });
     mockRegisterUser.mockReturnValueOnce(registerPromise);
@@ -123,8 +123,8 @@ describe('RegisterPage', () => {
     render(<RegisterPage />);
 
     // Fill out the form
-    fireEvent.change(screen.getByLabelText('Full Name'), {
-      target: { value: 'John Doe' },
+    fireEvent.change(screen.getByLabelText('Username'), {
+      target: { value: 'johndoe' },
     });
     fireEvent.change(screen.getByLabelText('Email address'), {
       target: { value: 'john@example.com' },
@@ -150,7 +150,7 @@ describe('RegisterPage', () => {
     // Resolve the registration
     await act(async () => {
       resolveRegister!({
-        data: { id: 1, name: 'John Doe', email: 'john@example.com', role: 'user', status: 'active' },
+        data: { id: 1, username: 'johndoe', email: 'john@example.com', role: 'user', status: 'active' },
         message: 'User registered successfully',
       });
     });
