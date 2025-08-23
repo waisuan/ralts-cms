@@ -6,16 +6,16 @@ import "time"
 
 // Maintenance represents a maintenance record in the system
 type Maintenance struct {
-	ID                  int       `json:"id" db:"id"`
-	MachineSerialNumber string    `json:"machine_serial_number" db:"machine_serial_number"`
-	WorkOrderNumber     string    `json:"work_order_number" db:"work_order_number"`
-	WorkOrderDate       time.Time `json:"work_order_date" db:"work_order_date"`
-	ActionTaken         string    `json:"action_taken" db:"action_taken"`
-	ReportedBy          string    `json:"reported_by" db:"reported_by"`
-	WorkOrderType       string    `json:"work_order_type" db:"work_order_type"`
+	ID                  int64     `json:"id" db:"id"`
+	MachineSerialNumber string    `json:"machine_serial_number" db:"serialNumber"`
+	WorkOrderNumber     string    `json:"work_order_number" db:"workOrderNumber"`
+	WorkOrderDate       time.Time `json:"work_order_date" db:"workOrderDate"`
+	ActionTaken         string    `json:"action_taken" db:"actionTaken"`
+	ReportedBy          string    `json:"reported_by" db:"reportedBy"`
+	WorkOrderType       string    `json:"work_order_type" db:"workOrderType"`
 	Attachment          *string   `json:"attachment" db:"attachment"`
-	CreatedAt           time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt           time.Time `json:"updated_at" db:"updated_at"`
+	CreatedAt           time.Time `json:"created_at" db:"createdAt"`
+	UpdatedAt           time.Time `json:"updated_at" db:"updatedAt"`
 }
 
 // SetTimestamps sets the CreatedAt and UpdatedAt timestamps

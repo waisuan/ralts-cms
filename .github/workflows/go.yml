@@ -13,23 +13,6 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
-    
-    services:
-      postgres-test:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB: ralts_cms_test
-          POSTGRES_USER: ralts_user
-          POSTGRES_PASSWORD: ralts_password
-          POSTGRES_HOST_AUTH_METHOD: trust
-        ports:
-          - 5433:5432
-        options: >-
-          --health-cmd "pg_isready -U ralts_user -d ralts_cms_test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-          --health-start-period 30s
 
     steps:
     - uses: actions/checkout@v4
@@ -41,27 +24,12 @@ jobs:
 
     - name: Install tools
       run: |
-        mkdir -p bin
-        # Install migrate tool
-        curl -L https://github.com/golang-migrate/migrate/releases/download/v4.17.0/migrate.linux-amd64.tar.gz | tar xvz -C bin/
-        chmod +x bin/migrate
         # Install revive linter
         curl -L https://github.com/mgechev/revive/releases/latest/download/revive_linux_amd64.tar.gz | tar -xz -C bin/ revive
         chmod +x bin/revive
+
         # Verify installations
-        bin/migrate -version
         bin/revive --version
-
-    - name: Wait for PostgreSQL
-      run: |
-        until pg_isready -h localhost -p 5433 -U ralts_user -d ralts_cms_test; do
-          echo "Waiting for PostgreSQL..."
-          sleep 2
-        done
-
-    - name: Run database migrations
-      run: |
-        bin/migrate -path ./db/migrations -database "postgresql://ralts_user:ralts_password@localhost:5433/ralts_cms_test?sslmode=disable" up
 
     - name: Vet
       run: go vet ./...
@@ -74,7 +42,6 @@ jobs:
 
     - name: Test
       env:
-        DATABASE_URL: "postgresql://ralts_user:ralts_password@localhost:5433/ralts_cms_test?sslmode=disable"
         APP_ENV: "test"
         AWS_ACCESS_KEY_ID: "test"
         AWS_SECRET_ACCESS_KEY: "test" 

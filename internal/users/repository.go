@@ -35,8 +35,8 @@ func NewRepository(client *pgxpool.Pool) Repository {
 
 func (r *db) Create(ctx context.Context, user *User) error {
 	// Validate required fields
-	if user.Name == "" {
-		return fmt.Errorf("name is required")
+	if user.Username == "" {
+		return fmt.Errorf("username is required")
 	}
 	if user.Email == "" {
 		return fmt.Errorf("email is required")
@@ -59,15 +59,15 @@ func (r *db) Create(ctx context.Context, user *User) error {
 	// Insert into database
 	query := `
 		INSERT INTO users (
-			name, email, password, salt, role, status, avatar,
+			username, email, password, salt, role, approved, status, avatar,
 			created_at, updated_at
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10
 		) RETURNING id
 	`
 
 	err := r.client.QueryRow(ctx, query,
-		user.Name, user.Email, user.Password, user.Salt, user.Role, user.Status, user.Avatar,
+		user.Username, user.Email, user.Password, user.Salt, user.Role, user.Approved, user.Status, user.Avatar,
 		user.CreatedAt, user.UpdatedAt,
 	).Scan(&user.ID)
 
@@ -93,14 +93,14 @@ func (r *db) Login(ctx context.Context, email string, password string) (*User, e
 
 func (r *db) GetByEmail(ctx context.Context, email string) (*User, error) {
 	query := `
-		SELECT id, name, email, password, salt, role, status, avatar, created_at, updated_at
+		SELECT id, username, email, password, salt, role, approved, status, avatar, last_login, created_at, updated_at
 		FROM users
 		WHERE email = $1
 	`
 
 	var user User
 	err := r.client.QueryRow(ctx, query, email).Scan(
-		&user.ID, &user.Name, &user.Email, &user.Password, &user.Salt, &user.Role, &user.Status, &user.Avatar, &user.CreatedAt, &user.UpdatedAt,
+		&user.ID, &user.Username, &user.Email, &user.Password, &user.Salt, &user.Role, &user.Approved, &user.Status, &user.Avatar, &user.LastLogin, &user.CreatedAt, &user.UpdatedAt,
 	)
 
 	if err != nil {

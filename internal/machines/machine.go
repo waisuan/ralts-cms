@@ -8,23 +8,23 @@ import (
 
 // Machine represents a machine record in the system
 type Machine struct {
-	ID               int       `json:"id" db:"id"`
-	SerialNumber     string    `json:"serial_number" db:"serial_number"`
+	ID               int64     `json:"id" db:"id"`
+	SerialNumber     string    `json:"serial_number" db:"serialNumber"`
 	Customer         string    `json:"customer" db:"customer"`
 	State            string    `json:"state" db:"state"`
-	AccountType      string    `json:"account_type" db:"account_type"`
+	AccountType      string    `json:"account_type" db:"accountType"`
 	Model            string    `json:"model" db:"model"`
 	Status           string    `json:"status" db:"status"`
 	Brand            string    `json:"brand" db:"brand"`
 	District         string    `json:"district" db:"district"`
-	PersonInCharge   string    `json:"person_in_charge" db:"person_in_charge"`
-	ReportedBy       string    `json:"reported_by" db:"reported_by"`
-	AdditionalNotes  string    `json:"additional_notes" db:"additional_notes"`
+	PersonInCharge   string    `json:"person_in_charge" db:"personInCharge"`
+	ReportedBy       string    `json:"reported_by" db:"reportedBy"`
+	AdditionalNotes  string    `json:"additional_notes" db:"additionalNotes"`
 	Attachment       string    `json:"attachment" db:"attachment"`
-	TncDate          time.Time `json:"tnc_date" db:"tnc_date"`
-	PpmDate          time.Time `json:"ppm_date" db:"ppm_date"`
-	CreatedAt        time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at" db:"updated_at"`
+	TncDate          time.Time `json:"tnc_date" db:"tncDate"`
+	PpmDate          time.Time `json:"ppm_date" db:"ppmDate"`
+	CreatedAt        time.Time `json:"created_at" db:"createdAt"`
+	UpdatedAt        time.Time `json:"updated_at" db:"updatedAt"`
 	PpmStatus        string    `json:"ppm_status"`
 	MaintenanceCount int       `json:"maintenance_count"`
 }

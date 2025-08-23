@@ -46,10 +46,11 @@ func (suite *UsersHandlerTestSuite) TearDownTest() {
 func (suite *UsersHandlerTestSuite) TestCreateUser() {
 	suite.Run("should create user successfully", func() {
 		userData := handlers.CreateUserRequest{
-			Name:     "Test User",
+			Username: "Test User",
 			Email:    "test@example.com",
 			Password: "mypassword123",
 			Role:     "user",
+			Approved: false,
 			Status:   "active",
 			Avatar:   nil,
 		}
@@ -72,11 +73,11 @@ func (suite *UsersHandlerTestSuite) TestCreateUser() {
 		var response users.User
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		suite.Require().NoError(err)
-		suite.Assert().Equal("Test User", response.Name)
+		suite.Assert().Equal("Test User", response.Username)
 		suite.Assert().Equal("test@example.com", response.Email)
 		suite.Assert().Empty(response.Password)
 		suite.Assert().Empty(response.Salt)
-		suite.Assert().Equal(1, response.ID)
+		suite.Assert().Equal(int64(1), response.ID)
 	})
 
 	suite.Run("should return 400 when request body is invalid", func() {
@@ -92,7 +93,7 @@ func (suite *UsersHandlerTestSuite) TestCreateUser() {
 
 	suite.Run("should return 500 on repository error", func() {
 		userData := handlers.CreateUserRequest{
-			Name:     "Error User",
+			Username: "Error User",
 			Email:    "error@example.com",
 			Password: "mypassword123",
 		}
@@ -130,12 +131,13 @@ func (suite *UsersHandlerTestSuite) TestLogin() {
 			Password: "mypassword123",
 		}
 
+		status := "active"
 		expectedUser := &users.User{
 			ID:       1,
-			Name:     "Test User",
+			Username: "Test User",
 			Email:    "test@example.com",
 			Role:     "user",
-			Status:   "active",
+			Status:   &status,
 			Password: "hashedpassword",
 			Salt:     "salt123",
 		}
@@ -161,11 +163,12 @@ func (suite *UsersHandlerTestSuite) TestLogin() {
 
 		// Verify user data
 		suite.Assert().NotNil(response.User)
-		suite.Assert().Equal(1, response.User.ID)
-		suite.Assert().Equal("Test User", response.User.Name)
+		suite.Assert().Equal(int64(1), response.User.ID)
+		suite.Assert().Equal("Test User", response.User.Username)
 		suite.Assert().Equal("test@example.com", response.User.Email)
 		suite.Assert().Equal("user", response.User.Role)
-		suite.Assert().Equal("active", response.User.Status)
+		suite.Assert().NotNil(response.User.Status)
+		suite.Assert().Equal("active", *response.User.Status)
 		// Password and Salt should be empty in response (json:"-")
 		suite.Assert().Empty(response.User.Password)
 		suite.Assert().Empty(response.User.Salt)

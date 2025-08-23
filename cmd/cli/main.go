@@ -171,12 +171,13 @@ func createUsers(deps *deps.Dependencies, count int) {
 		email := fmt.Sprintf("%s.%s.%d@%s", firstName, lastName, i+1, domain)
 
 		// Create user with random data
+		status := randomChoice(statuses)
 		user := &users.User{
-			Name:     fmt.Sprintf("%s %s", firstName, lastName),
+			Username: fmt.Sprintf("%s %s", firstName, lastName),
 			Email:    email,
 			Password: randomChoice(passwords),
 			Role:     randomChoice(roles),
-			Status:   randomChoice(statuses),
+			Status:   &status,
 			// Avatar is optional, so we'll leave it as nil for most users
 			// Occasionally add an avatar
 			Avatar: func() *string {
@@ -195,7 +196,7 @@ func createUsers(deps *deps.Dependencies, count int) {
 			continue
 		}
 
-		log.Printf("Created user: %s (%s)", email, user.Name)
+		log.Printf("Created user: %s (%s)", email, user.Username)
 	}
 
 	log.Printf("Successfully created %d users", count)

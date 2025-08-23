@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"ralts-cms/internal/deps"
 	"ralts-cms/internal/testutils"
 	"ralts-cms/internal/users"
 
@@ -16,21 +15,25 @@ import (
 type UserRepositoryTestSuite struct {
 	suite.Suite
 
-	deps *deps.Dependencies
+	db   *testutils.TestDatabase
 	repo users.Repository
 }
 
 // SetupTest sets up each test
-func (suite *UserRepositoryTestSuite) SetupTest() {
-	deps := deps.Initialise()
-	suite.deps = deps
-	suite.repo = users.NewRepository(deps.PostgresClient)
+func (suite *UserRepositoryTestSuite) SetupSuite() {
+	db := testutils.SetupTestDatabase(suite.T())
+	suite.db = db
+	suite.repo = users.NewRepository(db.PostgresClient)
+}
+
+func (suite *UserRepositoryTestSuite) TearDownSuite() {
+	suite.db.Close()
 }
 
 func (suite *UserRepositoryTestSuite) TearDownSubTest() {
 	// Clear the users table for PostgreSQL
 	ctx := context.Background()
-	_, err := suite.deps.PostgresClient.Exec(ctx, "DELETE FROM users")
+	err := suite.db.CleanupAllTables(ctx)
 	require.NoError(suite.T(), err)
 }
 
@@ -43,13 +46,14 @@ func (suite *UserRepositoryTestSuite) TestCreate() {
 		err := suite.repo.Create(ctx, user)
 		suite.Require().NoError(err)
 		suite.Assert().NotEmpty(user.CreatedAt)
-		suite.Assert().NotEmpty(user.UpdatedAt)
-		suite.Assert().Equal(user.CreatedAt, user.UpdatedAt)
-		suite.Assert().Greater(user.ID, 0)          // PostgreSQL should return an ID
-		suite.Assert().Equal("user", user.Role)     // Default role
-		suite.Assert().Equal("active", user.Status) // Default status
-		suite.Assert().NotEmpty(user.Password)      // Should be hashed
-		suite.Assert().NotEmpty(user.Salt)          // Should be set
+		suite.Assert().NotNil(user.UpdatedAt)
+		suite.Assert().Equal(user.CreatedAt, *user.UpdatedAt)
+		suite.Assert().Greater(user.ID, int64(0))    // PostgreSQL should return an ID
+		suite.Assert().Equal("NON_ADMIN", user.Role) // Default role
+		suite.Assert().NotNil(user.Status)
+		suite.Assert().Equal("active", *user.Status) // Default status
+		suite.Assert().NotEmpty(user.Password)       // Should be hashed
+		suite.Assert().NotEmpty(user.Salt)           // Should be set
 	})
 
 	suite.Run("should fail when creating duplicate user", func() {
@@ -73,9 +77,10 @@ func (suite *UserRepositoryTestSuite) TestCreate() {
 		suite.Require().NoError(err)
 
 		suite.Assert().Equal("admin", user.Role)
-		suite.Assert().Equal("inactive", user.Status)
+		suite.Assert().NotNil(user.Status)
+		suite.Assert().Equal("inactive", *user.Status)
 		suite.Assert().NotEmpty(user.CreatedAt)
-		suite.Assert().NotEmpty(user.UpdatedAt)
+		suite.Assert().NotNil(user.UpdatedAt)
 	})
 
 	suite.Run("should create user with avatar", func() {
@@ -124,12 +129,12 @@ func (suite *UserRepositoryTestSuite) TestCreate_Validation() {
 
 		err := suite.repo.Create(ctx, user)
 		suite.Require().Error(err)
-		suite.Assert().Contains(err.Error(), "name is required")
+		suite.Assert().Contains(err.Error(), "username is required")
 	})
 
 	suite.Run("should fail with missing email", func() {
 		user := &users.User{
-			Name:     "Test User",
+			Username: "Test User",
 			Password: "mypassword123",
 		}
 
@@ -140,8 +145,8 @@ func (suite *UserRepositoryTestSuite) TestCreate_Validation() {
 
 	suite.Run("should fail with missing password", func() {
 		user := &users.User{
-			Name:  "Test User",
-			Email: "test@example.com",
+			Username: "Test User",
+			Email:    "test@example.com",
 		}
 
 		err := suite.repo.Create(ctx, user)
@@ -151,7 +156,7 @@ func (suite *UserRepositoryTestSuite) TestCreate_Validation() {
 
 	suite.Run("should fail with empty password", func() {
 		user := &users.User{
-			Name:     "Test User",
+			Username: "Test User",
 			Email:    "test@example.com",
 			Password: "",
 		}
@@ -176,7 +181,7 @@ func (suite *UserRepositoryTestSuite) TestLogin() {
 		suite.Require().NoError(err)
 		suite.Assert().NotNil(loggedInUser)
 		suite.Assert().Equal("login@example.com", loggedInUser.Email)
-		suite.Assert().Equal("Test User", loggedInUser.Name)
+		suite.Assert().Equal("Test User", loggedInUser.Username)
 	})
 
 	suite.Run("should fail with incorrect password", func() {
@@ -216,14 +221,16 @@ func (suite *UserRepositoryTestSuite) TestGetByEmail() {
 		suite.Require().NoError(err)
 		suite.Assert().NotNil(retrievedUser)
 		suite.Assert().Equal("getbyemail@example.com", retrievedUser.Email)
-		suite.Assert().Equal("Test User", retrievedUser.Name)
-		suite.Assert().Equal("user", retrievedUser.Role)
-		suite.Assert().Equal("active", retrievedUser.Status)
+		suite.Assert().Equal("Test User", retrievedUser.Username)
+		suite.Assert().Equal("NON_ADMIN", retrievedUser.Role)
+		suite.Assert().NotNil(retrievedUser.Status)
+		suite.Assert().Equal("active", *retrievedUser.Status)
 		suite.Assert().NotEmpty(retrievedUser.Password)
 		suite.Assert().NotEmpty(retrievedUser.Salt)
 		suite.Assert().NotEmpty(retrievedUser.CreatedAt)
-		suite.Assert().NotEmpty(retrievedUser.UpdatedAt)
-		suite.Assert().Greater(retrievedUser.ID, 0)
+		suite.Assert().NotNil(retrievedUser.UpdatedAt)
+		suite.Assert().NotEmpty(*retrievedUser.UpdatedAt)
+		suite.Assert().Greater(retrievedUser.ID, int64(0))
 	})
 
 	suite.Run("should return error for non-existent email", func() {

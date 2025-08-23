@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"ralts-cms/internal/deps"
 	"ralts-cms/internal/machines"
 	"ralts-cms/internal/testutils"
 
@@ -18,21 +17,25 @@ import (
 type MachineRepositoryTestSuite struct {
 	suite.Suite
 
-	deps *deps.Dependencies
+	db   *testutils.TestDatabase
 	repo machines.Repository
 }
 
 // SetupTest sets up each test
-func (suite *MachineRepositoryTestSuite) SetupTest() {
-	deps := deps.Initialise()
-	suite.deps = deps
-	suite.repo = machines.NewRepository(deps.PostgresClient)
+func (suite *MachineRepositoryTestSuite) SetupSuite() {
+	db := testutils.SetupTestDatabase(suite.T())
+	suite.db = db
+	suite.repo = machines.NewRepository(db.PostgresClient)
+}
+
+func (suite *MachineRepositoryTestSuite) TearDownSuite() {
+	suite.db.Close()
 }
 
 func (suite *MachineRepositoryTestSuite) TearDownSubTest() {
 	// Clear the machines table for PostgreSQL
 	ctx := context.Background()
-	_, err := suite.deps.PostgresClient.Exec(ctx, "DELETE FROM machines")
+	err := suite.db.CleanupAllTables(ctx)
 	require.NoError(suite.T(), err)
 }
 
@@ -47,7 +50,7 @@ func (suite *MachineRepositoryTestSuite) TestCreate() {
 		suite.Assert().NotEmpty(machine.CreatedAt)
 		suite.Assert().NotEmpty(machine.UpdatedAt)
 		suite.Assert().Equal(machine.CreatedAt, machine.UpdatedAt)
-		suite.Assert().Greater(machine.ID, 0) // PostgreSQL should return an ID
+		suite.Assert().Greater(machine.ID, int64(0)) // PostgreSQL should return an ID
 	})
 
 	suite.Run("should fail when creating duplicate machine", func() {

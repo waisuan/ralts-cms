@@ -67,10 +67,10 @@ func NewRepository(client *pgxpool.Pool) Repository {
 
 func (r *db) GetByWorkOrder(ctx context.Context, machineSerialNumber, workOrderNumber string) (*Maintenance, error) {
 	query := `
-		SELECT id, machine_serial_number, work_order_number, work_order_date, action_taken,
-		       reported_by, work_order_type, attachment, created_at, updated_at
+		SELECT id, "serialNumber", "workOrderNumber", "workOrderDate", "actionTaken",
+		       "reportedBy", "workOrderType", attachment, "createdAt", "updatedAt"
 		FROM maintenance 
-		WHERE machine_serial_number = $1 AND work_order_number = $2
+		WHERE "serialNumber" = $1 AND "workOrderNumber" = $2
 	`
 
 	var maintenance Maintenance
@@ -99,22 +99,22 @@ func (r *db) ListByMachine(ctx context.Context, machineSerialNumber string, opti
 	var orderByClause string
 	switch options.Sort {
 	case SortOrderWorkOrderDateAsc:
-		orderByClause = "ORDER BY work_order_date ASC, created_at ASC"
+		orderByClause = `ORDER BY "workOrderDate" ASC, "createdAt" ASC`
 	case SortOrderCreatedAtDesc:
-		orderByClause = "ORDER BY created_at DESC, work_order_date DESC"
+		orderByClause = `ORDER BY "createdAt" DESC, "workOrderDate" DESC`
 	case SortOrderCreatedAtAsc:
-		orderByClause = "ORDER BY created_at ASC, work_order_date ASC"
+		orderByClause = `ORDER BY "createdAt" ASC, "workOrderDate" ASC`
 	case SortOrderWorkOrderDateDesc:
-		orderByClause = "ORDER BY work_order_date DESC, created_at DESC"
+		orderByClause = `ORDER BY "workOrderDate" DESC, "createdAt" DESC`
 	default:
-		orderByClause = "ORDER BY work_order_date DESC, created_at DESC" // Default to most recent work order first
+		orderByClause = `ORDER BY "workOrderDate" DESC, "createdAt" DESC` // Default to most recent work order first
 	}
 
 	query := fmt.Sprintf(`
-		SELECT id, machine_serial_number, work_order_number, work_order_date, action_taken,
-		       reported_by, work_order_type, attachment, created_at, updated_at
+		SELECT id, "serialNumber", "workOrderNumber", "workOrderDate", "actionTaken",
+		       "reportedBy", "workOrderType", attachment, "createdAt", "updatedAt"
 		FROM maintenance 
-		WHERE machine_serial_number = $1
+		WHERE "serialNumber" = $1
 		%s
 		LIMIT $2 OFFSET $3
 	`, orderByClause)
@@ -151,8 +151,8 @@ func (r *db) Create(ctx context.Context, maintenance *Maintenance) error {
 
 	query := `
 		INSERT INTO maintenance (
-			machine_serial_number, work_order_number, work_order_date, action_taken,
-			reported_by, work_order_type, attachment, created_at, updated_at
+			"serialNumber", "workOrderNumber", "workOrderDate", "actionTaken",
+			"reportedBy", "workOrderType", attachment, "createdAt", "updatedAt"
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9
 		) RETURNING id
@@ -176,9 +176,9 @@ func (r *db) Update(ctx context.Context, maintenance *Maintenance) error {
 
 	query := `
 		UPDATE maintenance SET
-			work_order_date = $1, action_taken = $2, reported_by = $3,
-			work_order_type = $4, attachment = $5, updated_at = $6
-		WHERE machine_serial_number = $7 AND work_order_number = $8
+			"workOrderDate" = $1, "actionTaken" = $2, "reportedBy" = $3,
+			"workOrderType" = $4, attachment = $5, "updatedAt" = $6
+		WHERE "serialNumber" = $7 AND "workOrderNumber" = $8
 	`
 
 	result, err := r.client.Exec(ctx, query,
@@ -198,7 +198,7 @@ func (r *db) Update(ctx context.Context, maintenance *Maintenance) error {
 }
 
 func (r *db) Delete(ctx context.Context, machineSerialNumber, workOrderNumber string) error {
-	query := `DELETE FROM maintenance WHERE machine_serial_number = $1 AND work_order_number = $2`
+	query := `DELETE FROM maintenance WHERE "serialNumber" = $1 AND "workOrderNumber" = $2`
 
 	result, err := r.client.Exec(ctx, query, machineSerialNumber, workOrderNumber)
 	if err != nil {
@@ -225,7 +225,7 @@ func (r *db) Count(ctx context.Context) (int, error) {
 }
 
 func (r *db) CountByMachine(ctx context.Context, machineSerialNumber string) (int, error) {
-	query := `SELECT COUNT(*) FROM maintenance WHERE machine_serial_number = $1`
+	query := `SELECT COUNT(*) FROM maintenance WHERE "serialNumber" = $1`
 
 	var count int
 	err := r.client.QueryRow(ctx, query, machineSerialNumber).Scan(&count)
@@ -239,12 +239,12 @@ func (r *db) CountByMachine(ctx context.Context, machineSerialNumber string) (in
 func (r *db) CountByWorkOrderType(ctx context.Context, machineSerialNumber string) (int, int, int, int, error) {
 	query := `
 		SELECT 
-			COUNT(CASE WHEN work_order_type = 'Preventive' THEN 1 END) as preventative_count,
-			COUNT(CASE WHEN work_order_type = 'Corrective' THEN 1 END) as corrective_count,
-			COUNT(CASE WHEN work_order_type = 'Emergency' THEN 1 END) as emergency_count,
-			COUNT(CASE WHEN work_order_type = 'Inspection' THEN 1 END) as inspection_count
+			COUNT(CASE WHEN "workOrderType" = 'Preventive' THEN 1 END) as preventative_count,
+			COUNT(CASE WHEN "workOrderType" = 'Corrective' THEN 1 END) as corrective_count,
+			COUNT(CASE WHEN "workOrderType" = 'Emergency' THEN 1 END) as emergency_count,
+			COUNT(CASE WHEN "workOrderType" = 'Inspection' THEN 1 END) as inspection_count
 		FROM maintenance 
-		WHERE machine_serial_number = $1
+		WHERE "serialNumber" = $1
 	`
 
 	var preventativeCount, correctiveCount, emergencyCount, inspectionCount int
@@ -266,26 +266,26 @@ func (r *db) SearchByMachine(ctx context.Context, machineSerialNumber, query str
 
 	// Build the base query with full-text search filtered by machine
 	baseQuery := `
-		SELECT id, machine_serial_number, work_order_number, work_order_date, action_taken,
-		       reported_by, work_order_type, attachment, created_at, updated_at,
+		SELECT id, "serialNumber", "workOrderNumber", "workOrderDate", "actionTaken",
+		       "reportedBy", "workOrderType", attachment, "createdAt", "updatedAt",
 		       ts_rank(search_vector, plainto_tsquery('english', $2)) as rank
 		FROM maintenance 
-		WHERE machine_serial_number = $1 AND search_vector @@ plainto_tsquery('english', $2)
+		WHERE "serialNumber" = $1 AND search_vector @@ plainto_tsquery('english', $2)
 	`
 
 	// Build ORDER BY clause based on sort option
 	var orderByClause string
 	switch options.Sort {
 	case SortOrderWorkOrderDateAsc:
-		orderByClause = "ORDER BY rank DESC, work_order_date ASC, created_at ASC"
+		orderByClause = `ORDER BY rank DESC, "workOrderDate" ASC, "createdAt" ASC`
 	case SortOrderCreatedAtDesc:
-		orderByClause = "ORDER BY rank DESC, created_at DESC, work_order_date DESC"
+		orderByClause = `ORDER BY rank DESC, "createdAt" DESC, "workOrderDate" DESC`
 	case SortOrderCreatedAtAsc:
-		orderByClause = "ORDER BY rank DESC, created_at ASC, work_order_date ASC"
+		orderByClause = `ORDER BY rank DESC, "createdAt" ASC, "workOrderDate" ASC`
 	case SortOrderWorkOrderDateDesc:
-		orderByClause = "ORDER BY rank DESC, work_order_date DESC, created_at DESC"
+		orderByClause = `ORDER BY rank DESC, "workOrderDate" DESC, "createdAt" DESC`
 	default:
-		orderByClause = "ORDER BY rank DESC, work_order_date DESC, created_at DESC"
+		orderByClause = `ORDER BY rank DESC, "workOrderDate" DESC, "createdAt" DESC`
 	}
 
 	// Add pagination
@@ -324,7 +324,7 @@ func (r *db) CountSearchByMachine(ctx context.Context, machineSerialNumber, sear
 	sqlQuery := `
 		SELECT COUNT(*)
 		FROM maintenance 
-		WHERE machine_serial_number = $1 AND search_vector @@ plainto_tsquery('english', $2)
+		WHERE "serialNumber" = $1 AND search_vector @@ plainto_tsquery('english', $2)
 	`
 
 	var count int

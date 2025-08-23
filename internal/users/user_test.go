@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"ralts-cms/internal/testutils"
 	"ralts-cms/internal/users"
 	"ralts-cms/pkg/auth"
 )
@@ -18,15 +19,15 @@ func TestUser_SetTimestamps(t *testing.T) {
 		{
 			name: "should set both timestamps for new user",
 			initialUser: &users.User{
-				Name:  "Test User",
-				Email: "test@example.com",
+				Username: "Test User",
+				Email:    "test@example.com",
 			},
 			expectedFields: []string{"CreatedAt", "UpdatedAt"},
 		},
 		{
 			name: "should only update UpdatedAt for existing user",
 			initialUser: &users.User{
-				Name:      "Test User",
+				Username:  "Test User",
 				Email:     "test@example.com",
 				CreatedAt: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC),
 			},
@@ -49,7 +50,7 @@ func TestUser_SetTimestamps(t *testing.T) {
 			afterTime := time.Now().UTC()
 
 			// Check that timestamps are within expected range
-			if user.UpdatedAt.Before(beforeTime) || user.UpdatedAt.After(afterTime) {
+			if user.UpdatedAt == nil || user.UpdatedAt.Before(beforeTime) || user.UpdatedAt.After(afterTime) {
 				t.Errorf("UpdatedAt should be between %v and %v, got %v", beforeTime, afterTime, user.UpdatedAt)
 			}
 
@@ -64,7 +65,7 @@ func TestUser_SetTimestamps(t *testing.T) {
 						t.Errorf("CreatedAt should be between %v and %v, got %v", beforeTime, afterTime, user.CreatedAt)
 					}
 				case "UpdatedAt":
-					if user.UpdatedAt.IsZero() {
+					if user.UpdatedAt == nil || user.UpdatedAt.IsZero() {
 						t.Errorf("UpdatedAt should not be zero")
 					}
 				}
@@ -76,7 +77,7 @@ func TestUser_SetTimestamps(t *testing.T) {
 			}
 
 			// UpdatedAt should always be updated
-			if user.UpdatedAt.Equal(originalUpdatedAt) {
+			if originalUpdatedAt != nil && user.UpdatedAt != nil && user.UpdatedAt.Equal(*originalUpdatedAt) {
 				t.Errorf("UpdatedAt should be updated, expected different from %v, got %v", originalUpdatedAt, user.UpdatedAt)
 			}
 		})
@@ -92,7 +93,7 @@ func TestUser_SetDefaultRole(t *testing.T) {
 		{
 			name:        "should set default role when empty",
 			initialRole: "",
-			expected:    "user",
+			expected:    "NON_ADMIN",
 		},
 		{
 			name:        "should not change existing role",
@@ -109,9 +110,9 @@ func TestUser_SetDefaultRole(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			user := &users.User{
-				Name:  "Test User",
-				Email: "test@example.com",
-				Role:  tt.initialRole,
+				Username: "Test User",
+				Email:    "test@example.com",
+				Role:     tt.initialRole,
 			}
 
 			user.SetDefaultRole()
@@ -126,22 +127,22 @@ func TestUser_SetDefaultRole(t *testing.T) {
 func TestUser_SetDefaultStatus(t *testing.T) {
 	tests := []struct {
 		name          string
-		initialStatus string
+		initialStatus *string
 		expected      string
 	}{
 		{
-			name:          "should set default status when empty",
-			initialStatus: "",
+			name:          "should set default status when nil",
+			initialStatus: nil,
 			expected:      "active",
 		},
 		{
 			name:          "should not change existing status",
-			initialStatus: "inactive",
+			initialStatus: testutils.StringPtr("inactive"),
 			expected:      "inactive",
 		},
 		{
 			name:          "should not change custom status",
-			initialStatus: "suspended",
+			initialStatus: testutils.StringPtr("suspended"),
 			expected:      "suspended",
 		},
 	}
@@ -149,15 +150,15 @@ func TestUser_SetDefaultStatus(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			user := &users.User{
-				Name:   "Test User",
-				Email:  "test@example.com",
-				Status: tt.initialStatus,
+				Username: "Test User",
+				Email:    "test@example.com",
+				Status:   tt.initialStatus,
 			}
 
 			user.SetDefaultStatus()
 
-			if user.Status != tt.expected {
-				t.Errorf("expected status %s, got %s", tt.expected, user.Status)
+			if user.Status == nil || *user.Status != tt.expected {
+				t.Errorf("expected status %s, got %v", tt.expected, user.Status)
 			}
 		})
 	}
@@ -173,21 +174,21 @@ func TestUser_SetDefaults(t *testing.T) {
 		{
 			name: "should set both defaults when empty",
 			initialUser: &users.User{
-				Name:   "Test User",
-				Email:  "test@example.com",
-				Role:   "",
-				Status: "",
+				Username: "Test User",
+				Email:    "test@example.com",
+				Role:     "",
+				Status:   nil,
 			},
-			expectedRole:   "user",
+			expectedRole:   "NON_ADMIN",
 			expectedStatus: "active",
 		},
 		{
 			name: "should not change existing values",
 			initialUser: &users.User{
-				Name:   "Test User",
-				Email:  "test@example.com",
-				Role:   "admin",
-				Status: "inactive",
+				Username: "Test User",
+				Email:    "test@example.com",
+				Role:     "admin",
+				Status:   testutils.StringPtr("inactive"),
 			},
 			expectedRole:   "admin",
 			expectedStatus: "inactive",
@@ -195,10 +196,10 @@ func TestUser_SetDefaults(t *testing.T) {
 		{
 			name: "should set only empty values",
 			initialUser: &users.User{
-				Name:   "Test User",
-				Email:  "test@example.com",
-				Role:   "moderator",
-				Status: "",
+				Username: "Test User",
+				Email:    "test@example.com",
+				Role:     "moderator",
+				Status:   nil,
 			},
 			expectedRole:   "moderator",
 			expectedStatus: "active",
@@ -215,8 +216,8 @@ func TestUser_SetDefaults(t *testing.T) {
 				t.Errorf("expected role %s, got %s", tt.expectedRole, user.Role)
 			}
 
-			if user.Status != tt.expectedStatus {
-				t.Errorf("expected status %s, got %s", tt.expectedStatus, user.Status)
+			if user.Status == nil || *user.Status != tt.expectedStatus {
+				t.Errorf("expected status %s, got %v", tt.expectedStatus, user.Status)
 			}
 		})
 	}
@@ -255,8 +256,8 @@ func TestUser_SetPassword(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			user := &users.User{
-				Name:  "Test User",
-				Email: "test@example.com",
+				Username: "Test User",
+				Email:    "test@example.com",
 			}
 
 			err := user.SetPassword(tt.password)
@@ -334,8 +335,8 @@ func TestUser_SetPassword_Verification(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			user := &users.User{
-				Name:  "Test User",
-				Email: "test@example.com",
+				Username: "Test User",
+				Email:    "test@example.com",
 			}
 
 			// Set the password

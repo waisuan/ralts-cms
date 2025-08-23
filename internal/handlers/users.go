@@ -17,10 +17,11 @@ type UsersHandler struct {
 
 // CreateUserRequest represents the request structure for user creation
 type CreateUserRequest struct {
-	Name     string  `json:"name" validate:"required"`
+	Username string  `json:"username" validate:"required"`
 	Email    string  `json:"email" validate:"required,email"`
 	Password string  `json:"password" validate:"required,min=6"`
 	Role     string  `json:"role,omitempty"`
+	Approved bool    `json:"approved,omitempty"`
 	Status   string  `json:"status,omitempty"`
 	Avatar   *string `json:"avatar,omitempty"`
 }
@@ -47,12 +48,18 @@ func (h *UsersHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create user from request
+	var status *string
+	if createUserRequest.Status != "" {
+		status = &createUserRequest.Status
+	}
+
 	user := &users.User{
-		Name:     createUserRequest.Name,
+		Username: createUserRequest.Username,
 		Email:    createUserRequest.Email,
 		Password: createUserRequest.Password,
 		Role:     createUserRequest.Role,
-		Status:   createUserRequest.Status,
+		Approved: createUserRequest.Approved,
+		Status:   status,
 		Avatar:   createUserRequest.Avatar,
 	}
 
@@ -81,7 +88,7 @@ func (h *UsersHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate JWT token
-	tokenString, err := auth.GenerateJWTToken(user.ID, h.deps.Config.JWTSecret)
+	tokenString, err := auth.GenerateJWTToken(int(user.ID), h.deps.Config.JWTSecret)
 	if err != nil {
 		log.Println("Failed to generate token: ", err)
 		http.Error(w, "Failed to generate token", http.StatusInternalServerError)

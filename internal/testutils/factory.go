@@ -29,7 +29,6 @@ func CreateMachine(serialNumber string) *machines.Machine {
 		ReportedBy:      "Jane Smith",
 		AdditionalNotes: "Test notes",
 		Attachment:      "test.pdf",
-		PpmStatus:       string(machines.PPMStatusDue),
 		TncDate:         time.Now().UTC(),
 		PpmDate:         time.Now().AddDate(0, 1, 0).UTC(),
 	}
@@ -86,11 +85,12 @@ func CreateMinimalMaintenance(machineSerialNumber, workOrderNumber string) *main
 // CreateUser creates a basic user with default values
 func CreateUser(email, password string) *users.User {
 	return &users.User{
-		Name:     "Test User",
+		Username: "Test User",
 		Email:    email,
 		Password: password,
 		Role:     "", // Will be set to default by repository
-		Status:   "", // Will be set to default by repository
+		Approved: false,
+		Status:   nil, // Will be set to default by repository
 		Avatar:   nil,
 	}
 }
@@ -99,7 +99,7 @@ func CreateUser(email, password string) *users.User {
 func CreateUserWithCustomFields(email, password, role, status string) *users.User {
 	user := CreateUser(email, password)
 	user.Role = role
-	user.Status = status
+	user.Status = &status
 	return user
 }
 
@@ -113,7 +113,7 @@ func CreateUserWithAvatar(email, password string, avatar *string) *users.User {
 // CreateMinimalUser creates a user with only required fields
 func CreateMinimalUser(email, password string) *users.User {
 	return &users.User{
-		Name:     "Minimal User",
+		Username: "Minimal User",
 		Email:    email,
 		Password: password,
 	}

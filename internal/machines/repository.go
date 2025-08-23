@@ -77,11 +77,11 @@ func NewRepository(client *pgxpool.Pool) Repository {
 
 func (r *db) GetBySerialNumber(ctx context.Context, serialNumber string) (*Machine, error) {
 	query := `
-		SELECT id, serial_number, customer, state, account_type, model, status, brand, 
-		       district, person_in_charge, reported_by, additional_notes, attachment, 
-		       tnc_date, ppm_date, created_at, updated_at
+		SELECT id, "serialNumber", customer, state, "accountType", model, status, brand, 
+		       district, "personInCharge", "reportedBy", "additionalNotes", attachment, 
+		       "tncDate", "ppmDate", "createdAt", "updatedAt"
 		FROM machines 
-		WHERE serial_number = $1
+		WHERE "serialNumber" = $1
 	`
 
 	var machine Machine
@@ -116,11 +116,11 @@ func (r *db) List(ctx context.Context, options *ListOptions) ([]*Machine, error)
 	var orderByClause string
 	switch options.Sort {
 	case SortOrderCreatedAtAsc:
-		orderByClause = "ORDER BY created_at ASC"
+		orderByClause = `ORDER BY "createdAt" ASC`
 	case SortOrderCreatedAtDesc:
-		orderByClause = "ORDER BY created_at DESC"
+		orderByClause = `ORDER BY "createdAt" DESC`
 	default:
-		orderByClause = "ORDER BY created_at DESC" // Default to most recent first
+		orderByClause = `ORDER BY "createdAt" DESC` // Default to most recent first
 	}
 
 	// Build WHERE clause for PPM status filtering
@@ -132,18 +132,18 @@ func (r *db) List(ctx context.Context, options *ListOptions) ([]*Machine, error)
 		// Filter by specific PPM status
 		switch options.PpmStatusFilter {
 		case PPMStatusOverdue:
-			whereClause = "WHERE ppm_date < CURRENT_DATE"
+			whereClause = `WHERE "ppmDate" < CURRENT_DATE`
 		case PPMStatusDue:
-			whereClause = "WHERE ppm_date = CURRENT_DATE"
+			whereClause = `WHERE "ppmDate" = CURRENT_DATE`
 		case PPMStatusAlmostDue:
-			whereClause = "WHERE ppm_date > CURRENT_DATE AND ppm_date <= CURRENT_DATE + INTERVAL '2 weeks'"
+			whereClause = `WHERE "ppmDate" > CURRENT_DATE AND "ppmDate" <= CURRENT_DATE + INTERVAL '2 weeks'`
 		}
 	}
 
 	query := fmt.Sprintf(`
-		SELECT id, serial_number, customer, state, account_type, model, status, brand, 
-		       district, person_in_charge, reported_by, additional_notes, attachment, 
-		       tnc_date, ppm_date, created_at, updated_at
+		SELECT id, "serialNumber", customer, state, "accountType", model, status, brand, 
+		       district, "personInCharge", "reportedBy", "additionalNotes", attachment, 
+		       "tncDate", "ppmDate", "createdAt", "updatedAt"
 		FROM machines 
 		%s
 		%s
@@ -190,11 +190,11 @@ func (r *db) Create(ctx context.Context, machine *Machine) error {
 
 	query := `
 		INSERT INTO machines (
-			serial_number, customer, state, account_type, model, status, brand,
-			district, person_in_charge, reported_by, additional_notes, attachment,
-			ppm_status, tnc_date, ppm_date, created_at, updated_at
+			"serialNumber", customer, state, "accountType", model, status, brand,
+			district, "personInCharge", "reportedBy", "additionalNotes", attachment,
+			"tncDate", "ppmDate", "createdAt", "updatedAt"
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
 		) RETURNING id
 	`
 
@@ -202,7 +202,7 @@ func (r *db) Create(ctx context.Context, machine *Machine) error {
 		machine.SerialNumber, machine.Customer, machine.State, machine.AccountType,
 		machine.Model, machine.Status, machine.Brand, machine.District,
 		machine.PersonInCharge, machine.ReportedBy, machine.AdditionalNotes,
-		machine.Attachment, machine.PpmStatus, machine.TncDate, machine.PpmDate,
+		machine.Attachment, machine.TncDate, machine.PpmDate,
 		machine.CreatedAt, machine.UpdatedAt,
 	).Scan(&machine.ID)
 
@@ -218,18 +218,18 @@ func (r *db) Update(ctx context.Context, machine *Machine) error {
 
 	query := `
 		UPDATE machines SET
-			customer = $1, state = $2, account_type = $3, model = $4, status = $5,
-			brand = $6, district = $7, person_in_charge = $8, reported_by = $9,
-			additional_notes = $10, attachment = $11, ppm_status = $12,
-			tnc_date = $13, ppm_date = $14, updated_at = $15
-		WHERE serial_number = $16
+			customer = $1, state = $2, "accountType" = $3, model = $4, status = $5,
+			brand = $6, district = $7, "personInCharge" = $8, "reportedBy" = $9,
+			"additionalNotes" = $10, attachment = $11,
+			"tncDate" = $12, "ppmDate" = $13, "updatedAt" = $14
+		WHERE "serialNumber" = $15
 	`
 
 	result, err := r.client.Exec(ctx, query,
 		machine.Customer, machine.State, machine.AccountType, machine.Model,
 		machine.Status, machine.Brand, machine.District, machine.PersonInCharge,
 		machine.ReportedBy, machine.AdditionalNotes, machine.Attachment,
-		machine.PpmStatus, machine.TncDate, machine.PpmDate, machine.UpdatedAt,
+		machine.TncDate, machine.PpmDate, machine.UpdatedAt,
 		machine.SerialNumber,
 	)
 	if err != nil {
@@ -244,7 +244,7 @@ func (r *db) Update(ctx context.Context, machine *Machine) error {
 }
 
 func (r *db) Delete(ctx context.Context, serialNumber string) error {
-	query := `DELETE FROM machines WHERE serial_number = $1`
+	query := `DELETE FROM machines WHERE "serialNumber" = $1`
 
 	result, err := r.client.Exec(ctx, query, serialNumber)
 	if err != nil {
@@ -273,9 +273,9 @@ func (r *db) Count(ctx context.Context) (int, error) {
 func (r *db) CountByStatus(ctx context.Context) (int32, int32, int32, error) {
 	query := `
 		SELECT 
-			COUNT(CASE WHEN ppm_date < CURRENT_DATE THEN 1 END) as overdue_count,
-			COUNT(CASE WHEN ppm_date = CURRENT_DATE THEN 1 END) as due_count,
-			COUNT(CASE WHEN ppm_date > CURRENT_DATE AND ppm_date <= CURRENT_DATE + INTERVAL '2 weeks' THEN 1 END) as almost_due_count
+			COUNT(CASE WHEN "ppmDate" < CURRENT_DATE THEN 1 END) as overdue_count,
+			COUNT(CASE WHEN "ppmDate" = CURRENT_DATE THEN 1 END) as due_count,
+			COUNT(CASE WHEN "ppmDate" > CURRENT_DATE AND "ppmDate" <= CURRENT_DATE + INTERVAL '2 weeks' THEN 1 END) as almost_due_count
 		FROM machines
 	`
 
@@ -296,9 +296,9 @@ func (r *db) Search(ctx context.Context, query string, options *ListOptions) ([]
 
 	// Build the base query with full-text search
 	baseQuery := `
-		SELECT id, serial_number, customer, state, account_type, model, status, brand, 
-		       district, person_in_charge, reported_by, additional_notes, attachment, 
-		       tnc_date, ppm_date, created_at, updated_at,
+		SELECT id, "serialNumber", customer, state, "accountType", model, status, brand, 
+		       district, "personInCharge", "reportedBy", "additionalNotes", attachment, 
+		       "tncDate", "ppmDate", "createdAt", "updatedAt",
 		       ts_rank(search_vector, plainto_tsquery('english', $1)) as rank
 		FROM machines 
 		WHERE search_vector @@ plainto_tsquery('english', $1)
@@ -313,11 +313,11 @@ func (r *db) Search(ctx context.Context, query string, options *ListOptions) ([]
 		// Add PPM status filter condition
 		switch options.PpmStatusFilter {
 		case PPMStatusOverdue:
-			baseQuery += " AND ppm_date < CURRENT_DATE"
+			baseQuery += ` AND "ppmDate" < CURRENT_DATE`
 		case PPMStatusDue:
-			baseQuery += " AND ppm_date = CURRENT_DATE"
+			baseQuery += ` AND "ppmDate" = CURRENT_DATE`
 		case PPMStatusAlmostDue:
-			baseQuery += " AND ppm_date > CURRENT_DATE AND ppm_date <= CURRENT_DATE + INTERVAL '2 weeks'"
+			baseQuery += ` AND "ppmDate" > CURRENT_DATE AND "ppmDate" <= CURRENT_DATE + INTERVAL '2 weeks'`
 		}
 	}
 
@@ -325,11 +325,11 @@ func (r *db) Search(ctx context.Context, query string, options *ListOptions) ([]
 	var orderByClause string
 	switch options.Sort {
 	case SortOrderCreatedAtAsc:
-		orderByClause = "ORDER BY rank DESC, created_at ASC"
+		orderByClause = `ORDER BY rank DESC, "createdAt" ASC`
 	case SortOrderCreatedAtDesc:
-		orderByClause = "ORDER BY rank DESC, created_at DESC"
+		orderByClause = `ORDER BY rank DESC, "createdAt" DESC`
 	default:
-		orderByClause = "ORDER BY rank DESC, created_at DESC"
+		orderByClause = `ORDER BY rank DESC, "createdAt" DESC`
 	}
 
 	// Add pagination
@@ -391,11 +391,11 @@ func (r *db) CountSearch(ctx context.Context, query string, options *ListOptions
 		// Add PPM status filter condition
 		switch options.PpmStatusFilter {
 		case PPMStatusOverdue:
-			baseQuery += " AND ppm_date < CURRENT_DATE"
+			baseQuery += ` AND "ppmDate" < CURRENT_DATE`
 		case PPMStatusDue:
-			baseQuery += " AND ppm_date = CURRENT_DATE"
+			baseQuery += ` AND "ppmDate" = CURRENT_DATE`
 		case PPMStatusAlmostDue:
-			baseQuery += " AND ppm_date > CURRENT_DATE AND ppm_date <= CURRENT_DATE + INTERVAL '2 weeks'"
+			baseQuery += ` AND "ppmDate" > CURRENT_DATE AND "ppmDate" <= CURRENT_DATE + INTERVAL '2 weeks'`
 		}
 	}
 
