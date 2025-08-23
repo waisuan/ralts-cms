@@ -5,15 +5,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const { login } = useAuth();
 
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    setEmail(value);
+    setUsername(value);
     
     // Clear general error when user starts typing
     if (error) setError('');
@@ -24,17 +24,17 @@ export default function LoginPage() {
     setIsLoading(true);
     setError('');
 
-    // Basic validation - let browser handle email format validation
-    if (!email.trim() || !password.trim()) {
+    // Basic validation
+    if (!username.trim() || !password.trim()) {
       setError('Please fill in all fields');
       setIsLoading(false);
       return;
     }
 
     try {
-      const success = await login(email.trim(), password);
+      const success = await login(username.trim(), password);
       if (!success) {
-        setError('Invalid email or password');
+        setError('Invalid username or password');
       }
     } catch {
       setError('An error occurred during login');
@@ -68,20 +68,20 @@ export default function LoginPage() {
             )}
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email address
+              <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+                Username
               </label>
               <div className="mt-1">
                 <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
+                  id="username"
+                  name="username"
+                  type="text"
+                  autoComplete="username"
                   required
-                  value={email}
-                  onChange={handleEmailChange}
+                  value={username}
+                  onChange={handleUsernameChange}
                   className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-900"
-                  placeholder="Enter your email"
+                  placeholder="Enter your username"
                 />
               </div>
             </div>

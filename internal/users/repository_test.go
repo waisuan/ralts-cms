@@ -41,7 +41,7 @@ func (suite *UserRepositoryTestSuite) TestCreate() {
 	ctx := context.Background()
 
 	suite.Run("should create user successfully", func() {
-		user := testutils.CreateUser("test@example.com", "mypassword123")
+		user := testutils.CreateUser("testuser", "mypassword123")
 
 		err := suite.repo.Create(ctx, user)
 		suite.Require().NoError(err)
@@ -57,13 +57,13 @@ func (suite *UserRepositoryTestSuite) TestCreate() {
 	})
 
 	suite.Run("should fail when creating duplicate user", func() {
-		user := testutils.CreateUser("duplicate@example.com", "mypassword123")
+		user := testutils.CreateUser("duplicate", "mypassword123")
 
 		err := suite.repo.Create(ctx, user)
 		suite.Require().NoError(err)
 
 		// Try to create the same user again
-		duplicateUser := testutils.CreateUser("duplicate@example.com", "differentpassword")
+		duplicateUser := testutils.CreateUser("duplicate", "differentpassword")
 		err = suite.repo.Create(ctx, duplicateUser)
 		suite.Require().Error(err)
 		// PostgreSQL will return a unique constraint violation error
@@ -71,7 +71,7 @@ func (suite *UserRepositoryTestSuite) TestCreate() {
 	})
 
 	suite.Run("should create user with custom role and status", func() {
-		user := testutils.CreateUserWithCustomFields("admin@example.com", "adminpass", "admin", "inactive")
+		user := testutils.CreateUserWithCustomFields("adminuser", "adminpass", "admin", "inactive")
 
 		err := suite.repo.Create(ctx, user)
 		suite.Require().NoError(err)
@@ -85,7 +85,7 @@ func (suite *UserRepositoryTestSuite) TestCreate() {
 
 	suite.Run("should create user with avatar", func() {
 		avatar := "https://example.com/avatar.jpg"
-		user := testutils.CreateUserWithAvatar("avatar@example.com", "mypassword123", &avatar)
+		user := testutils.CreateUserWithAvatar("avataruser", "mypassword123", &avatar)
 
 		err := suite.repo.Create(ctx, user)
 		suite.Require().NoError(err)
@@ -95,7 +95,7 @@ func (suite *UserRepositoryTestSuite) TestCreate() {
 	})
 
 	suite.Run("should create user with nil avatar", func() {
-		user := testutils.CreateUserWithAvatar("noavatar@example.com", "mypassword123", nil)
+		user := testutils.CreateUserWithAvatar("noavataruser", "mypassword123", nil)
 
 		err := suite.repo.Create(ctx, user)
 		suite.Require().NoError(err)
@@ -104,7 +104,7 @@ func (suite *UserRepositoryTestSuite) TestCreate() {
 	})
 
 	suite.Run("should hash password correctly", func() {
-		user := testutils.CreateUser("password@example.com", "mypassword123")
+		user := testutils.CreateUser("passworduser", "mypassword123")
 
 		err := suite.repo.Create(ctx, user)
 		suite.Require().NoError(err)
@@ -121,7 +121,7 @@ func (suite *UserRepositoryTestSuite) TestCreate() {
 func (suite *UserRepositoryTestSuite) TestCreate_Validation() {
 	ctx := context.Background()
 
-	suite.Run("should fail with missing name", func() {
+	suite.Run("should fail with missing username", func() {
 		user := &users.User{
 			Email:    "test@example.com",
 			Password: "mypassword123",
@@ -172,74 +172,39 @@ func (suite *UserRepositoryTestSuite) TestLogin() {
 
 	suite.Run("should login successfully with correct credentials", func() {
 		// Create a user first
-		user := testutils.CreateUser("login@example.com", "mypassword123")
+		user := testutils.CreateUser("loginuser", "mypassword123")
 		err := suite.repo.Create(ctx, user)
 		suite.Require().NoError(err)
 
 		// Try to login with correct credentials
-		loggedInUser, err := suite.repo.Login(ctx, "login@example.com", "mypassword123")
+		loggedInUser, err := suite.repo.Login(ctx, "loginuser", "mypassword123")
 		suite.Require().NoError(err)
 		suite.Assert().NotNil(loggedInUser)
-		suite.Assert().Equal("login@example.com", loggedInUser.Email)
-		suite.Assert().Equal("Test User", loggedInUser.Username)
+		suite.Assert().Equal("loginuser@example.com", loggedInUser.Email)
+		suite.Assert().Equal("loginuser", loggedInUser.Username)
 	})
 
 	suite.Run("should fail with incorrect password", func() {
 		// Create a user first
-		user := testutils.CreateUser("wrongpass@example.com", "correctpassword")
+		user := testutils.CreateUser("wrongpassuser", "correctpassword")
 		err := suite.repo.Create(ctx, user)
 		suite.Require().NoError(err)
 
 		// Try to login with wrong password
-		loggedInUser, err := suite.repo.Login(ctx, "wrongpass@example.com", "wrongpassword")
+		loggedInUser, err := suite.repo.Login(ctx, "wrongpassuser", "wrongpassword")
 		suite.Require().Error(err)
 		suite.Assert().Nil(loggedInUser)
 		suite.Assert().Contains(err.Error(), "invalid password")
 	})
 
-	suite.Run("should fail with non-existent email", func() {
-		// Try to login with non-existent email
-		loggedInUser, err := suite.repo.Login(ctx, "nonexistent@example.com", "anypassword")
+	suite.Run("should fail with non-existent username", func() {
+		// Try to login with non-existent username
+		loggedInUser, err := suite.repo.Login(ctx, "nonexistentuser", "anypassword")
 		suite.Require().Error(err)
 		suite.Assert().Nil(loggedInUser)
-		suite.Assert().Contains(err.Error(), "failed to get user by email")
+		suite.Assert().Contains(err.Error(), "failed to get user by username")
 	})
 
-}
-
-func (suite *UserRepositoryTestSuite) TestGetByEmail() {
-	ctx := context.Background()
-
-	suite.Run("should get user by email successfully", func() {
-		// Create a user first
-		user := testutils.CreateUser("getbyemail@example.com", "mypassword123")
-		err := suite.repo.Create(ctx, user)
-		suite.Require().NoError(err)
-
-		// Get user by email
-		retrievedUser, err := suite.repo.GetByEmail(ctx, "getbyemail@example.com")
-		suite.Require().NoError(err)
-		suite.Assert().NotNil(retrievedUser)
-		suite.Assert().Equal("getbyemail@example.com", retrievedUser.Email)
-		suite.Assert().Equal("Test User", retrievedUser.Username)
-		suite.Assert().Equal("NON_ADMIN", retrievedUser.Role)
-		suite.Assert().NotNil(retrievedUser.Status)
-		suite.Assert().Equal("active", *retrievedUser.Status)
-		suite.Assert().NotEmpty(retrievedUser.Password)
-		suite.Assert().NotEmpty(retrievedUser.Salt)
-		suite.Assert().NotEmpty(retrievedUser.CreatedAt)
-		suite.Assert().NotNil(retrievedUser.UpdatedAt)
-		suite.Assert().NotEmpty(*retrievedUser.UpdatedAt)
-		suite.Assert().Greater(retrievedUser.ID, int64(0))
-	})
-
-	suite.Run("should return error for non-existent email", func() {
-		// Try to get user with non-existent email
-		retrievedUser, err := suite.repo.GetByEmail(ctx, "nonexistent@example.com")
-		suite.Require().Error(err)
-		suite.Assert().Nil(retrievedUser)
-		suite.Assert().Contains(err.Error(), "failed to get user by email")
-	})
 }
 
 func TestUserRepositoryTestSuite(t *testing.T) {

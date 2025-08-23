@@ -15,11 +15,8 @@ import (
 //go:generate mockgen -destination=../users/mock_users_repository.go -package=users -source=repository.go
 type Repository interface {
 	Create(ctx context.Context, user *User) error
-	Login(ctx context.Context, email string, password string) (*User, error)
-	GetByEmail(ctx context.Context, email string) (*User, error)
-	// GetByID(ctx context.Context, id int) (*User, error)
-	// Update(ctx context.Context, user *User) error
-	// Delete(ctx context.Context, id int) error
+	Login(ctx context.Context, username string, password string) (*User, error)
+	GetByUsername(ctx context.Context, username string) (*User, error)
 }
 
 type db struct {
@@ -78,10 +75,10 @@ func (r *db) Create(ctx context.Context, user *User) error {
 	return nil
 }
 
-func (r *db) Login(ctx context.Context, email string, password string) (*User, error) {
-	user, err := r.GetByEmail(ctx, email)
+func (r *db) Login(ctx context.Context, username string, password string) (*User, error) {
+	user, err := r.GetByUsername(ctx, username)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get user by email: %w", err)
+		return nil, fmt.Errorf("failed to get user by username: %w", err)
 	}
 
 	if err := auth.VerifyPassword(password, user.Password, user.Salt); err != nil {
@@ -91,20 +88,20 @@ func (r *db) Login(ctx context.Context, email string, password string) (*User, e
 	return user, nil
 }
 
-func (r *db) GetByEmail(ctx context.Context, email string) (*User, error) {
+func (r *db) GetByUsername(ctx context.Context, username string) (*User, error) {
 	query := `
 		SELECT id, username, email, password, salt, role, approved, status, avatar, last_login, created_at, updated_at
 		FROM users
-		WHERE email = $1
+		WHERE username = $1
 	`
 
 	var user User
-	err := r.client.QueryRow(ctx, query, email).Scan(
+	err := r.client.QueryRow(ctx, query, username).Scan(
 		&user.ID, &user.Username, &user.Email, &user.Password, &user.Salt, &user.Role, &user.Approved, &user.Status, &user.Avatar, &user.LastLogin, &user.CreatedAt, &user.UpdatedAt,
 	)
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to get user by email: %w", err)
+		return nil, fmt.Errorf("failed to get user by username: %w", err)
 	}
 
 	return &user, nil

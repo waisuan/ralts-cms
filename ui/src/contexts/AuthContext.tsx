@@ -6,7 +6,7 @@ import { isAuthError } from '../utils/auth';
 
 interface AuthUser {
   id: number;
-  name: string;
+  username: string;
   email: string;
   role: string;
   avatar?: string;
@@ -15,7 +15,7 @@ interface AuthUser {
 interface AuthContextType {
   user: AuthUser | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -44,14 +44,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (username: string, password: string): Promise<boolean> => {
     try {
-      const response = await UserService.loginUser({ email, password });
+      const response = await UserService.loginUser({ username, password });
       
       if (response.data) {
         const userData: AuthUser = {
           id: response.data.user.id,
-          name: response.data.user.name,
+          username: response.data.user.username,
           email: response.data.user.email,
           role: response.data.user.role,
           avatar: response.data.user.avatar,

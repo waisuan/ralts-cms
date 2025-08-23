@@ -28,7 +28,7 @@ type CreateUserRequest struct {
 
 // LoginRequest represents the request structure for user authentication
 type LoginRequest struct {
-	Email    string `json:"email"`
+	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
@@ -81,7 +81,7 @@ func (h *UsersHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.deps.UsersRepository.Login(r.Context(), loginRequest.Email, loginRequest.Password)
+	user, err := h.deps.UsersRepository.Login(r.Context(), loginRequest.Username, loginRequest.Password)
 	if err != nil {
 		http.Error(w, "Failed to login", http.StatusUnauthorized)
 		return

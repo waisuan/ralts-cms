@@ -2,7 +2,7 @@ import { apiClient, ApiResponse } from '../utils/api';
 
 export interface User {
   id: number;
-  name: string;
+  username: string;
   email: string;
   role: string;
   status: string;
@@ -12,7 +12,7 @@ export interface User {
 }
 
 export interface CreateUserRequest {
-  name: string;
+  username: string;
   email: string;
   password: string;
   role?: string;
@@ -21,7 +21,7 @@ export interface CreateUserRequest {
 }
 
 export interface LoginRequest {
-  email: string;
+  username: string;
   password: string;
 }
 
@@ -38,7 +38,7 @@ export class UserService {
    */
   static async registerUser(data: CreateUserRequest): Promise<ApiResponse<User>> {
     console.log('👤 API: POST /api/v1/users', { 
-      name: data.name, 
+      username: data.username, 
       email: data.email,
       hasPassword: !!data.password 
     });
@@ -47,7 +47,7 @@ export class UserService {
     
     console.log('👤 API: POST /api/v1/users response', { 
       userId: response.data?.id,
-      userName: response.data?.name,
+      username: response.data?.username,
       userEmail: response.data?.email
     });
 
@@ -59,7 +59,7 @@ export class UserService {
    */
   static async loginUser(data: LoginRequest): Promise<ApiResponse<LoginResponse>> {
     console.log('👤 API: POST /api/v1/users/login', { 
-      email: data.email,
+      username: data.username,
       hasPassword: !!data.password 
     });
     
@@ -67,7 +67,7 @@ export class UserService {
     
     console.log('👤 API: POST /api/v1/users/login response', { 
       userId: response.data?.user?.id,
-      userName: response.data?.user?.name,
+      username: response.data?.user?.username,
       hasToken: !!response.data?.token
     });
 

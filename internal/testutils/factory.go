@@ -83,10 +83,10 @@ func CreateMinimalMaintenance(machineSerialNumber, workOrderNumber string) *main
 }
 
 // CreateUser creates a basic user with default values
-func CreateUser(email, password string) *users.User {
+func CreateUser(username, password string) *users.User {
 	return &users.User{
-		Username: "Test User",
-		Email:    email,
+		Username: username,
+		Email:    username + "@example.com", // Generate email from username
 		Password: password,
 		Role:     "", // Will be set to default by repository
 		Approved: false,
@@ -96,25 +96,25 @@ func CreateUser(email, password string) *users.User {
 }
 
 // CreateUserWithCustomFields creates a user with custom field values
-func CreateUserWithCustomFields(email, password, role, status string) *users.User {
-	user := CreateUser(email, password)
+func CreateUserWithCustomFields(username, password, role, status string) *users.User {
+	user := CreateUser(username, password)
 	user.Role = role
 	user.Status = &status
 	return user
 }
 
 // CreateUserWithAvatar creates a user with avatar
-func CreateUserWithAvatar(email, password string, avatar *string) *users.User {
-	user := CreateUser(email, password)
+func CreateUserWithAvatar(username, password string, avatar *string) *users.User {
+	user := CreateUser(username, password)
 	user.Avatar = avatar
 	return user
 }
 
 // CreateMinimalUser creates a user with only required fields
-func CreateMinimalUser(email, password string) *users.User {
+func CreateMinimalUser(username, password string) *users.User {
 	return &users.User{
-		Username: "Minimal User",
-		Email:    email,
+		Username: username,
+		Email:    username + "@example.com",
 		Password: password,
 	}
 }

@@ -127,14 +127,14 @@ func (suite *UsersHandlerTestSuite) TestCreateUser() {
 func (suite *UsersHandlerTestSuite) TestLogin() {
 	suite.Run("should login successfully with valid credentials", func() {
 		loginRequest := handlers.LoginRequest{
-			Email:    "test@example.com",
+			Username: "test",
 			Password: "mypassword123",
 		}
 
 		status := "active"
 		expectedUser := &users.User{
 			ID:       1,
-			Username: "Test User",
+			Username: "test",
 			Email:    "test@example.com",
 			Role:     "user",
 			Status:   &status,
@@ -142,7 +142,7 @@ func (suite *UsersHandlerTestSuite) TestLogin() {
 			Salt:     "salt123",
 		}
 
-		suite.mockRepo.EXPECT().Login(gomock.Any(), "test@example.com", "mypassword123").Return(expectedUser, nil)
+		suite.mockRepo.EXPECT().Login(gomock.Any(), "test", "mypassword123").Return(expectedUser, nil)
 
 		body, _ := json.Marshal(loginRequest)
 		req := httptest.NewRequest("POST", "/users/login", bytes.NewBuffer(body))
@@ -164,7 +164,7 @@ func (suite *UsersHandlerTestSuite) TestLogin() {
 		// Verify user data
 		suite.Assert().NotNil(response.User)
 		suite.Assert().Equal(int64(1), response.User.ID)
-		suite.Assert().Equal("Test User", response.User.Username)
+		suite.Assert().Equal("test", response.User.Username)
 		suite.Assert().Equal("test@example.com", response.User.Email)
 		suite.Assert().Equal("user", response.User.Role)
 		suite.Assert().NotNil(response.User.Status)
@@ -190,11 +190,11 @@ func (suite *UsersHandlerTestSuite) TestLogin() {
 
 	suite.Run("should return 401 when user cannot be authenticated", func() {
 		loginRequest := handlers.LoginRequest{
-			Email:    "nonexistent@example.com",
+			Username: "nonexistent",
 			Password: "mypassword123",
 		}
 
-		suite.mockRepo.EXPECT().Login(gomock.Any(), "nonexistent@example.com", "mypassword123").Return(nil, fmt.Errorf("invalid password"))
+		suite.mockRepo.EXPECT().Login(gomock.Any(), "nonexistent", "mypassword123").Return(nil, fmt.Errorf("invalid password"))
 
 		body, _ := json.Marshal(loginRequest)
 		req := httptest.NewRequest("POST", "/users/login", bytes.NewBuffer(body))
