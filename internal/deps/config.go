@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	AppEnvDevelopment = "development"
+	appEnvDevelopment = "development"
 )
 
 // Config holds all configuration settings for the Ralts-CMS application

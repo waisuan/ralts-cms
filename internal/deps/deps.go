@@ -92,7 +92,7 @@ func newLogger(env string) *slog.Logger {
 	}
 
 	// In development, use more verbose logging and text format for readability
-	if env == AppEnvDevelopment {
+	if env == appEnvDevelopment {
 		opts.Level = slog.LevelDebug
 		handler = slog.NewTextHandler(os.Stdout, opts)
 	} else {
