@@ -45,7 +45,7 @@ export default function RecordCard({ machine, onView, onEdit, onDelete }: Record
   const maintenanceCount = machine.maintenance_count ?? 0;
 
   // Helper function to truncate serial number
-  const getTruncatedSerialNumber = (serialNumber: string, maxLength: number = 10) => {
+  const getTruncatedSerialNumber = (serialNumber: string, maxLength: number = 20) => {
     if (serialNumber.length <= maxLength) {
       return serialNumber;
     }
