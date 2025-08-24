@@ -4,7 +4,6 @@ package main
 
 import (
 	"context"
-	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -18,6 +17,7 @@ import (
 func main() {
 	// Initialize dependencies
 	deps := deps.Initialise()
+	logger := deps.Logger
 
 	// Create router
 	handler := router.NewRouter(deps)
@@ -33,14 +33,14 @@ func main() {
 
 	// Start server in a goroutine
 	go func() {
-		slog.Info("Starting server",
+		logger.Info("Starting server",
 			"port", deps.Config.ServerPort,
 			"read_timeout", deps.Config.ReadTimeout,
 			"write_timeout", deps.Config.WriteTimeout,
 			"idle_timeout", deps.Config.IdleTimeout)
 
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			slog.Error("Failed to start server", "error", err)
+			logger.Error("Failed to start server", "error", err)
 			os.Exit(1)
 		}
 	}()
@@ -50,7 +50,7 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	slog.Info("Shutting down server...")
+	logger.Info("Shutting down server...")
 
 	// Create a deadline for server shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -58,9 +58,9 @@ func main() {
 
 	// Attempt graceful shutdown
 	if err := server.Shutdown(ctx); err != nil {
-		slog.Error("Server forced to shutdown", "error", err)
+		logger.Error("Server forced to shutdown", "error", err)
 		os.Exit(1)
 	}
 
-	slog.Info("Server exited gracefully")
+	logger.Info("Server exited gracefully")
 }

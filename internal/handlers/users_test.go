@@ -5,8 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"ralts-cms/internal/deps"
 	"ralts-cms/internal/handlers"
 	"ralts-cms/internal/users"
@@ -33,6 +35,7 @@ func (suite *UsersHandlerTestSuite) SetupTest() {
 		Config: &deps.Config{
 			JWTSecret: "your-jwt-secret-key",
 		},
+		Logger:          slog.New(slog.NewTextHandler(os.Stdout, nil)),
 		UsersRepository: suite.mockRepo,
 	}
 	suite.handler = handlers.NewUsersHandler(deps)
