@@ -258,7 +258,7 @@ func buildMachineAttachmentKey(machineSerialNumber, attachmentName string) strin
 
 // buildMaintenanceAttachmentKey builds the S3 key for a maintenance attachment
 func buildMaintenanceAttachmentKey(machineSerialNumber, workOrderNumber, attachmentName string) string {
-	return fmt.Sprintf("%s/%s/%s", machineSerialNumber, workOrderNumber, attachmentName)
+	return fmt.Sprintf("%s_%s/%s", machineSerialNumber, workOrderNumber, attachmentName)
 }
 
 // validateMachineInput validates input for machine attachment operations

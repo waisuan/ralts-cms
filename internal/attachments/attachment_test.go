@@ -194,7 +194,7 @@ func TestAttachmentService_CreateMaintenanceAttachment(t *testing.T) {
 				mockClient.EXPECT().
 					GetObject(gomock.Any(), &s3.GetObjectInput{
 						Bucket: aws.String("test-bucket"),
-						Key:    aws.String("SN123456/WO789012/report.pdf"),
+						Key:    aws.String("SN123456_WO789012/report.pdf"),
 					}).
 					Return(nil, &types.NoSuchKey{})
 
@@ -203,7 +203,7 @@ func TestAttachmentService_CreateMaintenanceAttachment(t *testing.T) {
 					PutObject(gomock.Any(), gomock.Any()).
 					DoAndReturn(func(_ context.Context, input *s3.PutObjectInput, _ ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
 						assert.Equal(t, "test-bucket", *input.Bucket)
-						assert.Equal(t, "SN123456/WO789012/report.pdf", *input.Key)
+						assert.Equal(t, "SN123456_WO789012/report.pdf", *input.Key)
 						assert.Equal(t, "application/pdf", *input.ContentType)
 
 						// Verify body content
@@ -388,7 +388,7 @@ func TestAttachmentService_GetMaintenanceAttachment(t *testing.T) {
 				mockClient.EXPECT().
 					GetObject(gomock.Any(), &s3.GetObjectInput{
 						Bucket: aws.String("test-bucket"),
-						Key:    aws.String("SN123456/WO789012/report.pdf"),
+						Key:    aws.String("SN123456_WO789012/report.pdf"),
 					}).
 					Return(&s3.GetObjectOutput{
 						Body:        io.NopCloser(bytes.NewReader([]byte("test report content"))),
@@ -529,7 +529,7 @@ func TestAttachmentService_DeleteMaintenanceAttachment(t *testing.T) {
 				mockClient.EXPECT().
 					DeleteObject(gomock.Any(), &s3.DeleteObjectInput{
 						Bucket: aws.String("test-bucket"),
-						Key:    aws.String("SN123456/WO789012/report.pdf"),
+						Key:    aws.String("SN123456_WO789012/report.pdf"),
 					}).
 					Return(&s3.DeleteObjectOutput{}, nil)
 			},
