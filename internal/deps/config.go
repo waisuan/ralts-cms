@@ -22,7 +22,7 @@ type Config struct {
 	DatabaseURL string `env:"DATABASE_URL"`
 
 	// Server Configuration
-	ServerPort string `env:"SERVER_PORT" envDefault:"8080"`
+	ServerPort string `env:"PORT" envDefault:"8080"`
 
 	// HTTP Timeouts
 	ReadTimeout  time.Duration `env:"HTTP_READ_TIMEOUT" envDefault:"15s"`

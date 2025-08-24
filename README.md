@@ -19,6 +19,8 @@ A web service built in Go for managing machines and their maintenance records. I
 
 ## Quick Start
 
+### Local Development
+
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
@@ -52,6 +54,37 @@ make dev-with-db
 ```
 
 This will start the development server with the database automatically.
+
+### Additional Development Setup
+
+**Seed Test Data** (Optional):
+```bash
+make seed-dev
+```
+This populates your development database with sample data for testing:
+- 100 sample machines with realistic random data (customers, states, models, etc.)
+- 10 sample users with test credentials and various roles
+- Associated maintenance records for each machine
+
+**LocalStack for S3 Testing** (Optional):
+```bash
+make localstack-up
+```
+This starts a local AWS S3-compatible service at `http://localhost:4566` for testing file attachments without needing real AWS credentials. The service provides:
+- S3 bucket simulation for file uploads/downloads
+- Compatible with AWS SDK calls
+- Automatically included when running `make dev`
+
+**Complete Development Workflow**:
+```bash
+# One-time setup
+make dev           # Sets up environment, databases, and LocalStack
+make migrate-up    # Apply database schema
+make seed-dev      # Add sample data (optional)
+
+# Daily development
+make run           # Start the web server
+```
 
 ## Database Setup
 
@@ -499,7 +532,7 @@ The application uses environment variables for configuration. Create a `.env.dev
 APP_NAME=ralts-cms
 APP_ENV=development
 DATABASE_URL=postgresql://ralts_user:ralts_password@localhost:5432/ralts_cms?sslmode=disable
-SERVER_PORT=8080
+PORT=8080
 HTTP_READ_TIMEOUT=15s
 HTTP_WRITE_TIMEOUT=15s
 HTTP_IDLE_TIMEOUT=60s
@@ -512,7 +545,7 @@ DEFAULT_MACHINE_LIMIT=50
 APP_NAME=ralts-cms
 APP_ENV=production
 DATABASE_URL=postgresql://username:password@your-postgres-host:5432/ralts_cms?sslmode=require
-SERVER_PORT=8080
+PORT=8080
 HTTP_READ_TIMEOUT=30s
 HTTP_WRITE_TIMEOUT=30s
 HTTP_IDLE_TIMEOUT=120s
@@ -527,7 +560,7 @@ DEFAULT_MACHINE_LIMIT=100
 | `APP_NAME` | Application name | - | Yes |
 | `APP_ENV` | Environment (development/production) | development | No |
 | `DATABASE_URL` | PostgreSQL connection string | - | Yes |
-| `SERVER_PORT` | HTTP server port | 8080 | No |
+| `PORT` | HTTP server port | 8080 | No |
 | `HTTP_READ_TIMEOUT` | HTTP read timeout | 15s | No |
 | `HTTP_WRITE_TIMEOUT` | HTTP write timeout | 15s | No |
 | `HTTP_IDLE_TIMEOUT` | HTTP idle timeout | 60s | No |

@@ -1,0 +1,12 @@
+[variables]
+GO_VERSION = "1.24"
+
+[phases.build]
+cmds = [
+    "go mod download",
+    "mkdir -p bin",
+    "go build -o bin/ralts-cms cmd/web/main.go"
+]
+
+[start]
+cmd = "./bin/ralts-cms"
