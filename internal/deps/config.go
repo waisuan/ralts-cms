@@ -4,13 +4,17 @@ package deps
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/caarlos0/env/v9"
 	"github.com/joho/godotenv"
+)
+
+const (
+	AppEnvDevelopment = "development"
 )
 
 // Config holds all configuration settings for the Ralts-CMS application
@@ -55,13 +59,13 @@ func LoadConfig() (*Config, error) {
 	cfg := Config{}
 
 	if appEnv != "" {
-		log.Printf("Loading %s config\n", appEnv)
+		slog.Info("Loading configuration", "environment", appEnv)
 		err := godotenv.Load(dir(".env." + appEnv))
 		if err != nil && !os.IsNotExist(err) {
 			return nil, fmt.Errorf("error loading app config: %w", err)
 		}
 		if err != nil && os.IsNotExist(err) {
-			log.Printf("Warning: .env.%s not found, continuing without it", appEnv)
+			slog.Warn("Environment file not found, continuing without it", "file", ".env."+appEnv)
 		}
 	}
 

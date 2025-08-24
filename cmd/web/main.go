@@ -4,7 +4,7 @@ package main
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -33,11 +33,15 @@ func main() {
 
 	// Start server in a goroutine
 	go func() {
-		log.Printf("Starting server on port %s", deps.Config.ServerPort)
-		log.Printf("HTTP timeouts - Read: %v, Write: %v, Idle: %v",
-			deps.Config.ReadTimeout, deps.Config.WriteTimeout, deps.Config.IdleTimeout)
+		slog.Info("Starting server",
+			"port", deps.Config.ServerPort,
+			"read_timeout", deps.Config.ReadTimeout,
+			"write_timeout", deps.Config.WriteTimeout,
+			"idle_timeout", deps.Config.IdleTimeout)
+
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Failed to start server: %v", err)
+			slog.Error("Failed to start server", "error", err)
+			os.Exit(1)
 		}
 	}()
 
@@ -46,7 +50,7 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("Shutting down server...")
+	slog.Info("Shutting down server...")
 
 	// Create a deadline for server shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -54,8 +58,9 @@ func main() {
 
 	// Attempt graceful shutdown
 	if err := server.Shutdown(ctx); err != nil {
-		log.Fatalf("Server forced to shutdown: %v", err)
+		slog.Error("Server forced to shutdown", "error", err)
+		os.Exit(1)
 	}
 
-	log.Println("Server exited")
+	slog.Info("Server exited gracefully")
 }

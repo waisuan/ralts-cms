@@ -124,7 +124,10 @@ func (h *AttachmentHandler) GetMachineAttachment(w http.ResponseWriter, r *http.
 	w.WriteHeader(http.StatusOK)
 	if _, err := w.Write(attachment.Object); err != nil {
 		// Log error but don't send HTTP error as headers are already written
-		fmt.Printf("Failed to write attachment content: %v\n", err)
+		h.deps.Logger.Error("Failed to write attachment content",
+			"error", err,
+			"machine_serial_number", machineSerialNumber,
+			"attachment_name", attachmentName)
 	}
 }
 
@@ -378,7 +381,10 @@ func (h *AttachmentHandler) GetMaintenanceAttachment(w http.ResponseWriter, r *h
 	w.WriteHeader(http.StatusOK)
 	if _, err := w.Write(attachment.Object); err != nil {
 		// Log error but don't send HTTP error as headers are already written
-		fmt.Printf("Failed to write attachment content: %v\n", err)
+		h.deps.Logger.Error("Failed to write attachment content",
+			"error", err,
+			"machine_serial_number", machineSerialNumber,
+			"attachment_name", attachmentName)
 	}
 }
 

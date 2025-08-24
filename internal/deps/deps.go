@@ -3,6 +3,8 @@ package deps
 import (
 	"context"
 	"log"
+	"log/slog"
+	"os"
 
 	"ralts-cms/internal/attachments"
 	"ralts-cms/internal/machines"
@@ -18,6 +20,7 @@ import (
 // database connections, and repository instances
 type Dependencies struct {
 	Config *Config
+	Logger *slog.Logger
 
 	PostgresClient *pgxpool.Pool
 	S3Client       pkgs3.Client
@@ -39,16 +42,24 @@ func Initialise() *Dependencies {
 		log.Fatalf("failed to load config: %e", err)
 	}
 
+	// Initialize structured logger
+	logger := newLogger(cfg.Env)
+
+	// Set as default logger for the application
+	slog.SetDefault(logger)
+
 	// Initialize PostgreSQL client
 	pgClient, err := NewPostgresClient(context.Background(), cfg)
 	if err != nil {
-		log.Fatalf("failed to initialize PostgreSQL pool: %v", err)
+		logger.Error("Failed to initialize PostgreSQL pool", "error", err)
+		os.Exit(1)
 	}
 
 	// Initialize S3 client
 	s3Client, err := NewS3Client(context.Background(), cfg)
 	if err != nil {
-		log.Fatalf("failed to initialize S3 client: %v", err)
+		logger.Error("Failed to initialize S3 client", "error", err)
+		os.Exit(1)
 	}
 
 	// Initialize repositories (update as needed to use pgPool)
@@ -61,6 +72,7 @@ func Initialise() *Dependencies {
 
 	return &Dependencies{
 		Config:                cfg,
+		Logger:                logger,
 		PostgresClient:        pgClient,
 		S3Client:              s3Client,
 		MachinesRepository:    machinesRepo,
@@ -68,4 +80,25 @@ func Initialise() *Dependencies {
 		UsersRepository:       usersRepo,
 		AttachmentService:     attachmentService,
 	}
+}
+
+// newLogger creates a structured logger based on the environment
+func newLogger(env string) *slog.Logger {
+	var handler slog.Handler
+
+	// Configure logger based on environment
+	opts := &slog.HandlerOptions{
+		Level: slog.LevelInfo, // Default to INFO level
+	}
+
+	// In development, use more verbose logging and text format for readability
+	if env == AppEnvDevelopment {
+		opts.Level = slog.LevelDebug
+		handler = slog.NewTextHandler(os.Stdout, opts)
+	} else {
+		// In production, use JSON format for structured logging
+		handler = slog.NewJSONHandler(os.Stdout, opts)
+	}
+
+	return slog.New(handler)
 }
