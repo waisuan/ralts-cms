@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Machine } from '../types/machine';
 import { Maintenance, MaintenanceOrderType } from '../types/maintenance';
 import { MaintenanceService, CreateMaintenanceRequest, UpdateMaintenanceRequest } from '../services/maintenanceService';
@@ -190,6 +190,15 @@ export default function MaintenanceHistory({
 
   const [isPaginationLoading, setIsPaginationLoading] = useState(false);
 
+  // Force reload counter - increment to trigger data reload
+  const [reloadCounter, setReloadCounter] = useState(0);
+
+  // Track if we've already loaded initial data to prevent duplicate calls
+  const [hasLoadedInitialData, setHasLoadedInitialData] = useState(false);
+  
+  // Track if this is the first pagination effect run to avoid triggering after initial load
+  const isFirstPaginationRun = useRef(true);
+
   // CRUD operation error states
   const [createError, setCreateError] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
@@ -201,87 +210,194 @@ export default function MaintenanceHistory({
     onBack();
   };
 
-  // Load maintenance records from API
-  const loadMaintenanceRecords = useCallback(async (loadingType: 'initial' | 'search' | 'pagination' = 'initial') => {
-    try {
-      // Set appropriate loading state
-      if (loadingType === 'search') {
-        setIsSearchLoading(true);
-      } else if (loadingType === 'pagination') {
-        setIsPaginationLoading(true);
-      } else {
+  // Initial load effect - only runs once on mount
+  useEffect(() => {
+    if (!machine.serial_number || hasLoadedInitialData) return;
+
+    const loadInitialData = async () => {
+      try {
         setIsInitialLoading(true);
+        setError(null);
+
+        const filters: { q?: string } = {};
+        if (debouncedSearchQuery.trim()) {
+          filters.q = debouncedSearchQuery.trim();
+        }
+
+        const response = await MaintenanceService.getMaintenanceList(
+          machine.serial_number,
+          currentPage,
+          itemsPerPage,
+          filters
+        );
+
+        if (response.data) {
+          setMaintenanceRecords(response.data.maintenance || []);
+          setTotalCount(response.data.count || 0);
+          setPreventativeCount(response.data.preventative_count || 0);
+          setCorrectiveCount(response.data.corrective_count || 0);
+          setEmergencyCount(response.data.emergency_count || 0);
+          setInspectionCount(response.data.inspection_count || 0);
+        }
+      } catch (error) {
+        console.error('🔧 MaintenanceHistory: Failed to load maintenance records:', error);
+        const apiError = handleApiError(error);
+        if (!isAuthError(error)) {
+          setError(apiError.message);
+        }
+      } finally {
+        setHasLoadedInitialData(true);
+        setIsInitialLoading(false);
       }
-      
-      setError(null);
+    };
 
-      // Create filters object with generic search query
-      const filters: { q?: string } = {};
-      
-      if (debouncedSearchQuery.trim()) {
-        filters.q = debouncedSearchQuery.trim();
-      }
+    loadInitialData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [machine.serial_number]); // Only machine.serial_number dependency - others are captured in closure
 
-      const response = await MaintenanceService.getMaintenanceList(
-        machine.serial_number,
-        currentPage,
-        itemsPerPage,
-        filters
-      );
-
-      if (response.data) {
-        // Handle null maintenance array from API
-        setMaintenanceRecords(response.data.maintenance || []);
-        setTotalCount(response.data.count || 0);
-        setPreventativeCount(response.data.preventative_count || 0);
-        setCorrectiveCount(response.data.corrective_count || 0);
-        setEmergencyCount(response.data.emergency_count || 0);
-        setInspectionCount(response.data.inspection_count || 0);
-      }
-    } catch (error) {
-      console.error('🔧 MaintenanceHistory: Failed to load maintenance records:', error);
-      const apiError = handleApiError(error);
-      // Don't set error if we're redirecting due to auth error
-      if (!isAuthError(error)) {
-        setError(apiError.message);
-      }
-    } finally {
-      setIsInitialLoading(false);
-      setIsSearchLoading(false);
-      setIsPaginationLoading(false);
-    }
-  }, [machine.serial_number, currentPage, itemsPerPage, debouncedSearchQuery]);
-
-  // Load records when component mounts or pagination changes
-  useEffect(() => {
-    if (machine.serial_number) {
-      loadMaintenanceRecords('initial');
-    }
-  }, [machine.serial_number, loadMaintenanceRecords]);
-
-  // Handle pagination changes (after initial load)
-  useEffect(() => {
-    if (!isInitialLoading && machine.serial_number) {
-      loadMaintenanceRecords('pagination');
-    }
-  }, [currentPage, itemsPerPage, isInitialLoading, machine.serial_number, loadMaintenanceRecords]);
-
-  // Handle search query changes
+  // Search effect - only runs when search query changes (and after initial load)
   useEffect(() => {
     if (debouncedSearchQuery !== prevDebouncedSearchQuery.current) {
       prevDebouncedSearchQuery.current = debouncedSearchQuery;
       
-      // Reset to page 1 if not already there
-      if (currentPage !== 1) {
-        setCurrentPage(1);
-      } else {
-        // If already on page 1, trigger search directly
-        if (machine.serial_number) {
-          loadMaintenanceRecords('search');
+      // Don't trigger search during initial load - let initial load effect handle it
+      if (!machine.serial_number || !hasLoadedInitialData) return;
+
+      const loadSearchData = async () => {
+        try {
+          setIsSearchLoading(true);
+          setError(null);
+
+          const filters: { q?: string } = {};
+          if (debouncedSearchQuery.trim()) {
+            filters.q = debouncedSearchQuery.trim();
+          }
+
+          const response = await MaintenanceService.getMaintenanceList(
+            machine.serial_number,
+            1, // Always search on page 1
+            itemsPerPage,
+            filters
+          );
+
+          if (response.data) {
+            setMaintenanceRecords(response.data.maintenance || []);
+            setTotalCount(response.data.count || 0);
+            setPreventativeCount(response.data.preventative_count || 0);
+            setCorrectiveCount(response.data.corrective_count || 0);
+            setEmergencyCount(response.data.emergency_count || 0);
+            setInspectionCount(response.data.inspection_count || 0);
+          }
+        } catch (error) {
+          console.error('🔧 MaintenanceHistory: Failed to load maintenance records:', error);
+          const apiError = handleApiError(error);
+          if (!isAuthError(error)) {
+            setError(apiError.message);
+          }
+        } finally {
+          setIsSearchLoading(false);
         }
-      }
+      };
+
+      setCurrentPage(1);
+      loadSearchData();
     }
-  }, [debouncedSearchQuery, currentPage, machine.serial_number, loadMaintenanceRecords]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearchQuery]); // Only search query dependency - others are captured in closure
+
+  // Pagination effect - only runs when page or size changes (after initial load)
+  useEffect(() => {
+    // Skip the first run since initial load handles that
+    if (isFirstPaginationRun.current) {
+      isFirstPaginationRun.current = false;
+      return;
+    }
+    
+    if (!hasLoadedInitialData || !machine.serial_number) return;
+
+    const loadPaginationData = async () => {
+      try {
+        setIsPaginationLoading(true);
+        setError(null);
+
+        const filters: { q?: string } = {};
+        if (debouncedSearchQuery.trim()) {
+          filters.q = debouncedSearchQuery.trim();
+        }
+
+        const response = await MaintenanceService.getMaintenanceList(
+          machine.serial_number,
+          currentPage,
+          itemsPerPage,
+          filters
+        );
+
+        if (response.data) {
+          setMaintenanceRecords(response.data.maintenance || []);
+          setTotalCount(response.data.count || 0);
+          setPreventativeCount(response.data.preventative_count || 0);
+          setCorrectiveCount(response.data.corrective_count || 0);
+          setEmergencyCount(response.data.emergency_count || 0);
+          setInspectionCount(response.data.inspection_count || 0);
+        }
+      } catch (error) {
+        console.error('🔧 MaintenanceHistory: Failed to load maintenance records:', error);
+        const apiError = handleApiError(error);
+        if (!isAuthError(error)) {
+          setError(apiError.message);
+        }
+      } finally {
+        setIsPaginationLoading(false);
+      }
+    };
+
+    loadPaginationData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, itemsPerPage]); // Only pagination dependencies - others are captured in closure
+
+  // Reload effect - only runs when reload counter changes
+  useEffect(() => {
+    if (reloadCounter === 0 || !machine.serial_number) return;
+
+    const loadReloadData = async () => {
+      try {
+        setIsInitialLoading(true);
+        setError(null);
+
+        const filters: { q?: string } = {};
+        if (debouncedSearchQuery.trim()) {
+          filters.q = debouncedSearchQuery.trim();
+        }
+
+        const response = await MaintenanceService.getMaintenanceList(
+          machine.serial_number,
+          currentPage,
+          itemsPerPage,
+          filters
+        );
+
+        if (response.data) {
+          setMaintenanceRecords(response.data.maintenance || []);
+          setTotalCount(response.data.count || 0);
+          setPreventativeCount(response.data.preventative_count || 0);
+          setCorrectiveCount(response.data.corrective_count || 0);
+          setEmergencyCount(response.data.emergency_count || 0);
+          setInspectionCount(response.data.inspection_count || 0);
+        }
+      } catch (error) {
+        console.error('🔧 MaintenanceHistory: Failed to load maintenance records:', error);
+        const apiError = handleApiError(error);
+        if (!isAuthError(error)) {
+          setError(apiError.message);
+        }
+      } finally {
+        setIsInitialLoading(false);
+      }
+    };
+
+    loadReloadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reloadCounter]); // Only reload counter dependency - others are captured in closure
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -642,7 +758,7 @@ export default function MaintenanceHistory({
       }
       
       // Reload the maintenance records
-      await loadMaintenanceRecords('initial');
+      setReloadCounter(prev => prev + 1);
       closeAddRecordModal();
       setIsCreating(false); // Reset loading state on success
     } catch (error) {
@@ -885,7 +1001,7 @@ export default function MaintenanceHistory({
       }
 
       // Reload the maintenance records
-      await loadMaintenanceRecords('initial');
+      setReloadCounter(prev => prev + 1);
       closeEditRecordModal();
       setIsUpdating(false); // Reset loading state on success
     } catch (error) {
@@ -957,7 +1073,7 @@ export default function MaintenanceHistory({
         );
 
         // Reload the maintenance records
-        await loadMaintenanceRecords('initial');
+        setReloadCounter(prev => prev + 1);
         closeDeleteConfirm();
         setIsDeleting(false); // Reset loading state on success
       } catch (error) {
@@ -1035,7 +1151,7 @@ export default function MaintenanceHistory({
               <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Maintenance Records</h3>
               <p className="text-gray-500 mb-4">{error}</p>
               <button
-                onClick={() => loadMaintenanceRecords('initial')}
+                onClick={() => setReloadCounter(prev => prev + 1)}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 Try Again
