@@ -111,6 +111,9 @@ BEGIN
     END IF;
 END $$;
 
+ALTER TABLE machines ALTER COLUMN "ppmDate" DROP NOT NULL;
+ALTER TABLE machines ALTER COLUMN "tncDate" DROP NOT NULL;
+
 -- Update constraints - make timestamps NOT NULL to match target
 ALTER TABLE machines ALTER COLUMN "createdAt" SET NOT NULL;
 ALTER TABLE machines ALTER COLUMN "updatedAt" SET NOT NULL;

@@ -186,6 +186,32 @@ func (suite *MaintenanceRepositoryTestSuite) TestGetByWorkOrder() {
 		suite.Assert().NotNil(retrieved.Attachment)
 		suite.Assert().Equal("emergency-maintenance.pdf", *retrieved.Attachment)
 	})
+
+	suite.Run("should handle NULL values in nullable fields without deserialization errors", func() {
+		// Create a maintenance record directly in the database with NULL values in the nullable fields
+		_, err := suite.db.PostgresClient.Exec(ctx, `
+			INSERT INTO maintenance (
+				"serialNumber", "workOrderNumber", "workOrderDate", "actionTaken",
+				"reportedBy", "workOrderType", attachment, "createdAt", "updatedAt"
+			) VALUES (
+				$1, $2, NULL, NULL, NULL, NULL, NULL, $3, $4
+			)
+		`, TestMachineOne, "WO_WITH_NULLS", time.Now(), time.Now())
+		suite.Require().NoError(err)
+
+		// This should not cause a deserialization error thanks to COALESCE
+		maintenance, err := suite.repo.GetByWorkOrder(ctx, TestMachineOne, "WO_WITH_NULLS")
+		suite.Require().NoError(err)
+		suite.Assert().NotNil(maintenance)
+
+		// Verify that NULL values are converted to empty strings by COALESCE
+		suite.Assert().Equal("", maintenance.ActionTaken)
+		suite.Assert().Equal("", maintenance.ReportedBy)
+		suite.Assert().Equal("", maintenance.WorkOrderType)
+		suite.Assert().Equal(time.Time{}, maintenance.WorkOrderDate)
+		// attachment should be nil since it's a pointer type
+		suite.Assert().Nil(maintenance.Attachment)
+	})
 }
 
 func (suite *MaintenanceRepositoryTestSuite) TestListByMachine() {

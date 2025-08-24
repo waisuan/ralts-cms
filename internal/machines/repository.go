@@ -77,9 +77,11 @@ func NewRepository(client *pgxpool.Pool) Repository {
 
 func (r *db) GetBySerialNumber(ctx context.Context, serialNumber string) (*Machine, error) {
 	query := `
-		SELECT id, "serialNumber", customer, state, "accountType", model, status, brand, 
-		       district, "personInCharge", "reportedBy", "additionalNotes", attachment, 
-		       "tncDate", "ppmDate", "createdAt", "updatedAt"
+		SELECT id, "serialNumber", COALESCE(customer, ''), COALESCE(state, ''), COALESCE("accountType", ''), 
+		       COALESCE(model, ''), COALESCE(status, ''), COALESCE(brand, ''), 
+		       COALESCE(district, ''), COALESCE("personInCharge", ''), COALESCE("reportedBy", ''), 
+		       COALESCE("additionalNotes", ''), COALESCE(attachment, ''), 
+		       COALESCE("tncDate", '0001-01-01'::date), COALESCE("ppmDate", '0001-01-01'::date), "createdAt", "updatedAt"
 		FROM machines 
 		WHERE "serialNumber" = $1
 	`
@@ -141,9 +143,11 @@ func (r *db) List(ctx context.Context, options *ListOptions) ([]*Machine, error)
 	}
 
 	query := fmt.Sprintf(`
-		SELECT id, "serialNumber", customer, state, "accountType", model, status, brand, 
-		       district, "personInCharge", "reportedBy", "additionalNotes", attachment, 
-		       "tncDate", "ppmDate", "createdAt", "updatedAt"
+		SELECT id, "serialNumber", COALESCE(customer, ''), COALESCE(state, ''), COALESCE("accountType", ''), 
+		       COALESCE(model, ''), COALESCE(status, ''), COALESCE(brand, ''), 
+		       COALESCE(district, ''), COALESCE("personInCharge", ''), COALESCE("reportedBy", ''), 
+		       COALESCE("additionalNotes", ''), COALESCE(attachment, ''), 
+		       COALESCE("tncDate", '0001-01-01'::date), COALESCE("ppmDate", '0001-01-01'::date), "createdAt", "updatedAt"
 		FROM machines 
 		%s
 		%s
@@ -296,9 +300,11 @@ func (r *db) Search(ctx context.Context, query string, options *ListOptions) ([]
 
 	// Build the base query with full-text search
 	baseQuery := `
-		SELECT id, "serialNumber", customer, state, "accountType", model, status, brand, 
-		       district, "personInCharge", "reportedBy", "additionalNotes", attachment, 
-		       "tncDate", "ppmDate", "createdAt", "updatedAt",
+		SELECT id, "serialNumber", COALESCE(customer, ''), COALESCE(state, ''), COALESCE("accountType", ''), 
+		       COALESCE(model, ''), COALESCE(status, ''), COALESCE(brand, ''), 
+		       COALESCE(district, ''), COALESCE("personInCharge", ''), COALESCE("reportedBy", ''), 
+		       COALESCE("additionalNotes", ''), COALESCE(attachment, ''), 
+		       COALESCE("tncDate", '0001-01-01'::date), COALESCE("ppmDate", '0001-01-01'::date), "createdAt", "updatedAt",
 		       ts_rank(search_vector, plainto_tsquery('english', $1)) as rank
 		FROM machines 
 		WHERE search_vector @@ plainto_tsquery('english', $1)

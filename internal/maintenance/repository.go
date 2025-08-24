@@ -67,8 +67,9 @@ func NewRepository(client *pgxpool.Pool) Repository {
 
 func (r *db) GetByWorkOrder(ctx context.Context, machineSerialNumber, workOrderNumber string) (*Maintenance, error) {
 	query := `
-		SELECT id, "serialNumber", "workOrderNumber", "workOrderDate", "actionTaken",
-		       "reportedBy", "workOrderType", attachment, "createdAt", "updatedAt"
+		SELECT id, "serialNumber", "workOrderNumber", COALESCE("workOrderDate", '0001-01-01'::date), 
+		       COALESCE("actionTaken", ''), COALESCE("reportedBy", ''), COALESCE("workOrderType", ''), 
+		       attachment, "createdAt", "updatedAt"
 		FROM maintenance 
 		WHERE "serialNumber" = $1 AND "workOrderNumber" = $2
 	`
@@ -111,8 +112,9 @@ func (r *db) ListByMachine(ctx context.Context, machineSerialNumber string, opti
 	}
 
 	query := fmt.Sprintf(`
-		SELECT id, "serialNumber", "workOrderNumber", "workOrderDate", "actionTaken",
-		       "reportedBy", "workOrderType", attachment, "createdAt", "updatedAt"
+		SELECT id, "serialNumber", "workOrderNumber", COALESCE("workOrderDate", '0001-01-01'::date), 
+		       COALESCE("actionTaken", ''), COALESCE("reportedBy", ''), COALESCE("workOrderType", ''), 
+		       attachment, "createdAt", "updatedAt"
 		FROM maintenance 
 		WHERE "serialNumber" = $1
 		%s
@@ -266,8 +268,9 @@ func (r *db) SearchByMachine(ctx context.Context, machineSerialNumber, query str
 
 	// Build the base query with full-text search filtered by machine
 	baseQuery := `
-		SELECT id, "serialNumber", "workOrderNumber", "workOrderDate", "actionTaken",
-		       "reportedBy", "workOrderType", attachment, "createdAt", "updatedAt",
+		SELECT id, "serialNumber", "workOrderNumber", COALESCE("workOrderDate", '0001-01-01'::date), 
+		       COALESCE("actionTaken", ''), COALESCE("reportedBy", ''), COALESCE("workOrderType", ''), 
+		       attachment, "createdAt", "updatedAt",
 		       ts_rank(search_vector, plainto_tsquery('english', $2)) as rank
 		FROM maintenance 
 		WHERE "serialNumber" = $1 AND search_vector @@ plainto_tsquery('english', $2)

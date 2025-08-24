@@ -130,6 +130,41 @@ func (suite *MachineRepositoryTestSuite) TestGetBySerialNumber() {
 		suite.Require().Error(err)
 		suite.Assert().Contains(err.Error(), "machine not found")
 	})
+
+	suite.Run("should handle NULL values in nullable fields without deserialization errors", func() {
+		// Create a machine directly in the database with NULL values in the originally nullable fields
+		_, err := suite.db.PostgresClient.Exec(ctx, `
+			INSERT INTO machines (
+				"serialNumber", customer, state, "accountType", model, status, brand,
+				district, "personInCharge", "reportedBy", "additionalNotes", attachment,
+				"tncDate", "ppmDate", "createdAt", "updatedAt"
+			) VALUES (
+				$1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+				NULL, NULL, $2, $3
+			)
+		`, "MACHINE_WITH_NULLS", time.Now(), time.Now())
+		suite.Require().NoError(err)
+
+		// This should not cause a deserialization error thanks to COALESCE
+		machine, err := suite.repo.GetBySerialNumber(ctx, "MACHINE_WITH_NULLS")
+		suite.Require().NoError(err)
+		suite.Assert().NotNil(machine)
+
+		// Verify that NULL values are converted to empty strings by COALESCE
+		suite.Assert().Equal("", machine.Customer)
+		suite.Assert().Equal("", machine.State)
+		suite.Assert().Equal("", machine.AccountType)
+		suite.Assert().Equal("", machine.Model)
+		suite.Assert().Equal("", machine.Status)
+		suite.Assert().Equal("", machine.Brand)
+		suite.Assert().Equal("", machine.District)
+		suite.Assert().Equal("", machine.PersonInCharge)
+		suite.Assert().Equal("", machine.ReportedBy)
+		suite.Assert().Equal("", machine.AdditionalNotes)
+		suite.Assert().Equal("", machine.Attachment)
+		suite.Assert().Equal(time.Time{}, machine.TncDate)
+		suite.Assert().Equal(time.Time{}, machine.PpmDate)
+	})
 }
 
 func (suite *MachineRepositoryTestSuite) TestUpdate() {
