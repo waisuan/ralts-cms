@@ -13,4 +13,4 @@ cmds = ["npm ci --no-audit"]
 cmds = ["npm run build"]
 
 [start]
-cmd = "node .next/standalone/server.js"
+cmd = "npm start"
