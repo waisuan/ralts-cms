@@ -7,7 +7,7 @@ PORT = "8080"
 nixPkgs = ["nodejs_20", "npm-9_x"]
 
 [phases.install]
-cmds = ["npm ci --no-audit"]
+cmds = ["npm ci --no-audit --omit=dev"]
 
 [phases.build]
 cmds = ["npm run build"]

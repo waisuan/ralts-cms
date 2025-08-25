@@ -17,10 +17,8 @@ func NewS3Client(ctx context.Context, cfg *Config) (*s3.Client, error) {
 	var err error
 
 	// Configure options for AWS SDK
-	configOptions := []func(*awsConfig.LoadOptions) error{}
-
-	if cfg.AWSDefaultRegion != "" {
-		configOptions = append(configOptions, awsConfig.WithRegion(cfg.AWSDefaultRegion))
+	configOptions := []func(*awsConfig.LoadOptions) error{
+		awsConfig.WithRegion(cfg.AWSDefaultRegion),
 	}
 
 	// If we have explicit credentials, use them
