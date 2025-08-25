@@ -710,6 +710,16 @@ For production deployment, the application uses PostgreSQL for data storage:
    JWT_SECRET=your-production-jwt-secret-key
    ```
 
+6. **Configure S3 and AWS settings for file attachments**
+   ```env
+   S3_BUCKET_NAME=your-production-s3-bucket-name
+   AWS_ACCESS_KEY_ID=your-aws-access-key-id
+   AWS_SECRET_ACCESS_KEY=your-aws-secret-access-key
+   AWS_DEFAULT_REGION=your-aws-region
+   AWS_ENDPOINT_URL=https://s3.amazonaws.com
+   AWS_S3_FORCE_PATH_STYLE=false
+   ```
+
 ## API Endpoints
 
 All endpoints require Bearer Token authentication except for the health check endpoint. The token is specified in the `JWT_SECRET` environment variable.
