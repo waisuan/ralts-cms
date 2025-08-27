@@ -949,7 +949,3 @@ ralts-cms/
 ├── Makefile                 # Build and development commands
 └── README.md               # This file
 ```
-
-## License
-
-[Add your license information here]
