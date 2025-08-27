@@ -1,0 +1,86 @@
+# Database Migration Workflow
+# This workflow runs database migrations independently from the main build process
+
+name: Database Migrations
+
+on:
+  workflow_dispatch:
+    inputs:
+      migration_action:
+        description: 'Migration action to perform'
+        required: true
+        default: 'up'
+        type: choice
+        options:
+        - up
+        - down
+        - status
+      migration_steps:
+        description: 'Number of migration steps (for down migrations)'
+        required: false
+        default: '1'
+        type: string
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.24'
+
+    - name: Install golang-migrate
+      run: |
+        curl -L https://github.com/golang-migrate/migrate/releases/latest/download/migrate.linux-amd64.tar.gz | tar -xz migrate
+        chmod +x migrate
+        ./migrate -version
+
+    - name: Run Database Migrations
+      env:
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        MIGRATION_ACTION: ${{ github.event.inputs.migration_action }}
+        MIGRATION_STEPS: ${{ github.event.inputs.migration_steps }}
+      run: |
+        if [ -z "$DATABASE_URL" ]; then
+          echo "Error: DATABASE_URL secret not set"
+          echo "Please add DATABASE_URL to your repository secrets"
+          exit 1
+        fi
+        
+        # Check if migrations directory exists
+        if [ ! -d "./db/migrations" ]; then
+          echo "Error: migrations directory not found"
+          echo "Please ensure your migration files are in ./db/migrations/"
+          exit 1
+        fi
+        
+        echo "Running database migration: $MIGRATION_ACTION"
+        if [ "$MIGRATION_ACTION" = "down" ] && [ -n "$MIGRATION_STEPS" ]; then
+          echo "Migration steps: $MIGRATION_STEPS"
+        fi
+        
+        # Run migrations based on action
+        case "$MIGRATION_ACTION" in
+          "up")
+            echo "Running up migrations..."
+            ./migrate -path ./db/migrations -database "$DATABASE_URL" up
+            ;;
+          "down")
+            echo "Running down migrations (steps: $MIGRATION_STEPS)..."
+            if [ -z "$MIGRATION_STEPS" ] || [ "$MIGRATION_STEPS" = "1" ]; then
+              ./migrate -path ./db/migrations -database "$DATABASE_URL" down 1
+            else
+              ./migrate -path ./db/migrations -database "$DATABASE_URL" down "$MIGRATION_STEPS"
+            fi
+            ;;
+          "status")
+            echo "Checking migration status..."
+            ./migrate -path ./db/migrations -database "$DATABASE_URL" version
+            ;;
+        esac
+        
+        echo "Migration completed successfully"
