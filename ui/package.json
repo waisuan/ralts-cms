@@ -12,15 +12,15 @@
     "test": "jest"
   },
   "dependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^24",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
     "next": "15.5.2",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "@tailwindcss/postcss": "^4",
     "tailwindcss": "^4",
-    "typescript": "5.9.2",
-    "@types/node": "^24",
-    "@types/react": "^19",
-    "@types/react-dom": "^19"
+    "typescript": "5.9.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -28,7 +28,7 @@
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
     "@types/jest": "^30.0.0",
-    "eslint": "^9",
+    "eslint": "^9.34.0",
     "eslint-config-next": "15.5.2",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.4",
