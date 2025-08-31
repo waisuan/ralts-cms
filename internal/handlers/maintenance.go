@@ -19,6 +19,7 @@ type ListMaintenanceResponse struct {
 	CorrectiveCount   int32                      `json:"corrective_count"`
 	EmergencyCount    int32                      `json:"emergency_count"`
 	InspectionCount   int32                      `json:"inspection_count"`
+	OtherCount        int32                      `json:"other_count"`
 	Count             int32                      `json:"count"`
 	Limit             int32                      `json:"limit"`
 	Offset            int32                      `json:"offset"`
@@ -157,7 +158,7 @@ func (h *MaintenanceHandler) ListMaintenance(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Get counts by work order type
-	preventativeCount, correctiveCount, emergencyCount, inspectionCount, err := h.deps.MaintenanceRepository.CountByWorkOrderType(r.Context(), machineSerialNumber)
+	preventativeCount, correctiveCount, emergencyCount, inspectionCount, otherCount, err := h.deps.MaintenanceRepository.CountByWorkOrderType(r.Context(), machineSerialNumber)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to count maintenance by work order type: %v", err), http.StatusInternalServerError)
 		return
@@ -170,6 +171,7 @@ func (h *MaintenanceHandler) ListMaintenance(w http.ResponseWriter, r *http.Requ
 		CorrectiveCount:   int32(correctiveCount),
 		EmergencyCount:    int32(emergencyCount),
 		InspectionCount:   int32(inspectionCount),
+		OtherCount:        int32(otherCount),
 		Count:             int32(count),
 		Limit:             limit,
 		Offset:            offset,

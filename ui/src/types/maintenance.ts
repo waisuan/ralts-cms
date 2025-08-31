@@ -10,4 +10,4 @@ export interface Maintenance {
   updated_at: string; // ISO 8601 format
 }
 
-export type MaintenanceOrderType = 'Preventive' | 'Corrective' | 'Emergency' | 'Inspection';
+export type MaintenanceOrderType = 'Preventive' | 'Corrective' | 'Emergency' | 'Inspection' | 'Other';

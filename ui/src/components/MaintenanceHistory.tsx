@@ -40,6 +40,11 @@ const getMaintenanceTypeColor = (type: string): string => {
   }
 };
 
+const getDisplayMaintenanceType = (type: string): string => {
+  // Always display the actual maintenance type, whether it's standard or custom
+  return type;
+};
+
 const getMaintenanceTypeIcon = (type: string): React.ReactElement => {
   switch (type) {
     case 'Preventive':
@@ -93,7 +98,7 @@ const getMaintenanceTypeIcon = (type: string): React.ReactElement => {
             strokeLinecap="round"
             strokeLinejoin="round"
             strokeWidth={2}
-            d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
           />
         </svg>
       );
@@ -130,6 +135,7 @@ export default function MaintenanceHistory({
   const [correctiveCount, setCorrectiveCount] = useState(0);
   const [emergencyCount, setEmergencyCount] = useState(0);
   const [inspectionCount, setInspectionCount] = useState(0);
+  const [otherCount, setOtherCount] = useState(0);
 
   // New record form state
   const [isAddRecordModalOpen, setIsAddRecordModalOpen] = useState(false);
@@ -139,6 +145,7 @@ export default function MaintenanceHistory({
     action_taken: '',
     reported_by: '',
     work_order_type: 'Preventive' as MaintenanceOrderType,
+    custom_work_order_type: '',
     attachment: '',
   });
   const [newRecordErrors, setNewRecordErrors] = useState<Record<string, string>>({});
@@ -155,6 +162,7 @@ export default function MaintenanceHistory({
     action_taken: '',
     reported_by: '',
     work_order_type: 'Preventive' as MaintenanceOrderType,
+    custom_work_order_type: '',
     attachment: '',
   });
   const [editRecordErrors, setEditRecordErrors] = useState<Record<string, string>>({});
@@ -168,6 +176,7 @@ export default function MaintenanceHistory({
     action_taken: '',
     reported_by: '',
     work_order_type: 'Preventive' as MaintenanceOrderType,
+    custom_work_order_type: '',
     attachment: '',
   });
 
@@ -238,6 +247,7 @@ export default function MaintenanceHistory({
           setCorrectiveCount(response.data.corrective_count || 0);
           setEmergencyCount(response.data.emergency_count || 0);
           setInspectionCount(response.data.inspection_count || 0);
+          setOtherCount(response.data.other_count || 0);
         }
       } catch (error) {
         console.error('🔧 MaintenanceHistory: Failed to load maintenance records:', error);
@@ -339,6 +349,7 @@ export default function MaintenanceHistory({
           setCorrectiveCount(response.data.corrective_count || 0);
           setEmergencyCount(response.data.emergency_count || 0);
           setInspectionCount(response.data.inspection_count || 0);
+          setOtherCount(response.data.other_count || 0);
         }
       } catch (error) {
         console.error('🔧 MaintenanceHistory: Failed to load maintenance records:', error);
@@ -383,6 +394,7 @@ export default function MaintenanceHistory({
           setCorrectiveCount(response.data.corrective_count || 0);
           setEmergencyCount(response.data.emergency_count || 0);
           setInspectionCount(response.data.inspection_count || 0);
+          setOtherCount(response.data.other_count || 0);
         }
       } catch (error) {
         console.error('🔧 MaintenanceHistory: Failed to load maintenance records:', error);
@@ -619,6 +631,7 @@ export default function MaintenanceHistory({
       action_taken: '',
       reported_by: '',
       work_order_type: 'Preventive',
+      custom_work_order_type: '',
       attachment: '',
     });
     setNewRecordErrors({});
@@ -636,6 +649,7 @@ export default function MaintenanceHistory({
       action_taken: '',
       reported_by: '',
       work_order_type: 'Preventive',
+      custom_work_order_type: '',
       attachment: '',
     });
     setNewRecordErrors({});
@@ -687,15 +701,30 @@ export default function MaintenanceHistory({
 
     if (!newRecordForm.work_order_number.trim()) {
       errors.work_order_number = 'Work order number is required';
+    } else if (newRecordForm.work_order_number.length > 50) {
+      errors.work_order_number = 'Work order number must not exceed 50 characters';
     }
+    
     if (!newRecordForm.work_order_date) {
       errors.work_order_date = 'Work order date is required';
     }
+    
     if (!newRecordForm.action_taken.trim()) {
       errors.action_taken = 'Action taken is required';
+    } else if (newRecordForm.action_taken.length > 500) {
+      errors.action_taken = 'Action taken must not exceed 500 characters';
     }
+    
     if (!newRecordForm.reported_by.trim()) {
       errors.reported_by = 'Reported by is required';
+    } else if (newRecordForm.reported_by.length > 50) {
+      errors.reported_by = 'Reported by must not exceed 50 characters';
+    }
+    
+    if (newRecordForm.work_order_type === 'Other' && !newRecordForm.custom_work_order_type.trim()) {
+      errors.custom_work_order_type = 'Custom maintenance type is required when "Other" is selected';
+    } else if (newRecordForm.work_order_type === 'Other' && newRecordForm.custom_work_order_type.length > 50) {
+      errors.custom_work_order_type = 'Custom maintenance type must not exceed 50 characters';
     }
 
     // Check if work order number already exists
@@ -725,7 +754,7 @@ export default function MaintenanceHistory({
         work_order_date: newRecordForm.work_order_date,
         action_taken: newRecordForm.action_taken.trim(),
         reported_by: newRecordForm.reported_by.trim(),
-        work_order_type: newRecordForm.work_order_type,
+        work_order_type: newRecordForm.work_order_type === 'Other' ? newRecordForm.custom_work_order_type.trim() : newRecordForm.work_order_type,
         attachment: newRecordForm.attachment || undefined,
       };
 
@@ -779,12 +808,16 @@ export default function MaintenanceHistory({
 
   // Edit record handlers
   const openEditRecordModal = (record: Maintenance) => {
+    // Check if the work order type is one of the predefined types
+    const isStandardType = ['Preventive', 'Corrective', 'Emergency', 'Inspection'].includes(record.work_order_type);
+    
     const formData = {
       work_order_number: record.work_order_number,
       work_order_date: backendDateToHtmlDate(record.work_order_date), // Convert backend date to HTML format
       action_taken: record.action_taken,
       reported_by: record.reported_by,
-      work_order_type: record.work_order_type as MaintenanceOrderType,
+      work_order_type: isStandardType ? (record.work_order_type as MaintenanceOrderType) : 'Other',
+      custom_work_order_type: isStandardType ? '' : record.work_order_type,
       attachment: record.attachment || '',
     };
 
@@ -809,6 +842,7 @@ export default function MaintenanceHistory({
       action_taken: '',
       reported_by: '',
       work_order_type: 'Preventive',
+      custom_work_order_type: '',
       attachment: '',
     });
     setOriginalEditFormData({
@@ -817,6 +851,7 @@ export default function MaintenanceHistory({
       action_taken: '',
       reported_by: '',
       work_order_type: 'Preventive',
+      custom_work_order_type: '',
       attachment: '',
     });
     setEditRecordErrors({});
@@ -889,15 +924,30 @@ export default function MaintenanceHistory({
 
     if (!editRecordForm.work_order_number.trim()) {
       errors.work_order_number = 'Work order number is required';
+    } else if (editRecordForm.work_order_number.length > 50) {
+      errors.work_order_number = 'Work order number must not exceed 50 characters';
     }
+    
     if (!editRecordForm.work_order_date) {
       errors.work_order_date = 'Work order date is required';
     }
+    
     if (!editRecordForm.action_taken.trim()) {
       errors.action_taken = 'Action taken is required';
+    } else if (editRecordForm.action_taken.length > 500) {
+      errors.action_taken = 'Action taken must not exceed 500 characters';
     }
+    
     if (!editRecordForm.reported_by.trim()) {
       errors.reported_by = 'Reported by is required';
+    } else if (editRecordForm.reported_by.length > 50) {
+      errors.reported_by = 'Reported by must not exceed 50 characters';
+    }
+    
+    if (editRecordForm.work_order_type === 'Other' && !editRecordForm.custom_work_order_type.trim()) {
+      errors.custom_work_order_type = 'Custom maintenance type is required when "Other" is selected';
+    } else if (editRecordForm.work_order_type === 'Other' && editRecordForm.custom_work_order_type.length > 50) {
+      errors.custom_work_order_type = 'Custom maintenance type must not exceed 50 characters';
     }
 
     // Check if work order number already exists (excluding current record)
@@ -929,7 +979,7 @@ export default function MaintenanceHistory({
         work_order_date: editRecordForm.work_order_date,
         action_taken: editRecordForm.action_taken.trim(),
         reported_by: editRecordForm.reported_by.trim(),
-        work_order_type: editRecordForm.work_order_type,
+        work_order_type: editRecordForm.work_order_type === 'Other' ? editRecordForm.custom_work_order_type.trim() : editRecordForm.work_order_type,
         attachment: editRecordForm.attachment || undefined,
       };
 
@@ -1361,7 +1411,7 @@ export default function MaintenanceHistory({
           </div>
 
           {/* Summary Statistics */}
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
             <div className="bg-white rounded-lg shadow-sm border p-4">
               <div className="text-2xl font-bold text-gray-900">{totalCount}</div>
               <div className="text-sm text-gray-600">Total Records</div>
@@ -1389,6 +1439,12 @@ export default function MaintenanceHistory({
                 {inspectionCount}
               </div>
               <div className="text-sm text-gray-600">Inspection</div>
+            </div>
+            <div className="bg-white rounded-lg shadow-sm border p-4">
+              <div className="text-2xl font-bold text-gray-600">
+                {otherCount}
+              </div>
+              <div className="text-sm text-gray-600">Other</div>
             </div>
           </div>
 
@@ -1577,7 +1633,7 @@ export default function MaintenanceHistory({
                                 className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${getMaintenanceTypeColor(record.work_order_type)}`}
                               >
                                 {getMaintenanceTypeIcon(record.work_order_type)}
-                                {record.work_order_type}
+                                {getDisplayMaintenanceType(record.work_order_type)}
                               </span>
                             </td>
                             <td className="px-6 py-4 text-sm text-gray-900 max-w-md">
@@ -1914,11 +1970,15 @@ export default function MaintenanceHistory({
                       onChange={(e) =>
                         handleNewRecordInputChange('work_order_number', e.target.value)
                       }
+
                       className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-600 text-gray-900 ${
                         newRecordErrors.work_order_number ? 'border-red-500' : 'border-gray-300'
                       }`}
                       placeholder="Enter work order number"
                     />
+                    <p className="mt-1 text-sm text-gray-500">
+                      {newRecordForm.work_order_number.length}/50 characters
+                    </p>
                     {newRecordErrors.work_order_number && (
                       <p className="mt-1 text-sm text-red-600">
                         {newRecordErrors.work_order_number}
@@ -1970,7 +2030,41 @@ export default function MaintenanceHistory({
                       <option value="Corrective">Corrective</option>
                       <option value="Emergency">Emergency</option>
                       <option value="Inspection">Inspection</option>
+                      <option value="Other">Other</option>
                     </select>
+                    
+                    {/* Custom work order type input for "Other" */}
+                    {newRecordForm.work_order_type === 'Other' && (
+                      <div className="mt-3">
+                        <label
+                          htmlFor="custom_work_order_type"
+                          className="block text-sm font-medium text-gray-700 mb-2"
+                        >
+                          Custom Maintenance Type <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          id="custom_work_order_type"
+                          type="text"
+                          value={newRecordForm.custom_work_order_type}
+                          onChange={(e) =>
+                            handleNewRecordInputChange('custom_work_order_type', e.target.value)
+                          }
+    
+                          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-600 text-gray-900 ${
+                            newRecordErrors.custom_work_order_type ? 'border-red-500' : 'border-gray-300'
+                          }`}
+                          placeholder="Enter custom maintenance type"
+                        />
+                        <p className="mt-1 text-sm text-gray-500">
+                          {newRecordForm.custom_work_order_type.length}/50 characters
+                        </p>
+                        {newRecordErrors.custom_work_order_type && (
+                          <p className="mt-1 text-sm text-red-600">
+                            {newRecordErrors.custom_work_order_type}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Reported By */}
@@ -1986,11 +2080,15 @@ export default function MaintenanceHistory({
                       type="text"
                       value={newRecordForm.reported_by}
                       onChange={(e) => handleNewRecordInputChange('reported_by', e.target.value)}
+
                       className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-600 text-gray-900 ${
                         newRecordErrors.reported_by ? 'border-red-500' : 'border-gray-300'
                       }`}
                       placeholder="Enter technician name"
                     />
+                    <p className="mt-1 text-sm text-gray-500">
+                      {newRecordForm.reported_by.length}/50 characters
+                    </p>
                     {newRecordErrors.reported_by && (
                       <p className="mt-1 text-sm text-red-600">{newRecordErrors.reported_by}</p>
                     )}
@@ -2102,11 +2200,15 @@ export default function MaintenanceHistory({
                     value={newRecordForm.action_taken}
                     onChange={(e) => handleNewRecordInputChange('action_taken', e.target.value)}
                     rows={4}
+
                     className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-600 text-gray-900 ${
                       newRecordErrors.action_taken ? 'border-red-500' : 'border-gray-300'
                     }`}
                     placeholder="Describe the maintenance action performed, parts replaced, issues found, etc."
                   />
+                  <p className="mt-1 text-sm text-gray-500">
+                    {newRecordForm.action_taken.length}/500 characters
+                  </p>
                   {newRecordErrors.action_taken && (
                     <p className="mt-1 text-sm text-red-600">{newRecordErrors.action_taken}</p>
                   )}
@@ -2206,6 +2308,7 @@ export default function MaintenanceHistory({
                       onChange={(e) =>
                         handleEditRecordInputChange('work_order_number', e.target.value)
                       }
+
                       disabled={true}
                       className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-600 text-gray-900 bg-gray-100 cursor-not-allowed ${
                         editRecordErrors.work_order_number ? 'border-red-500' : 'border-gray-300'
@@ -2265,7 +2368,41 @@ export default function MaintenanceHistory({
                       <option value="Corrective">Corrective</option>
                       <option value="Emergency">Emergency</option>
                       <option value="Inspection">Inspection</option>
+                      <option value="Other">Other</option>
                     </select>
+                    
+                    {/* Custom work order type input for "Other" */}
+                    {editRecordForm.work_order_type === 'Other' && (
+                      <div className="mt-3">
+                        <label
+                          htmlFor="edit_custom_work_order_type"
+                          className="block text-sm font-medium text-gray-700 mb-2"
+                        >
+                          Custom Maintenance Type <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          id="edit_custom_work_order_type"
+                          type="text"
+                          value={editRecordForm.custom_work_order_type}
+                          onChange={(e) =>
+                            handleEditRecordInputChange('custom_work_order_type', e.target.value)
+                          }
+    
+                          className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-600 text-gray-900 ${
+                            editRecordErrors.custom_work_order_type ? 'border-red-500' : 'border-gray-300'
+                          }`}
+                          placeholder="Enter custom maintenance type"
+                        />
+                        <p className="mt-1 text-sm text-gray-500">
+                          {editRecordForm.custom_work_order_type.length}/50 characters
+                        </p>
+                        {editRecordErrors.custom_work_order_type && (
+                          <p className="mt-1 text-sm text-red-600">
+                            {editRecordErrors.custom_work_order_type}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Reported By */}
@@ -2281,11 +2418,15 @@ export default function MaintenanceHistory({
                       type="text"
                       value={editRecordForm.reported_by}
                       onChange={(e) => handleEditRecordInputChange('reported_by', e.target.value)}
+
                       className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-600 text-gray-900 ${
                         editRecordErrors.reported_by ? 'border-red-500' : 'border-gray-300'
                       }`}
                       placeholder="Enter technician name"
                     />
+                    <p className="mt-1 text-sm text-gray-500">
+                      {editRecordForm.reported_by.length}/50 characters
+                    </p>
                     {editRecordErrors.reported_by && (
                       <p className="mt-1 text-sm text-red-600">{editRecordErrors.reported_by}</p>
                     )}
@@ -2444,11 +2585,15 @@ export default function MaintenanceHistory({
                     value={editRecordForm.action_taken}
                     onChange={(e) => handleEditRecordInputChange('action_taken', e.target.value)}
                     rows={4}
+
                     className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-600 text-gray-900 ${
                       editRecordErrors.action_taken ? 'border-red-500' : 'border-gray-300'
                     }`}
                     placeholder="Describe the maintenance action performed, parts replaced, issues found, etc."
                   />
+                  <p className="mt-1 text-sm text-gray-500">
+                    {editRecordForm.action_taken.length}/500 characters
+                  </p>
                   {editRecordErrors.action_taken && (
                     <p className="mt-1 text-sm text-red-600">{editRecordErrors.action_taken}</p>
                   )}

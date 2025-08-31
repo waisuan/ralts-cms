@@ -136,36 +136,72 @@ export default function MachineModal({
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    // Required fields validation
+    // Required fields validation with character limits
     if (!formData.serial_number.trim()) {
       newErrors.serial_number = 'Serial number is required';
+    } else if (formData.serial_number.length > 50) {
+      newErrors.serial_number = 'Serial number must not exceed 50 characters';
     }
+    
     if (!formData.customer.trim()) {
       newErrors.customer = 'Customer is required';
+    } else if (formData.customer.length > 50) {
+      newErrors.customer = 'Customer must not exceed 50 characters';
     }
+    
     if (!formData.state) {
       newErrors.state = 'State is required';
     }
+    
     if (!formData.model.trim()) {
       newErrors.model = 'Model is required';
+    } else if (formData.model.length > 50) {
+      newErrors.model = 'Model must not exceed 50 characters';
     }
+    
     if (!formData.brand.trim()) {
       newErrors.brand = 'Brand is required';
+    } else if (formData.brand.length > 50) {
+      newErrors.brand = 'Brand must not exceed 50 characters';
     }
+    
     if (!formData.district) {
       newErrors.district = 'District is required';
+    } else if (formData.district.length > 50) {
+      newErrors.district = 'District must not exceed 50 characters';
     }
+    
     if (!formData.person_in_charge.trim()) {
       newErrors.person_in_charge = 'Person in charge is required';
+    } else if (formData.person_in_charge.length > 50) {
+      newErrors.person_in_charge = 'Person in charge must not exceed 50 characters';
     }
+    
     if (!formData.reported_by.trim()) {
       newErrors.reported_by = 'Reported by is required';
+    } else if (formData.reported_by.length > 50) {
+      newErrors.reported_by = 'Reported by must not exceed 50 characters';
     }
+    
     if (!formData.tnc_date) {
       newErrors.tnc_date = 'TNC date is required';
     }
+    
     if (!formData.ppm_date) {
       newErrors.ppm_date = 'PPM date is required';
+    }
+
+    // Optional fields with character limits
+    if (formData.account_type.length > 50) {
+      newErrors.account_type = 'Account type must not exceed 50 characters';
+    }
+    
+    if (formData.status.length > 50) {
+      newErrors.status = 'Status must not exceed 50 characters';
+    }
+    
+    if (formData.additional_notes.length > 500) {
+      newErrors.additional_notes = 'Additional notes must not exceed 500 characters';
     }
 
     setErrors(newErrors);
@@ -484,6 +520,9 @@ export default function MachineModal({
                   } ${mode === 'edit' ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                   placeholder="Enter serial number"
                 />
+                <p className="mt-1 text-sm text-gray-500">
+                  {formData.serial_number.length}/50 characters
+                </p>
                 {errors.serial_number && (
                   <p className="mt-1 text-sm text-red-600">{errors.serial_number}</p>
                 )}
@@ -504,6 +543,9 @@ export default function MachineModal({
                   }`}
                   placeholder="Enter customer name"
                 />
+                <p className="mt-1 text-sm text-gray-500">
+                  {formData.customer.length}/50 characters
+                </p>
                 {errors.customer && <p className="mt-1 text-sm text-red-600">{errors.customer}</p>}
               </div>
 
@@ -543,9 +585,17 @@ export default function MachineModal({
                   type="text"
                   value={formData.account_type}
                   onChange={(e) => handleInputChange('account_type', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-600 text-gray-900"
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-600 text-gray-900 ${
+                    errors.account_type ? 'border-red-500' : 'border-gray-300'
+                  }`}
                   placeholder="Enter account type"
                 />
+                <p className="mt-1 text-sm text-gray-500">
+                  {formData.account_type.length}/50 characters
+                </p>
+                {errors.account_type && (
+                  <p className="mt-1 text-sm text-red-600">{errors.account_type}</p>
+                )}
               </div>
 
               {/* Model */}
@@ -563,6 +613,9 @@ export default function MachineModal({
                   }`}
                   placeholder="Enter model number"
                 />
+                <p className="mt-1 text-sm text-gray-500">
+                  {formData.model.length}/50 characters
+                </p>
                 {errors.model && <p className="mt-1 text-sm text-red-600">{errors.model}</p>}
               </div>
 
@@ -576,9 +629,17 @@ export default function MachineModal({
                   type="text"
                   value={formData.status}
                   onChange={(e) => handleInputChange('status', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-600 text-gray-900"
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-600 text-gray-900 ${
+                    errors.status ? 'border-red-500' : 'border-gray-300'
+                  }`}
                   placeholder="Enter status"
                 />
+                <p className="mt-1 text-sm text-gray-500">
+                  {formData.status.length}/50 characters
+                </p>
+                {errors.status && (
+                  <p className="mt-1 text-sm text-red-600">{errors.status}</p>
+                )}
               </div>
 
               {/* Brand */}
@@ -596,6 +657,9 @@ export default function MachineModal({
                   }`}
                   placeholder="Enter brand name"
                 />
+                <p className="mt-1 text-sm text-gray-500">
+                  {formData.brand.length}/50 characters
+                </p>
                 {errors.brand && <p className="mt-1 text-sm text-red-600">{errors.brand}</p>}
               </div>
 
@@ -614,6 +678,9 @@ export default function MachineModal({
                   }`}
                   placeholder="Enter district name"
                 />
+                <p className="mt-1 text-sm text-gray-500">
+                  {formData.district.length}/50 characters
+                </p>
                 {errors.district && <p className="mt-1 text-sm text-red-600">{errors.district}</p>}
               </div>
 
@@ -635,6 +702,9 @@ export default function MachineModal({
                   }`}
                   placeholder="Enter person in charge"
                 />
+                <p className="mt-1 text-sm text-gray-500">
+                  {formData.person_in_charge.length}/50 characters
+                </p>
                 {errors.person_in_charge && (
                   <p className="mt-1 text-sm text-red-600">{errors.person_in_charge}</p>
                 )}
@@ -658,6 +728,9 @@ export default function MachineModal({
                   }`}
                   placeholder="Enter reporter name"
                 />
+                <p className="mt-1 text-sm text-gray-500">
+                  {formData.reported_by.length}/50 characters
+                </p>
                 {errors.reported_by && (
                   <p className="mt-1 text-sm text-red-600">{errors.reported_by}</p>
                 )}
@@ -843,9 +916,17 @@ export default function MachineModal({
                 value={formData.additional_notes}
                 onChange={(e) => handleInputChange('additional_notes', e.target.value)}
                 rows={4}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-600 text-gray-900"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-600 text-gray-900 ${
+                  errors.additional_notes ? 'border-red-500' : 'border-gray-300'
+                }`}
                 placeholder="Enter any additional notes or comments"
               />
+              <p className="mt-1 text-sm text-gray-500">
+                {formData.additional_notes.length}/500 characters
+              </p>
+              {errors.additional_notes && (
+                <p className="mt-1 text-sm text-red-600">{errors.additional_notes}</p>
+              )}
             </div>
 
             {/* Error Display - moved closer to buttons */}

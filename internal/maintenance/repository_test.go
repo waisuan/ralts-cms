@@ -753,7 +753,7 @@ func (suite *MaintenanceRepositoryTestSuite) TestCountByWorkOrderType() {
 		suite.Require().NoError(err)
 
 		// Get counts for the target machine
-		preventativeCount, correctiveCount, emergencyCount, inspectionCount, err := suite.repo.CountByWorkOrderType(ctx, TestMachineOne)
+		preventativeCount, correctiveCount, emergencyCount, inspectionCount, otherCount, err := suite.repo.CountByWorkOrderType(ctx, TestMachineOne)
 		suite.Require().NoError(err)
 
 		// Verify counts
@@ -761,26 +761,29 @@ func (suite *MaintenanceRepositoryTestSuite) TestCountByWorkOrderType() {
 		suite.Assert().Equal(2, correctiveCount)   // WO002, WO006
 		suite.Assert().Equal(1, emergencyCount)    // WO003
 		suite.Assert().Equal(1, inspectionCount)   // WO004
+		suite.Assert().Equal(0, otherCount)        // No "Other" types in this test
 	})
 
 	suite.Run("should return 0 for all types when machine has no maintenance records", func() {
-		preventativeCount, correctiveCount, emergencyCount, inspectionCount, err := suite.repo.CountByWorkOrderType(ctx, TestMachineOne)
+		preventativeCount, correctiveCount, emergencyCount, inspectionCount, otherCount, err := suite.repo.CountByWorkOrderType(ctx, TestMachineOne)
 		suite.Require().NoError(err)
 
 		suite.Assert().Equal(0, preventativeCount)
 		suite.Assert().Equal(0, correctiveCount)
 		suite.Assert().Equal(0, emergencyCount)
 		suite.Assert().Equal(0, inspectionCount)
+		suite.Assert().Equal(0, otherCount)
 	})
 
 	suite.Run("should return 0 for non-existent machine", func() {
-		preventativeCount, correctiveCount, emergencyCount, inspectionCount, err := suite.repo.CountByWorkOrderType(ctx, "NON_EXISTENT_MACHINE")
+		preventativeCount, correctiveCount, emergencyCount, inspectionCount, otherCount, err := suite.repo.CountByWorkOrderType(ctx, "NON_EXISTENT_MACHINE")
 		suite.Require().NoError(err)
 
 		suite.Assert().Equal(0, preventativeCount)
 		suite.Assert().Equal(0, correctiveCount)
 		suite.Assert().Equal(0, emergencyCount)
 		suite.Assert().Equal(0, inspectionCount)
+		suite.Assert().Equal(0, otherCount)
 	})
 }
 

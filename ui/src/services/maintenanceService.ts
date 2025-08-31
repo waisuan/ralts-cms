@@ -18,6 +18,7 @@ export interface MaintenanceListResponse {
   corrective_count: number;
   emergency_count: number;
   inspection_count: number;
+  other_count: number;
   count: number;
   limit: number;
   offset: number;

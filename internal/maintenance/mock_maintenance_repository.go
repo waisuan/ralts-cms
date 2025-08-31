@@ -65,15 +65,16 @@ func (mr *MockRepositoryMockRecorder) CountByMachine(ctx, machineSerialNumber in
 }
 
 // CountByWorkOrderType mocks base method.
-func (m *MockRepository) CountByWorkOrderType(ctx context.Context, machineSerialNumber string) (int, int, int, int, error) {
+func (m *MockRepository) CountByWorkOrderType(ctx context.Context, machineSerialNumber string) (int, int, int, int, int, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CountByWorkOrderType", ctx, machineSerialNumber)
 	ret0, _ := ret[0].(int)
 	ret1, _ := ret[1].(int)
 	ret2, _ := ret[2].(int)
 	ret3, _ := ret[3].(int)
-	ret4, _ := ret[4].(error)
-	return ret0, ret1, ret2, ret3, ret4
+	ret4, _ := ret[4].(int)
+	ret5, _ := ret[5].(error)
+	return ret0, ret1, ret2, ret3, ret4, ret5
 }
 
 // CountByWorkOrderType indicates an expected call of CountByWorkOrderType.

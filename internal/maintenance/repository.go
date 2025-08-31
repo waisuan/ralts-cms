@@ -51,7 +51,7 @@ type Repository interface {
 	Delete(ctx context.Context, machineSerialNumber, workOrderNumber string) error
 	Count(ctx context.Context) (int, error)
 	CountByMachine(ctx context.Context, machineSerialNumber string) (int, error)
-	CountByWorkOrderType(ctx context.Context, machineSerialNumber string) (int, int, int, int, error)
+	CountByWorkOrderType(ctx context.Context, machineSerialNumber string) (int, int, int, int, int, error)
 }
 
 type db struct {
@@ -238,26 +238,27 @@ func (r *db) CountByMachine(ctx context.Context, machineSerialNumber string) (in
 	return count, nil
 }
 
-func (r *db) CountByWorkOrderType(ctx context.Context, machineSerialNumber string) (int, int, int, int, error) {
+func (r *db) CountByWorkOrderType(ctx context.Context, machineSerialNumber string) (int, int, int, int, int, error) {
 	query := `
 		SELECT 
 			COUNT(CASE WHEN "workOrderType" = 'Preventive' THEN 1 END) as preventative_count,
 			COUNT(CASE WHEN "workOrderType" = 'Corrective' THEN 1 END) as corrective_count,
 			COUNT(CASE WHEN "workOrderType" = 'Emergency' THEN 1 END) as emergency_count,
-			COUNT(CASE WHEN "workOrderType" = 'Inspection' THEN 1 END) as inspection_count
+			COUNT(CASE WHEN "workOrderType" = 'Inspection' THEN 1 END) as inspection_count,
+			COUNT(CASE WHEN "workOrderType" NOT IN ('Preventive', 'Corrective', 'Emergency', 'Inspection') THEN 1 END) as other_count
 		FROM maintenance 
 		WHERE "serialNumber" = $1
 	`
 
-	var preventativeCount, correctiveCount, emergencyCount, inspectionCount int
+	var preventativeCount, correctiveCount, emergencyCount, inspectionCount, otherCount int
 	err := r.client.QueryRow(ctx, query, machineSerialNumber).Scan(
-		&preventativeCount, &correctiveCount, &emergencyCount, &inspectionCount,
+		&preventativeCount, &correctiveCount, &emergencyCount, &inspectionCount, &otherCount,
 	)
 	if err != nil {
-		return 0, 0, 0, 0, fmt.Errorf("failed to count maintenance records by work order type: %w", err)
+		return 0, 0, 0, 0, 0, fmt.Errorf("failed to count maintenance records by work order type: %w", err)
 	}
 
-	return preventativeCount, correctiveCount, emergencyCount, inspectionCount, nil
+	return preventativeCount, correctiveCount, emergencyCount, inspectionCount, otherCount, nil
 }
 
 func (r *db) SearchByMachine(ctx context.Context, machineSerialNumber, query string, options *ListOptions) ([]*Maintenance, error) {
