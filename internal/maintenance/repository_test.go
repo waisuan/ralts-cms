@@ -300,7 +300,7 @@ func (suite *MaintenanceRepositoryTestSuite) TestListByMachine() {
 		options := &maintenance.ListOptions{
 			Limit:  3,
 			Offset: 0,
-			Sort:   maintenance.SortOrderCreatedAtDesc,
+			Sort:   maintenance.SortOrderUpdatedAtDesc,
 		}
 
 		maintenanceList, err := suite.repo.ListByMachine(ctx, TestMachineOne, options)
@@ -325,7 +325,7 @@ func (suite *MaintenanceRepositoryTestSuite) TestListByMachine() {
 		options := &maintenance.ListOptions{
 			Limit:  10,
 			Offset: 2,
-			Sort:   maintenance.SortOrderCreatedAtDesc,
+			Sort:   maintenance.SortOrderUpdatedAtDesc,
 		}
 
 		maintenanceList, err := suite.repo.ListByMachine(ctx, TestMachineOne, options)
@@ -355,7 +355,7 @@ func (suite *MaintenanceRepositoryTestSuite) TestListByMachine() {
 		options := &maintenance.ListOptions{
 			Limit:  10,
 			Offset: 0,
-			Sort:   maintenance.SortOrderCreatedAtDesc,
+			Sort:   maintenance.SortOrderUpdatedAtDesc,
 		}
 
 		maintenanceList, err := suite.repo.ListByMachine(ctx, TestMachineOne, options)
@@ -385,7 +385,7 @@ func (suite *MaintenanceRepositoryTestSuite) TestListByMachine() {
 		options := &maintenance.ListOptions{
 			Limit:  10,
 			Offset: 0,
-			Sort:   maintenance.SortOrderCreatedAtAsc,
+			Sort:   maintenance.SortOrderUpdatedAtAsc,
 		}
 
 		maintenanceList, err := suite.repo.ListByMachine(ctx, TestMachineOne, options)
@@ -410,7 +410,7 @@ func (suite *MaintenanceRepositoryTestSuite) TestListByMachine() {
 		options1 := &maintenance.ListOptions{
 			Limit:  3,
 			Offset: 0,
-			Sort:   maintenance.SortOrderCreatedAtDesc,
+			Sort:   maintenance.SortOrderUpdatedAtDesc,
 		}
 
 		page1, err := suite.repo.ListByMachine(ctx, TestMachineOne, options1)
@@ -421,7 +421,7 @@ func (suite *MaintenanceRepositoryTestSuite) TestListByMachine() {
 		options2 := &maintenance.ListOptions{
 			Limit:  3,
 			Offset: 3,
-			Sort:   maintenance.SortOrderCreatedAtDesc,
+			Sort:   maintenance.SortOrderUpdatedAtDesc,
 		}
 
 		page2, err := suite.repo.ListByMachine(ctx, TestMachineOne, options2)
@@ -432,7 +432,7 @@ func (suite *MaintenanceRepositoryTestSuite) TestListByMachine() {
 		options3 := &maintenance.ListOptions{
 			Limit:  3,
 			Offset: 6,
-			Sort:   maintenance.SortOrderCreatedAtDesc,
+			Sort:   maintenance.SortOrderUpdatedAtDesc,
 		}
 
 		page3, err := suite.repo.ListByMachine(ctx, TestMachineOne, options3)
@@ -443,7 +443,7 @@ func (suite *MaintenanceRepositoryTestSuite) TestListByMachine() {
 		options4 := &maintenance.ListOptions{
 			Limit:  3,
 			Offset: 9,
-			Sort:   maintenance.SortOrderCreatedAtDesc,
+			Sort:   maintenance.SortOrderUpdatedAtDesc,
 		}
 
 		page4, err := suite.repo.ListByMachine(ctx, TestMachineOne, options4)
@@ -472,7 +472,7 @@ func (suite *MaintenanceRepositoryTestSuite) TestListByMachine() {
 		options := &maintenance.ListOptions{
 			Limit:  10,
 			Offset: 5, // Beyond the 2 records we have
-			Sort:   maintenance.SortOrderCreatedAtDesc,
+			Sort:   maintenance.SortOrderUpdatedAtDesc,
 		}
 
 		maintenanceList, err := suite.repo.ListByMachine(ctx, TestMachineOne, options)
@@ -483,7 +483,7 @@ func (suite *MaintenanceRepositoryTestSuite) TestListByMachine() {
 		optionsZero := &maintenance.ListOptions{
 			Limit:  0,
 			Offset: 0,
-			Sort:   maintenance.SortOrderCreatedAtDesc,
+			Sort:   maintenance.SortOrderUpdatedAtDesc,
 		}
 
 		maintenanceListZero, err := suite.repo.ListByMachine(ctx, TestMachineOne, optionsZero)

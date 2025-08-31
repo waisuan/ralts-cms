@@ -25,10 +25,10 @@ const (
 type SortOrder string
 
 const (
-	// SortOrderCreatedAtDesc sorts machines by creation date in descending order (newest first)
-	SortOrderCreatedAtDesc SortOrder = "created_at_desc" // Most recently created (default)
-	// SortOrderCreatedAtAsc sorts machines by creation date in ascending order (oldest first)
-	SortOrderCreatedAtAsc SortOrder = "created_at_asc" // Least recently created
+	// SortOrderUpdatedAtDesc sorts machines by update date in descending order (most recently updated first)
+	SortOrderUpdatedAtDesc SortOrder = "updated_at_desc" // Most recently updated (default)
+	// SortOrderUpdatedAtAsc sorts machines by update date in ascending order (least recently updated first)
+	SortOrderUpdatedAtAsc SortOrder = "updated_at_asc" // Least recently updated
 )
 
 // ListOptions defines the options for listing machines
@@ -44,7 +44,7 @@ func DefaultListOptions() *ListOptions {
 	return &ListOptions{
 		Limit:           50,
 		Offset:          0,
-		Sort:            SortOrderCreatedAtDesc,
+		Sort:            SortOrderUpdatedAtDesc,
 		PpmStatusFilter: "",
 	}
 }
@@ -117,12 +117,12 @@ func (r *db) List(ctx context.Context, options *ListOptions) ([]*Machine, error)
 	// Build the ORDER BY clause based on sort option
 	var orderByClause string
 	switch options.Sort {
-	case SortOrderCreatedAtAsc:
-		orderByClause = `ORDER BY "createdAt" ASC`
-	case SortOrderCreatedAtDesc:
-		orderByClause = `ORDER BY "createdAt" DESC`
+	case SortOrderUpdatedAtAsc:
+		orderByClause = `ORDER BY "updatedAt" ASC`
+	case SortOrderUpdatedAtDesc:
+		orderByClause = `ORDER BY "updatedAt" DESC`
 	default:
-		orderByClause = `ORDER BY "createdAt" DESC` // Default to most recent first
+		orderByClause = `ORDER BY "updatedAt" DESC` // Default to most recently updated first
 	}
 
 	// Build WHERE clause for PPM status filtering
@@ -330,12 +330,12 @@ func (r *db) Search(ctx context.Context, query string, options *ListOptions) ([]
 	// Build ORDER BY clause based on sort option
 	var orderByClause string
 	switch options.Sort {
-	case SortOrderCreatedAtAsc:
-		orderByClause = `ORDER BY rank DESC, "createdAt" ASC`
-	case SortOrderCreatedAtDesc:
-		orderByClause = `ORDER BY rank DESC, "createdAt" DESC`
+	case SortOrderUpdatedAtAsc:
+		orderByClause = `ORDER BY rank DESC, "updatedAt" ASC`
+	case SortOrderUpdatedAtDesc:
+		orderByClause = `ORDER BY rank DESC, "updatedAt" DESC`
 	default:
-		orderByClause = `ORDER BY rank DESC, "createdAt" DESC`
+		orderByClause = `ORDER BY rank DESC, "updatedAt" DESC`
 	}
 
 	// Add pagination

@@ -251,7 +251,7 @@ func (suite *MachineRepositoryTestSuite) TestList() {
 		suite.Require().NoError(suite.repo.Create(ctx, machine2))
 		suite.Require().NoError(suite.repo.Create(ctx, machine3))
 
-		options := &machines.ListOptions{Limit: 50, Offset: 0, Sort: machines.SortOrderCreatedAtDesc}
+		options := &machines.ListOptions{Limit: 50, Offset: 0, Sort: machines.SortOrderUpdatedAtDesc}
 		machines, err := suite.repo.List(ctx, options)
 		suite.Require().NoError(err)
 		suite.Assert().Len(machines, 3)
@@ -277,7 +277,7 @@ func (suite *MachineRepositoryTestSuite) TestList() {
 		machine3.PpmDate = time.Now().AddDate(0, 0, 10)
 		suite.Require().NoError(suite.repo.Create(ctx, machine3))
 
-		options := &machines.ListOptions{Limit: 50, Offset: 0, Sort: machines.SortOrderCreatedAtAsc}
+		options := &machines.ListOptions{Limit: 50, Offset: 0, Sort: machines.SortOrderUpdatedAtAsc}
 		machinesList, err := suite.repo.List(ctx, options)
 		suite.Require().NoError(err)
 		suite.Assert().Len(machinesList, 3)
@@ -291,7 +291,7 @@ func (suite *MachineRepositoryTestSuite) TestList() {
 			m := testutils.CreateMachine(fmt.Sprintf("LIMIT%03d", i))
 			suite.Require().NoError(suite.repo.Create(ctx, m))
 		}
-		options := &machines.ListOptions{Limit: 3, Offset: 0, Sort: machines.SortOrderCreatedAtDesc}
+		options := &machines.ListOptions{Limit: 3, Offset: 0, Sort: machines.SortOrderUpdatedAtDesc}
 		machines, err := suite.repo.List(ctx, options)
 		suite.Require().NoError(err)
 		suite.Assert().Len(machines, 3)
@@ -302,7 +302,7 @@ func (suite *MachineRepositoryTestSuite) TestList() {
 			m := testutils.CreateMachine(fmt.Sprintf("PAGE%03d", i))
 			suite.Require().NoError(suite.repo.Create(ctx, m))
 		}
-		options := &machines.ListOptions{Limit: 2, Offset: 0, Sort: machines.SortOrderCreatedAtDesc}
+		options := &machines.ListOptions{Limit: 2, Offset: 0, Sort: machines.SortOrderUpdatedAtDesc}
 		machines, err := suite.repo.List(ctx, options)
 		suite.Require().NoError(err)
 		suite.Assert().Len(machines, 2)
@@ -328,41 +328,61 @@ func (suite *MachineRepositoryTestSuite) TestList() {
 		suite.Assert().Len(machines, 0)
 	})
 
-	suite.Run("should support sorting by created_at ascending", func() {
+	suite.Run("should support sorting by updated_at ascending", func() {
 		machine1 := testutils.CreateMachine("SORT001")
-		time.Sleep(10 * time.Millisecond)
 		machine2 := testutils.CreateMachine("SORT002")
-		time.Sleep(10 * time.Millisecond)
 		machine3 := testutils.CreateMachine("SORT003")
 		suite.Require().NoError(suite.repo.Create(ctx, machine1))
 		suite.Require().NoError(suite.repo.Create(ctx, machine2))
 		suite.Require().NoError(suite.repo.Create(ctx, machine3))
 
-		options := &machines.ListOptions{Limit: 10, Offset: 0, Sort: machines.SortOrderCreatedAtAsc}
+		// Update machines with different timestamps to test updated_at sorting
+		time.Sleep(10 * time.Millisecond)
+		machine3.Customer = "Updated Customer 3"
+		suite.Require().NoError(suite.repo.Update(ctx, machine3))
+		time.Sleep(10 * time.Millisecond)
+		machine1.Customer = "Updated Customer 1"
+		suite.Require().NoError(suite.repo.Update(ctx, machine1))
+		time.Sleep(10 * time.Millisecond)
+		machine2.Customer = "Updated Customer 2"
+		suite.Require().NoError(suite.repo.Update(ctx, machine2))
+
+		options := &machines.ListOptions{Limit: 10, Offset: 0, Sort: machines.SortOrderUpdatedAtAsc}
 		machines, err := suite.repo.List(ctx, options)
 		suite.Require().NoError(err)
 		suite.Assert().Len(machines, 3)
-		suite.Assert().Equal("SORT001", machines[0].SerialNumber)
-		suite.Assert().Equal("SORT002", machines[1].SerialNumber)
-		suite.Assert().Equal("SORT003", machines[2].SerialNumber)
+		// Should be sorted by update time ascending (machine3 updated first, machine2 last)
+		suite.Assert().Equal("SORT003", machines[0].SerialNumber)
+		suite.Assert().Equal("SORT001", machines[1].SerialNumber)
+		suite.Assert().Equal("SORT002", machines[2].SerialNumber)
 	})
 
-	suite.Run("should support sorting by created_at descending", func() {
+	suite.Run("should support sorting by updated_at descending", func() {
 		machine1 := testutils.CreateMachine("SORT004")
-		time.Sleep(10 * time.Millisecond)
 		machine2 := testutils.CreateMachine("SORT005")
-		time.Sleep(10 * time.Millisecond)
 		machine3 := testutils.CreateMachine("SORT006")
 		suite.Require().NoError(suite.repo.Create(ctx, machine1))
 		suite.Require().NoError(suite.repo.Create(ctx, machine2))
 		suite.Require().NoError(suite.repo.Create(ctx, machine3))
 
-		options := &machines.ListOptions{Limit: 10, Offset: 0, Sort: machines.SortOrderCreatedAtDesc}
+		// Update machines with different timestamps to test updated_at sorting
+		time.Sleep(10 * time.Millisecond)
+		machine1.Customer = "Updated Customer 1"
+		suite.Require().NoError(suite.repo.Update(ctx, machine1))
+		time.Sleep(10 * time.Millisecond)
+		machine3.Customer = "Updated Customer 3"
+		suite.Require().NoError(suite.repo.Update(ctx, machine3))
+		time.Sleep(10 * time.Millisecond)
+		machine2.Customer = "Updated Customer 2"
+		suite.Require().NoError(suite.repo.Update(ctx, machine2))
+
+		options := &machines.ListOptions{Limit: 10, Offset: 0, Sort: machines.SortOrderUpdatedAtDesc}
 		machines, err := suite.repo.List(ctx, options)
 		suite.Require().NoError(err)
 		suite.Assert().Len(machines, 3)
-		suite.Assert().Equal("SORT006", machines[0].SerialNumber)
-		suite.Assert().Equal("SORT005", machines[1].SerialNumber)
+		// Should be sorted by update time descending (machine2 updated last, machine1 first)
+		suite.Assert().Equal("SORT005", machines[0].SerialNumber)
+		suite.Assert().Equal("SORT006", machines[1].SerialNumber)
 		suite.Assert().Equal("SORT004", machines[2].SerialNumber)
 	})
 
@@ -408,7 +428,7 @@ func (suite *MachineRepositoryTestSuite) TestList() {
 		options := &machines.ListOptions{
 			Limit:           50,
 			Offset:          0,
-			Sort:            machines.SortOrderCreatedAtDesc,
+			Sort:            machines.SortOrderUpdatedAtDesc,
 			PpmStatusFilter: machines.PPMStatusOverdue,
 		}
 
@@ -438,7 +458,7 @@ func (suite *MachineRepositoryTestSuite) TestList() {
 		options := &machines.ListOptions{
 			Limit:           50,
 			Offset:          0,
-			Sort:            machines.SortOrderCreatedAtDesc,
+			Sort:            machines.SortOrderUpdatedAtDesc,
 			PpmStatusFilter: machines.PPMStatusDue,
 		}
 
@@ -472,7 +492,7 @@ func (suite *MachineRepositoryTestSuite) TestList() {
 		options := &machines.ListOptions{
 			Limit:           50,
 			Offset:          0,
-			Sort:            machines.SortOrderCreatedAtDesc,
+			Sort:            machines.SortOrderUpdatedAtDesc,
 			PpmStatusFilter: machines.PPMStatusAlmostDue,
 		}
 
@@ -496,7 +516,7 @@ func (suite *MachineRepositoryTestSuite) TestList() {
 		options := &machines.ListOptions{
 			Limit:           2,
 			Offset:          0,
-			Sort:            machines.SortOrderCreatedAtDesc,
+			Sort:            machines.SortOrderUpdatedAtDesc,
 			PpmStatusFilter: machines.PPMStatusOverdue,
 		}
 
@@ -529,7 +549,7 @@ func (suite *MachineRepositoryTestSuite) TestList() {
 		options := &machines.ListOptions{
 			Limit:           50,
 			Offset:          0,
-			Sort:            machines.SortOrderCreatedAtDesc,
+			Sort:            machines.SortOrderUpdatedAtDesc,
 			PpmStatusFilter: machines.PPMStatusOverdue,
 		}
 
@@ -682,7 +702,7 @@ func (suite *MachineRepositoryTestSuite) TestSearch() {
 		// Search for HP printers
 		results, err := suite.repo.Search(ctx, "HP", &machines.ListOptions{
 			Limit: 10,
-			Sort:  machines.SortOrderCreatedAtDesc,
+			Sort:  machines.SortOrderUpdatedAtDesc,
 		})
 		suite.Require().NoError(err)
 		suite.Assert().Len(results, 1)
@@ -703,7 +723,7 @@ func (suite *MachineRepositoryTestSuite) TestSearch() {
 		// Search for "Tech" which should match customer and person_in_charge
 		results, err := suite.repo.Search(ctx, "Tech", &machines.ListOptions{
 			Limit: 10,
-			Sort:  machines.SortOrderCreatedAtDesc,
+			Sort:  machines.SortOrderUpdatedAtDesc,
 		})
 		suite.Require().NoError(err)
 		suite.Assert().Len(results, 1)
@@ -718,7 +738,7 @@ func (suite *MachineRepositoryTestSuite) TestSearch() {
 		// Search for something that doesn't exist
 		results, err := suite.repo.Search(ctx, "nonexistent", &machines.ListOptions{
 			Limit: 10,
-			Sort:  machines.SortOrderCreatedAtDesc,
+			Sort:  machines.SortOrderUpdatedAtDesc,
 		})
 		suite.Require().NoError(err)
 		suite.Assert().Len(results, 0)
@@ -736,7 +756,7 @@ func (suite *MachineRepositoryTestSuite) TestSearch() {
 		results, err := suite.repo.Search(ctx, "HP", &machines.ListOptions{
 			Limit:  2,
 			Offset: 1,
-			Sort:   machines.SortOrderCreatedAtDesc,
+			Sort:   machines.SortOrderUpdatedAtDesc,
 		})
 		suite.Require().NoError(err)
 		suite.Assert().Len(results, 2)
@@ -758,7 +778,7 @@ func (suite *MachineRepositoryTestSuite) TestSearch() {
 		// Search for HP machines that are overdue
 		results, err := suite.repo.Search(ctx, "HP", &machines.ListOptions{
 			Limit:           10,
-			Sort:            machines.SortOrderCreatedAtDesc,
+			Sort:            machines.SortOrderUpdatedAtDesc,
 			PpmStatusFilter: machines.PPMStatusOverdue,
 		})
 		suite.Require().NoError(err)
@@ -782,7 +802,7 @@ func (suite *MachineRepositoryTestSuite) TestSearch() {
 		// Search for Canon machines due today
 		results, err := suite.repo.Search(ctx, "Canon", &machines.ListOptions{
 			Limit:           10,
-			Sort:            machines.SortOrderCreatedAtDesc,
+			Sort:            machines.SortOrderUpdatedAtDesc,
 			PpmStatusFilter: machines.PPMStatusDue,
 		})
 		suite.Require().NoError(err)
@@ -806,7 +826,7 @@ func (suite *MachineRepositoryTestSuite) TestSearch() {
 		// Search for Brother machines almost due
 		results, err := suite.repo.Search(ctx, "Brother", &machines.ListOptions{
 			Limit:           10,
-			Sort:            machines.SortOrderCreatedAtDesc,
+			Sort:            machines.SortOrderUpdatedAtDesc,
 			PpmStatusFilter: machines.PPMStatusAlmostDue,
 		})
 		suite.Require().NoError(err)
@@ -837,7 +857,7 @@ func (suite *MachineRepositoryTestSuite) TestSearch() {
 		// Search with lowercase
 		results, err := suite.repo.Search(ctx, "office", &machines.ListOptions{
 			Limit: 10,
-			Sort:  machines.SortOrderCreatedAtDesc,
+			Sort:  machines.SortOrderUpdatedAtDesc,
 		})
 		suite.Require().NoError(err)
 		suite.Assert().Len(results, 1)
@@ -852,7 +872,7 @@ func (suite *MachineRepositoryTestSuite) TestSearch() {
 		// Search with empty query
 		results, err := suite.repo.Search(ctx, "", &machines.ListOptions{
 			Limit: 10,
-			Sort:  machines.SortOrderCreatedAtDesc,
+			Sort:  machines.SortOrderUpdatedAtDesc,
 		})
 		suite.Require().NoError(err)
 		// Should return no results for empty query
@@ -869,7 +889,7 @@ func (suite *MachineRepositoryTestSuite) TestSearch() {
 		// Search with special characters
 		results, err := suite.repo.Search(ctx, "Tech Solutions", &machines.ListOptions{
 			Limit: 10,
-			Sort:  machines.SortOrderCreatedAtDesc,
+			Sort:  machines.SortOrderUpdatedAtDesc,
 		})
 		suite.Require().NoError(err)
 		suite.Assert().Len(results, 1)
@@ -905,7 +925,7 @@ func (suite *MachineRepositoryTestSuite) TestSearch() {
 		// Search for HP machines
 		results, err := suite.repo.Search(ctx, "HP", &machines.ListOptions{
 			Limit: 10,
-			Sort:  machines.SortOrderCreatedAtDesc,
+			Sort:  machines.SortOrderUpdatedAtDesc,
 		})
 		suite.Require().NoError(err)
 		suite.Assert().Len(results, 3)
@@ -938,7 +958,7 @@ func (suite *MachineRepositoryTestSuite) TestSearch() {
 		results, err := suite.repo.Search(ctx, "Brother", &machines.ListOptions{
 			Limit:  3,
 			Offset: 0,
-			Sort:   machines.SortOrderCreatedAtDesc,
+			Sort:   machines.SortOrderUpdatedAtDesc,
 		})
 		suite.Require().NoError(err)
 		suite.Assert().Len(results, 3)
@@ -962,7 +982,7 @@ func (suite *MachineRepositoryTestSuite) TestSearch() {
 		// Count search results for "HP"
 		count, err := suite.repo.CountSearch(ctx, "HP", &machines.ListOptions{
 			Limit: 10,
-			Sort:  machines.SortOrderCreatedAtDesc,
+			Sort:  machines.SortOrderUpdatedAtDesc,
 		})
 		suite.Require().NoError(err)
 		suite.Assert().Equal(1, count)
@@ -970,7 +990,7 @@ func (suite *MachineRepositoryTestSuite) TestSearch() {
 		// Count search results for "Canon"
 		count, err = suite.repo.CountSearch(ctx, "Canon", &machines.ListOptions{
 			Limit: 10,
-			Sort:  machines.SortOrderCreatedAtDesc,
+			Sort:  machines.SortOrderUpdatedAtDesc,
 		})
 		suite.Require().NoError(err)
 		suite.Assert().Equal(1, count)
@@ -978,7 +998,7 @@ func (suite *MachineRepositoryTestSuite) TestSearch() {
 		// Count search results for non-existent term
 		count, err = suite.repo.CountSearch(ctx, "nonexistent", &machines.ListOptions{
 			Limit: 10,
-			Sort:  machines.SortOrderCreatedAtDesc,
+			Sort:  machines.SortOrderUpdatedAtDesc,
 		})
 		suite.Require().NoError(err)
 		suite.Assert().Equal(0, count)
@@ -1000,7 +1020,7 @@ func (suite *MachineRepositoryTestSuite) TestSearch() {
 		// Count HP machines that are overdue
 		count, err := suite.repo.CountSearch(ctx, "HP", &machines.ListOptions{
 			Limit:           10,
-			Sort:            machines.SortOrderCreatedAtDesc,
+			Sort:            machines.SortOrderUpdatedAtDesc,
 			PpmStatusFilter: machines.PPMStatusOverdue,
 		})
 		suite.Require().NoError(err)

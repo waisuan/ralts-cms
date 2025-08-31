@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Machine } from '../types/machine';
-import { MALAYSIAN_STATES, MalaysianState, getDistrictsForState } from '../utils/constants';
+import { MALAYSIAN_STATES } from '../utils/constants';
 import { backendDateToHtmlDate, htmlDateToBackendDate } from '../utils/dateUtils';
 import { AttachmentService } from '../services/attachmentService';
 
@@ -112,11 +112,7 @@ export default function MachineModal({
     }
   }, [mode, machine, isOpen]);
 
-  // Get available districts based on selected state
-  const availableDistricts = useMemo(() => {
-    if (!formData.state) return [];
-    return getDistrictsForState(formData.state as MalaysianState);
-  }, [formData.state]);
+
 
   // Modal configuration based on mode
   const modalConfig = useMemo(() => {
@@ -275,21 +271,10 @@ export default function MachineModal({
   };
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => {
-      const newData = { ...prev, [field]: value };
-      // Clear district when state changes since available districts will change
-      if (field === 'state') {
-        newData.district = '';
-      }
-      return newData;
-    });
+    setFormData((prev) => ({ ...prev, [field]: value }));
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: '' }));
-    }
-    // Clear district error when state changes
-    if (field === 'state' && errors.district) {
-      setErrors((prev) => ({ ...prev, district: '' }));
     }
   };
 
@@ -619,21 +604,16 @@ export default function MachineModal({
                 <label htmlFor="district" className="block text-sm font-medium text-gray-700 mb-2">
                   District <span className="text-red-500">*</span>
                 </label>
-                <select
+                <input
                   id="district"
+                  type="text"
                   value={formData.district}
                   onChange={(e) => handleInputChange('district', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 ${
+                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-600 text-gray-900 ${
                     errors.district ? 'border-red-500' : 'border-gray-300'
                   }`}
-                >
-                  <option value="">Select district</option>
-                  {availableDistricts.map((district) => (
-                    <option key={district} value={district}>
-                      {district}
-                    </option>
-                  ))}
-                </select>
+                  placeholder="Enter district name"
+                />
                 {errors.district && <p className="mt-1 text-sm text-red-600">{errors.district}</p>}
               </div>
 

@@ -426,7 +426,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		expectedOptions := &machines.ListOptions{
 			Limit:           50,
 			Offset:          0,
-			Sort:            machines.SortOrderCreatedAtDesc,
+			Sort:            machines.SortOrderUpdatedAtDesc,
 			PpmStatusFilter: "",
 		}
 
@@ -451,7 +451,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.Assert().Equal(int32(2), response.Count)
 		suite.Assert().Equal(int32(50), response.Limit)
 		suite.Assert().Equal(int32(0), response.Offset)
-		suite.Assert().Equal("created_at_desc", response.Sort)
+		suite.Assert().Equal("updated_at_desc", response.Sort)
 		suite.Assert().Equal(int32(1), response.OverdueCount)
 		suite.Assert().Equal(int32(2), response.DueCount)
 		suite.Assert().Equal(int32(3), response.AlmostDueCount)
@@ -469,7 +469,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		expectedOptions := &machines.ListOptions{
 			Limit:           25,
 			Offset:          0,
-			Sort:            machines.SortOrderCreatedAtDesc,
+			Sort:            machines.SortOrderUpdatedAtDesc,
 			PpmStatusFilter: "",
 		}
 
@@ -504,7 +504,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		expectedOptions := &machines.ListOptions{
 			Limit:           50,
 			Offset:          10,
-			Sort:            machines.SortOrderCreatedAtDesc,
+			Sort:            machines.SortOrderUpdatedAtDesc,
 			PpmStatusFilter: "",
 		}
 
@@ -531,40 +531,6 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.Assert().Equal(int32(0), response.AlmostDueCount)
 	})
 
-	suite.Run("should use custom sort when provided", func() {
-		expectedMachines := []*machines.Machine{
-			{SerialNumber: "MACHINE001", Customer: "Customer 1", Status: "Operational"},
-		}
-
-		expectedOptions := &machines.ListOptions{
-			Limit:           50,
-			Offset:          0,
-			Sort:            machines.SortOrderCreatedAtAsc,
-			PpmStatusFilter: "",
-		}
-
-		suite.mockMachinesRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
-		suite.mockMachinesRepo.EXPECT().Count(gomock.Any()).Return(1, nil)
-		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
-		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "MACHINE001").Return(1, nil)
-
-		req := httptest.NewRequest("GET", "/machines?sort=created_at_asc", nil)
-		w := httptest.NewRecorder()
-
-		suite.handler.ListMachines(w, req)
-
-		suite.Assert().Equal(http.StatusOK, w.Code)
-
-		var response handlers.ListMachinesResponse
-		err := json.Unmarshal(w.Body.Bytes(), &response)
-		suite.Require().NoError(err)
-
-		suite.Assert().Equal("created_at_asc", response.Sort)
-		suite.Assert().Equal(int32(0), response.OverdueCount)
-		suite.Assert().Equal(int32(0), response.DueCount)
-		suite.Assert().Equal(int32(0), response.AlmostDueCount)
-	})
-
 	suite.Run("should use all custom parameters together", func() {
 		expectedMachines := []*machines.Machine{
 			{SerialNumber: "MACHINE005", Customer: "Customer 5", Status: "Operational"},
@@ -573,7 +539,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		expectedOptions := &machines.ListOptions{
 			Limit:           10,
 			Offset:          20,
-			Sort:            machines.SortOrderCreatedAtDesc,
+			Sort:            machines.SortOrderUpdatedAtDesc,
 			PpmStatusFilter: "",
 		}
 
@@ -582,7 +548,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
 		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "MACHINE005").Return(1, nil)
 
-		req := httptest.NewRequest("GET", "/machines?limit=10&offset=20&sort=created_at_desc", nil)
+		req := httptest.NewRequest("GET", "/machines?limit=10&offset=20&sort=updated_at_desc", nil)
 		w := httptest.NewRecorder()
 
 		suite.handler.ListMachines(w, req)
@@ -595,7 +561,75 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 
 		suite.Assert().Equal(int32(10), response.Limit)
 		suite.Assert().Equal(int32(20), response.Offset)
-		suite.Assert().Equal("created_at_desc", response.Sort)
+		suite.Assert().Equal("updated_at_desc", response.Sort)
+		suite.Assert().Equal(int32(0), response.OverdueCount)
+		suite.Assert().Equal(int32(0), response.DueCount)
+		suite.Assert().Equal(int32(0), response.AlmostDueCount)
+	})
+
+	suite.Run("should use updated_at_desc sort when provided", func() {
+		expectedMachines := []*machines.Machine{
+			{SerialNumber: "MACHINE001", Customer: "Customer 1", Status: "Operational"},
+		}
+
+		expectedOptions := &machines.ListOptions{
+			Limit:           50,
+			Offset:          0,
+			Sort:            machines.SortOrderUpdatedAtDesc,
+			PpmStatusFilter: "",
+		}
+
+		suite.mockMachinesRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
+		suite.mockMachinesRepo.EXPECT().Count(gomock.Any()).Return(1, nil)
+		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "MACHINE001").Return(1, nil)
+
+		req := httptest.NewRequest("GET", "/machines?sort=updated_at_desc", nil)
+		w := httptest.NewRecorder()
+
+		suite.handler.ListMachines(w, req)
+
+		suite.Assert().Equal(http.StatusOK, w.Code)
+
+		var response handlers.ListMachinesResponse
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		suite.Require().NoError(err)
+
+		suite.Assert().Equal("updated_at_desc", response.Sort)
+		suite.Assert().Equal(int32(0), response.OverdueCount)
+		suite.Assert().Equal(int32(0), response.DueCount)
+		suite.Assert().Equal(int32(0), response.AlmostDueCount)
+	})
+
+	suite.Run("should use updated_at_asc sort when provided", func() {
+		expectedMachines := []*machines.Machine{
+			{SerialNumber: "MACHINE001", Customer: "Customer 1", Status: "Operational"},
+		}
+
+		expectedOptions := &machines.ListOptions{
+			Limit:           50,
+			Offset:          0,
+			Sort:            machines.SortOrderUpdatedAtAsc,
+			PpmStatusFilter: "",
+		}
+
+		suite.mockMachinesRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
+		suite.mockMachinesRepo.EXPECT().Count(gomock.Any()).Return(1, nil)
+		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "MACHINE001").Return(1, nil)
+
+		req := httptest.NewRequest("GET", "/machines?sort=updated_at_asc", nil)
+		w := httptest.NewRecorder()
+
+		suite.handler.ListMachines(w, req)
+
+		suite.Assert().Equal(http.StatusOK, w.Code)
+
+		var response handlers.ListMachinesResponse
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		suite.Require().NoError(err)
+
+		suite.Assert().Equal("updated_at_asc", response.Sort)
 		suite.Assert().Equal(int32(0), response.OverdueCount)
 		suite.Assert().Equal(int32(0), response.DueCount)
 		suite.Assert().Equal(int32(0), response.AlmostDueCount)
@@ -609,7 +643,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		expectedOptions := &machines.ListOptions{
 			Limit:           50,
 			Offset:          0,
-			Sort:            machines.SortOrderCreatedAtDesc,
+			Sort:            machines.SortOrderUpdatedAtDesc,
 			PpmStatusFilter: "",
 		}
 
@@ -699,7 +733,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		expectedOptions := &machines.ListOptions{
 			Limit:           50,
 			Offset:          0,
-			Sort:            machines.SortOrderCreatedAtDesc,
+			Sort:            machines.SortOrderUpdatedAtDesc,
 			PpmStatusFilter: "",
 		}
 
@@ -718,7 +752,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		expectedOptions := &machines.ListOptions{
 			Limit:           50,
 			Offset:          0,
-			Sort:            machines.SortOrderCreatedAtDesc,
+			Sort:            machines.SortOrderUpdatedAtDesc,
 			PpmStatusFilter: "",
 		}
 
@@ -741,7 +775,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.Assert().Equal(int32(0), response.Count)
 		suite.Assert().Equal(int32(50), response.Limit)
 		suite.Assert().Equal(int32(0), response.Offset)
-		suite.Assert().Equal("created_at_desc", response.Sort)
+		suite.Assert().Equal("updated_at_desc", response.Sort)
 
 		suite.Assert().Len(response.Machines, 0)
 		suite.Assert().Equal(int32(0), response.OverdueCount)
@@ -785,7 +819,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		expectedOptions := &machines.ListOptions{
 			Limit:           50,
 			Offset:          0,
-			Sort:            machines.SortOrderCreatedAtDesc,
+			Sort:            machines.SortOrderUpdatedAtDesc,
 			PpmStatusFilter: machines.PPMStatusOverdue,
 		}
 
@@ -821,7 +855,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		expectedOptions := &machines.ListOptions{
 			Limit:           50,
 			Offset:          0,
-			Sort:            machines.SortOrderCreatedAtDesc,
+			Sort:            machines.SortOrderUpdatedAtDesc,
 			PpmStatusFilter: machines.PPMStatusDue,
 		}
 
@@ -857,7 +891,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		expectedOptions := &machines.ListOptions{
 			Limit:           50,
 			Offset:          0,
-			Sort:            machines.SortOrderCreatedAtDesc,
+			Sort:            machines.SortOrderUpdatedAtDesc,
 			PpmStatusFilter: machines.PPMStatusAlmostDue,
 		}
 
@@ -892,7 +926,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		expectedOptions := &machines.ListOptions{
 			Limit:           10,
 			Offset:          5,
-			Sort:            machines.SortOrderCreatedAtAsc,
+			Sort:            machines.SortOrderUpdatedAtAsc,
 			PpmStatusFilter: machines.PPMStatusDue,
 		}
 
@@ -901,7 +935,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(1), int32(0), nil)
 		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "FILTERED001").Return(1, nil)
 
-		req := httptest.NewRequest("GET", "/machines?limit=10&offset=5&sort=created_at_asc&ppm_status_filter=due", nil)
+		req := httptest.NewRequest("GET", "/machines?limit=10&offset=5&sort=updated_at_asc&ppm_status_filter=due", nil)
 		w := httptest.NewRecorder()
 
 		suite.handler.ListMachines(w, req)
@@ -915,7 +949,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.Assert().Len(response.Machines, 1)
 		suite.Assert().Equal(int32(10), response.Limit)
 		suite.Assert().Equal(int32(5), response.Offset)
-		suite.Assert().Equal("created_at_asc", response.Sort)
+		suite.Assert().Equal("updated_at_asc", response.Sort)
 		suite.Assert().Equal(int32(0), response.OverdueCount)
 		suite.Assert().Equal(int32(1), response.DueCount)
 		suite.Assert().Equal(int32(0), response.AlmostDueCount)
@@ -939,7 +973,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		expectedOptions := &machines.ListOptions{
 			Limit:           50,
 			Offset:          0,
-			Sort:            machines.SortOrderCreatedAtDesc,
+			Sort:            machines.SortOrderUpdatedAtDesc,
 			PpmStatusFilter: "",
 		}
 
@@ -973,7 +1007,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		expectedOptions := &machines.ListOptions{
 			Limit:           50,
 			Offset:          0,
-			Sort:            machines.SortOrderCreatedAtDesc,
+			Sort:            machines.SortOrderUpdatedAtDesc,
 			PpmStatusFilter: "",
 		}
 
@@ -1010,7 +1044,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		expectedOptions := &machines.ListOptions{
 			Limit:           50,
 			Offset:          0,
-			Sort:            machines.SortOrderCreatedAtDesc,
+			Sort:            machines.SortOrderUpdatedAtDesc,
 			PpmStatusFilter: "",
 		}
 
@@ -1043,7 +1077,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		expectedOptions := &machines.ListOptions{
 			Limit:           10,
 			Offset:          5,
-			Sort:            machines.SortOrderCreatedAtAsc,
+			Sort:            machines.SortOrderUpdatedAtAsc,
 			PpmStatusFilter: machines.PPMStatusOverdue,
 		}
 
@@ -1054,7 +1088,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(1), int32(0), int32(0), nil)
 		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "COMBINED001").Return(1, nil)
 
-		req := httptest.NewRequest("GET", "/machines?q=printer&limit=10&offset=5&sort=created_at_asc&ppm_status_filter=overdue", nil)
+		req := httptest.NewRequest("GET", "/machines?q=printer&limit=10&offset=5&sort=updated_at_asc&ppm_status_filter=overdue", nil)
 		w := httptest.NewRecorder()
 
 		suite.handler.ListMachines(w, req)
@@ -1068,7 +1102,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.Assert().Len(response.Machines, 1)
 		suite.Assert().Equal(int32(10), response.Limit)
 		suite.Assert().Equal(int32(5), response.Offset)
-		suite.Assert().Equal("created_at_asc", response.Sort)
+		suite.Assert().Equal("updated_at_asc", response.Sort)
 		suite.Assert().Equal(int32(1), response.OverdueCount)
 		suite.Assert().Equal(int32(1), response.Count) // Verify search count is used
 	})
@@ -1077,7 +1111,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		expectedOptions := &machines.ListOptions{
 			Limit:           50,
 			Offset:          0,
-			Sort:            machines.SortOrderCreatedAtDesc,
+			Sort:            machines.SortOrderUpdatedAtDesc,
 			PpmStatusFilter: "",
 		}
 
@@ -1101,7 +1135,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		expectedOptions := &machines.ListOptions{
 			Limit:           50,
 			Offset:          0,
-			Sort:            machines.SortOrderCreatedAtDesc,
+			Sort:            machines.SortOrderUpdatedAtDesc,
 			PpmStatusFilter: "",
 		}
 

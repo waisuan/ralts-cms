@@ -64,9 +64,9 @@ export default function RecordsList({
     
     // Handle sorting
     if (sortBy === 'newest') {
-      filters.sort = 'created_at_desc';
+      filters.sort = 'updated_at_desc';
     } else if (sortBy === 'oldest') {
-      filters.sort = 'created_at_asc';
+      filters.sort = 'updated_at_asc';
     }
     
     // Handle search query - only send to API for 'any' property or specific supported properties

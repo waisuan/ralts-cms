@@ -124,7 +124,7 @@ func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
 		expectedOptions := &maintenance.ListOptions{
 			Limit:  50,
 			Offset: 0,
-			Sort:   maintenance.SortOrderWorkOrderDateDesc,
+			Sort:   maintenance.SortOrderUpdatedAtDesc,
 		}
 
 		suite.mockRepo.EXPECT().ListByMachine(gomock.Any(), "MACHINE123", expectedOptions).Return(expectedMaintenance, nil)
@@ -148,7 +148,7 @@ func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
 		suite.Assert().Equal(float64(2), response["count"])
 		suite.Assert().Equal(float64(50), response["limit"])
 		suite.Assert().Equal(float64(0), response["offset"])
-		suite.Assert().Equal("work_order_date_desc", response["sort"])
+		suite.Assert().Equal("updated_at_desc", response["sort"])
 
 		maintenanceList := response["maintenance"].([]interface{})
 		suite.Assert().Len(maintenanceList, 2)
@@ -167,7 +167,7 @@ func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
 		expectedOptions := &maintenance.ListOptions{
 			Limit:  25,
 			Offset: 0,
-			Sort:   maintenance.SortOrderWorkOrderDateDesc,
+			Sort:   maintenance.SortOrderUpdatedAtDesc,
 		}
 
 		suite.mockRepo.EXPECT().ListByMachine(gomock.Any(), "MACHINE123", expectedOptions).Return(expectedMaintenance, nil)
@@ -204,7 +204,7 @@ func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
 		expectedOptions := &maintenance.ListOptions{
 			Limit:  50,
 			Offset: 10,
-			Sort:   maintenance.SortOrderWorkOrderDateDesc,
+			Sort:   maintenance.SortOrderUpdatedAtDesc,
 		}
 
 		suite.mockRepo.EXPECT().ListByMachine(gomock.Any(), "MACHINE123", expectedOptions).Return(expectedMaintenance, nil)
@@ -241,7 +241,7 @@ func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
 		expectedOptions := &maintenance.ListOptions{
 			Limit:  50,
 			Offset: 0,
-			Sort:   maintenance.SortOrderCreatedAtDesc,
+			Sort:   maintenance.SortOrderUpdatedAtDesc,
 		}
 
 		suite.mockRepo.EXPECT().ListByMachine(gomock.Any(), "MACHINE123", expectedOptions).Return(expectedMaintenance, nil)
@@ -299,7 +299,7 @@ func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
 
 		suite.Assert().Equal(float64(10), response["limit"])
 		suite.Assert().Equal(float64(20), response["offset"])
-		suite.Assert().Equal("work_order_date_desc", response["sort"])
+		suite.Assert().Equal("updated_at_desc", response["sort"])
 	})
 
 	suite.Run("should return 400 for invalid limit parameter", func() {
@@ -378,7 +378,7 @@ func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
 		expectedOptions := &maintenance.ListOptions{
 			Limit:  50,
 			Offset: 0,
-			Sort:   maintenance.SortOrderWorkOrderDateDesc,
+			Sort:   maintenance.SortOrderUpdatedAtDesc,
 		}
 
 		suite.mockRepo.EXPECT().ListByMachine(gomock.Any(), "NOMAINTAINANCE", expectedOptions).Return([]*maintenance.Maintenance{}, nil)
@@ -401,7 +401,7 @@ func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
 		suite.Assert().Equal(float64(0), response["count"])
 		suite.Assert().Equal(float64(50), response["limit"])
 		suite.Assert().Equal(float64(0), response["offset"])
-		suite.Assert().Equal("work_order_date_desc", response["sort"])
+		suite.Assert().Equal("updated_at_desc", response["sort"])
 
 		maintenanceList := response["maintenance"].([]interface{})
 		suite.Assert().Len(maintenanceList, 0)
@@ -420,7 +420,7 @@ func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
 		expectedOptions := &maintenance.ListOptions{
 			Limit:  50,
 			Offset: 0,
-			Sort:   maintenance.SortOrderWorkOrderDateDesc,
+			Sort:   maintenance.SortOrderUpdatedAtDesc,
 		}
 
 		suite.mockRepo.EXPECT().ListByMachine(gomock.Any(), "MACHINE123", expectedOptions).Return(expectedMaintenance, nil)
@@ -451,7 +451,7 @@ func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
 		expectedOptions := &maintenance.ListOptions{
 			Limit:  50,
 			Offset: 0,
-			Sort:   maintenance.SortOrderWorkOrderDateDesc,
+			Sort:   maintenance.SortOrderUpdatedAtDesc,
 		}
 
 		suite.mockRepo.EXPECT().ListByMachine(gomock.Any(), "ERROR", expectedOptions).Return(nil, fmt.Errorf("database error"))
@@ -512,7 +512,7 @@ func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
 		expectedOptions := &maintenance.ListOptions{
 			Limit:  50,
 			Offset: 0,
-			Sort:   maintenance.SortOrderWorkOrderDateDesc,
+			Sort:   maintenance.SortOrderUpdatedAtDesc,
 		}
 
 		suite.mockRepo.EXPECT().SearchByMachine(gomock.Any(), "MACHINE123", "search term", expectedOptions).Return(expectedMaintenance, nil)
@@ -554,7 +554,7 @@ func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
 		expectedOptions := &maintenance.ListOptions{
 			Limit:  25,
 			Offset: 10,
-			Sort:   maintenance.SortOrderCreatedAtAsc,
+			Sort:   maintenance.SortOrderUpdatedAtAsc,
 		}
 
 		suite.mockRepo.EXPECT().SearchByMachine(gomock.Any(), "MACHINE123", "combined", expectedOptions).Return(expectedMaintenance, nil)
@@ -586,7 +586,7 @@ func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
 		expectedOptions := &maintenance.ListOptions{
 			Limit:  50,
 			Offset: 0,
-			Sort:   maintenance.SortOrderWorkOrderDateDesc,
+			Sort:   maintenance.SortOrderUpdatedAtDesc,
 		}
 
 		suite.mockRepo.EXPECT().SearchByMachine(gomock.Any(), "MACHINE123", "error term", expectedOptions).Return(nil, fmt.Errorf("search error"))
@@ -608,7 +608,7 @@ func (suite *MaintenanceHandlerTestSuite) TestListMaintenance() {
 		expectedOptions := &maintenance.ListOptions{
 			Limit:  50,
 			Offset: 0,
-			Sort:   maintenance.SortOrderWorkOrderDateDesc,
+			Sort:   maintenance.SortOrderUpdatedAtDesc,
 		}
 
 		suite.mockRepo.EXPECT().SearchByMachine(gomock.Any(), "MACHINE123", "count error", expectedOptions).Return(expectedMaintenance, nil)

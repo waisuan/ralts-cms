@@ -99,19 +99,19 @@ func (h *MaintenanceHandler) ListMaintenance(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Parse sort parameter
-	sort := maintenance.SortOrderWorkOrderDateDesc // Default to most recent work order first
+	sort := maintenance.SortOrderUpdatedAtDesc // Default to most recently updated first
 	if sortStr != "" {
 		switch sortStr {
 		case "work_order_date_desc":
 			sort = maintenance.SortOrderWorkOrderDateDesc
 		case "work_order_date_asc":
 			sort = maintenance.SortOrderWorkOrderDateAsc
-		case "created_at_desc":
-			sort = maintenance.SortOrderCreatedAtDesc
-		case "created_at_asc":
-			sort = maintenance.SortOrderCreatedAtAsc
+		case "updated_at_desc":
+			sort = maintenance.SortOrderUpdatedAtDesc
+		case "updated_at_asc":
+			sort = maintenance.SortOrderUpdatedAtAsc
 		default:
-			http.Error(w, "Invalid sort parameter. Must be 'work_order_date_desc', 'work_order_date_asc', 'created_at_desc', or 'created_at_asc'", http.StatusBadRequest)
+			http.Error(w, "Invalid sort parameter. Must be 'work_order_date_desc', 'work_order_date_asc', 'updated_at_desc', or 'updated_at_asc'", http.StatusBadRequest)
 			return
 		}
 	}

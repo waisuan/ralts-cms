@@ -13,13 +13,13 @@ type SortOrder string
 
 const (
 	// SortOrderWorkOrderDateDesc sorts maintenance records by work order date in descending order (newest first)
-	SortOrderWorkOrderDateDesc SortOrder = "work_order_date_desc" // Most recent work order date (default)
+	SortOrderWorkOrderDateDesc SortOrder = "work_order_date_desc"
 	// SortOrderWorkOrderDateAsc sorts maintenance records by work order date in ascending order (oldest first)
-	SortOrderWorkOrderDateAsc SortOrder = "work_order_date_asc" // Oldest work order date
-	// SortOrderCreatedAtDesc sorts maintenance records by creation date in descending order (newest first)
-	SortOrderCreatedAtDesc SortOrder = "created_at_desc" // Most recently created
-	// SortOrderCreatedAtAsc sorts maintenance records by creation date in ascending order (oldest first)
-	SortOrderCreatedAtAsc SortOrder = "created_at_asc" // Least recently created
+	SortOrderWorkOrderDateAsc SortOrder = "work_order_date_asc"
+	// SortOrderUpdatedAtDesc sorts maintenance records by update date in descending order (most recently updated first)
+	SortOrderUpdatedAtDesc SortOrder = "updated_at_desc" // Most recently updated (default)
+	// SortOrderUpdatedAtAsc sorts maintenance records by update date in ascending order (least recently updated first)
+	SortOrderUpdatedAtAsc SortOrder = "updated_at_asc" // Least recently updated
 )
 
 // ListOptions defines the options for listing maintenance records
@@ -34,7 +34,7 @@ func DefaultListOptions() *ListOptions {
 	return &ListOptions{
 		Limit:  50,
 		Offset: 0,
-		Sort:   SortOrderWorkOrderDateDesc,
+		Sort:   SortOrderUpdatedAtDesc,
 	}
 }
 
@@ -100,15 +100,15 @@ func (r *db) ListByMachine(ctx context.Context, machineSerialNumber string, opti
 	var orderByClause string
 	switch options.Sort {
 	case SortOrderWorkOrderDateAsc:
-		orderByClause = `ORDER BY "workOrderDate" ASC, "createdAt" ASC`
-	case SortOrderCreatedAtDesc:
-		orderByClause = `ORDER BY "createdAt" DESC, "workOrderDate" DESC`
-	case SortOrderCreatedAtAsc:
-		orderByClause = `ORDER BY "createdAt" ASC, "workOrderDate" ASC`
+		orderByClause = `ORDER BY "workOrderDate" ASC, "updatedAt" ASC`
 	case SortOrderWorkOrderDateDesc:
-		orderByClause = `ORDER BY "workOrderDate" DESC, "createdAt" DESC`
+		orderByClause = `ORDER BY "workOrderDate" DESC, "updatedAt" DESC`
+	case SortOrderUpdatedAtAsc:
+		orderByClause = `ORDER BY "updatedAt" ASC`
+	case SortOrderUpdatedAtDesc:
+		orderByClause = `ORDER BY "updatedAt" DESC`
 	default:
-		orderByClause = `ORDER BY "workOrderDate" DESC, "createdAt" DESC` // Default to most recent work order first
+		orderByClause = `ORDER BY "updatedAt" DESC` // Default to most recently updated first
 	}
 
 	query := fmt.Sprintf(`
@@ -280,15 +280,15 @@ func (r *db) SearchByMachine(ctx context.Context, machineSerialNumber, query str
 	var orderByClause string
 	switch options.Sort {
 	case SortOrderWorkOrderDateAsc:
-		orderByClause = `ORDER BY rank DESC, "workOrderDate" ASC, "createdAt" ASC`
-	case SortOrderCreatedAtDesc:
-		orderByClause = `ORDER BY rank DESC, "createdAt" DESC, "workOrderDate" DESC`
-	case SortOrderCreatedAtAsc:
-		orderByClause = `ORDER BY rank DESC, "createdAt" ASC, "workOrderDate" ASC`
+		orderByClause = `ORDER BY rank DESC, "workOrderDate" ASC, "updatedAt" ASC`
 	case SortOrderWorkOrderDateDesc:
-		orderByClause = `ORDER BY rank DESC, "workOrderDate" DESC, "createdAt" DESC`
+		orderByClause = `ORDER BY rank DESC, "workOrderDate" DESC, "updatedAt" DESC`
+	case SortOrderUpdatedAtAsc:
+		orderByClause = `ORDER BY rank DESC, "updatedAt" ASC`
+	case SortOrderUpdatedAtDesc:
+		orderByClause = `ORDER BY rank DESC, "updatedAt" DESC`
 	default:
-		orderByClause = `ORDER BY rank DESC, "workOrderDate" DESC, "createdAt" DESC`
+		orderByClause = `ORDER BY rank DESC, "updatedAt" DESC`
 	}
 
 	// Add pagination

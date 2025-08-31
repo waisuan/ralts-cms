@@ -91,15 +91,15 @@ func (h *MachinesHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse sort parameter
-	sort := machines.SortOrderCreatedAtDesc // Default to newest first
+	sort := machines.SortOrderUpdatedAtDesc // Default to most recently updated first
 	if sortStr != "" {
 		switch sortStr {
-		case "created_at_desc":
-			sort = machines.SortOrderCreatedAtDesc
-		case "created_at_asc":
-			sort = machines.SortOrderCreatedAtAsc
+		case "updated_at_desc":
+			sort = machines.SortOrderUpdatedAtDesc
+		case "updated_at_asc":
+			sort = machines.SortOrderUpdatedAtAsc
 		default:
-			http.Error(w, "Invalid sort parameter. Must be 'created_at_desc' or 'created_at_asc'", http.StatusBadRequest)
+			http.Error(w, "Invalid sort parameter. Must be 'updated_at_desc' or 'updated_at_asc'", http.StatusBadRequest)
 			return
 		}
 	}
