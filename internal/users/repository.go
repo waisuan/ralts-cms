@@ -45,13 +45,13 @@ func (r *db) Create(ctx context.Context, user *User) error {
 	// Set default values for optional fields
 	user.SetDefaults()
 
+	// Set timestamps
+	user.SetTimestamps()
+
 	// Hash password and set salt
 	if err := user.SetPassword(user.Password); err != nil {
 		return fmt.Errorf("failed to set password: %w", err)
 	}
-
-	// Set timestamps
-	user.SetTimestamps()
 
 	// Insert into database
 	query := `
@@ -83,6 +83,16 @@ func (r *db) Login(ctx context.Context, username string, password string) (*User
 
 	if err := auth.VerifyPassword(password, user.Password, user.Salt); err != nil {
 		return nil, fmt.Errorf("invalid password: %w", err)
+	}
+
+	// Check if user is approved
+	if !user.Approved {
+		return nil, fmt.Errorf("account pending approval: your account is awaiting administrator approval")
+	}
+
+	// Check if user status allows login
+	if !user.IsStatusActive() {
+		return nil, fmt.Errorf("account not active: your account status does not allow login")
 	}
 
 	return user, nil

@@ -133,7 +133,7 @@ func TestUser_SetDefaultStatus(t *testing.T) {
 		{
 			name:          "should set default status when nil",
 			initialStatus: nil,
-			expected:      "active",
+			expected:      users.StatusPendingApproval,
 		},
 		{
 			name:          "should not change existing status",
@@ -164,45 +164,93 @@ func TestUser_SetDefaultStatus(t *testing.T) {
 	}
 }
 
-func TestUser_SetDefaults(t *testing.T) {
+func TestUser_SetDefaultApproval(t *testing.T) {
 	tests := []struct {
-		name           string
-		initialUser    *users.User
-		expectedRole   string
-		expectedStatus string
+		name             string
+		initialUser      *users.User
+		expectedApproval bool
 	}{
 		{
-			name: "should set both defaults when empty",
+			name: "should set default approval for new user",
+			initialUser: &users.User{
+				Username: "Test User",
+				Email:    "test@example.com",
+				// CreatedAt is zero (new user)
+			},
+			expectedApproval: false,
+		},
+		{
+			name: "should not change approval for existing user",
+			initialUser: &users.User{
+				Username:  "Test User",
+				Email:     "test@example.com",
+				Approved:  true,
+				CreatedAt: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC), // existing user
+			},
+			expectedApproval: true, // should remain unchanged
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			user := tt.initialUser
+
+			user.SetDefaultApproval()
+
+			if user.Approved != tt.expectedApproval {
+				t.Errorf("expected approval %v, got %v", tt.expectedApproval, user.Approved)
+			}
+		})
+	}
+}
+
+func TestUser_SetDefaults(t *testing.T) {
+	tests := []struct {
+		name             string
+		initialUser      *users.User
+		expectedRole     string
+		expectedStatus   string
+		expectedApproval bool
+	}{
+		{
+			name: "should set all defaults when empty for new user",
 			initialUser: &users.User{
 				Username: "Test User",
 				Email:    "test@example.com",
 				Role:     "",
 				Status:   nil,
+				// CreatedAt is zero (new user)
 			},
-			expectedRole:   "NON_ADMIN",
-			expectedStatus: "active",
+			expectedRole:     "NON_ADMIN",
+			expectedStatus:   users.StatusPendingApproval,
+			expectedApproval: false,
 		},
 		{
 			name: "should not change existing values",
 			initialUser: &users.User{
-				Username: "Test User",
-				Email:    "test@example.com",
-				Role:     "admin",
-				Status:   testutils.StringPtr("inactive"),
+				Username:  "Test User",
+				Email:     "test@example.com",
+				Role:      "admin",
+				Status:    testutils.StringPtr("inactive"),
+				Approved:  true,
+				CreatedAt: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC), // existing user
 			},
-			expectedRole:   "admin",
-			expectedStatus: "inactive",
+			expectedRole:     "admin",
+			expectedStatus:   "inactive",
+			expectedApproval: true,
 		},
 		{
-			name: "should set only empty values",
+			name: "should set only empty values for new user",
 			initialUser: &users.User{
 				Username: "Test User",
 				Email:    "test@example.com",
 				Role:     "moderator",
 				Status:   nil,
+				// CreatedAt is zero (new user)
 			},
-			expectedRole:   "moderator",
-			expectedStatus: "active",
+			expectedRole:     "moderator",
+			expectedStatus:   users.StatusPendingApproval,
+			expectedApproval: false,
 		},
 	}
 
@@ -218,6 +266,10 @@ func TestUser_SetDefaults(t *testing.T) {
 
 			if user.Status == nil || *user.Status != tt.expectedStatus {
 				t.Errorf("expected status %s, got %v", tt.expectedStatus, user.Status)
+			}
+
+			if user.Approved != tt.expectedApproval {
+				t.Errorf("expected approval %v, got %v", tt.expectedApproval, user.Approved)
 			}
 		})
 	}
@@ -300,6 +352,56 @@ func TestUser_SetPassword(t *testing.T) {
 			// Verify the password can be verified
 			if err := auth.VerifyPassword(tt.password, user.Password, user.Salt); err != nil {
 				t.Errorf("password verification failed: %v", err)
+			}
+		})
+	}
+}
+
+func TestUser_IsStatusActive(t *testing.T) {
+	tests := []struct {
+		name     string
+		status   *string
+		expected bool
+	}{
+		{
+			name:     "should return true for approved status",
+			status:   testutils.StringPtr(users.StatusApproved),
+			expected: true,
+		},
+		{
+			name:     "should return false for pending approval status",
+			status:   testutils.StringPtr(users.StatusPendingApproval),
+			expected: false,
+		},
+		{
+			name:     "should return false for inactive status",
+			status:   testutils.StringPtr(users.StatusInactive),
+			expected: false,
+		},
+		{
+			name:     "should return false for suspended status",
+			status:   testutils.StringPtr(users.StatusSuspended),
+			expected: false,
+		},
+		{
+			name:     "should return false for nil status",
+			status:   nil,
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			user := &users.User{
+				Username: "Test User",
+				Email:    "test@example.com",
+				Status:   tt.status,
+			}
+
+			result := user.IsStatusActive()
+
+			if result != tt.expected {
+				t.Errorf("expected %v, got %v", tt.expected, result)
 			}
 		})
 	}

@@ -9,6 +9,7 @@ interface AuthUser {
   username: string;
   email: string;
   role: string;
+  approved: boolean;
   avatar?: string;
 }
 
@@ -54,6 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           username: response.data.user.username,
           email: response.data.user.email,
           role: response.data.user.role,
+          approved: response.data.user.approved,
           avatar: response.data.user.avatar,
         };
 

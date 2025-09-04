@@ -50,10 +50,11 @@ func (suite *UserRepositoryTestSuite) TestCreate() {
 		suite.Assert().Equal(user.CreatedAt, *user.UpdatedAt)
 		suite.Assert().Greater(user.ID, int64(0))    // PostgreSQL should return an ID
 		suite.Assert().Equal("NON_ADMIN", user.Role) // Default role
+		suite.Assert().False(user.Approved)          // Default approval status
 		suite.Assert().NotNil(user.Status)
-		suite.Assert().Equal("active", *user.Status) // Default status
-		suite.Assert().NotEmpty(user.Password)       // Should be hashed
-		suite.Assert().NotEmpty(user.Salt)           // Should be set
+		suite.Assert().Equal(users.StatusPendingApproval, *user.Status) // Default status
+		suite.Assert().NotEmpty(user.Password)                          // Should be hashed
+		suite.Assert().NotEmpty(user.Salt)                              // Should be set
 	})
 
 	suite.Run("should fail when creating duplicate user", func() {
@@ -170,9 +171,12 @@ func (suite *UserRepositoryTestSuite) TestCreate_Validation() {
 func (suite *UserRepositoryTestSuite) TestLogin() {
 	ctx := context.Background()
 
-	suite.Run("should login successfully with correct credentials", func() {
-		// Create a user first
+	suite.Run("should login successfully with approved user and correct credentials", func() {
+		// Create an approved user first
 		user := testutils.CreateUser("loginuser", "mypassword123")
+		user.Approved = true // Explicitly approve the user before creation
+		status := users.StatusApproved
+		user.Status = &status
 		err := suite.repo.Create(ctx, user)
 		suite.Require().NoError(err)
 
@@ -182,6 +186,36 @@ func (suite *UserRepositoryTestSuite) TestLogin() {
 		suite.Assert().NotNil(loggedInUser)
 		suite.Assert().Equal("loginuser@example.com", loggedInUser.Email)
 		suite.Assert().Equal("loginuser", loggedInUser.Username)
+		suite.Assert().True(loggedInUser.Approved)
+	})
+
+	suite.Run("should fail login for unapproved user", func() {
+		// Create an unapproved user (default state)
+		user := testutils.CreateUser("unapproveduser", "mypassword123")
+		err := suite.repo.Create(ctx, user)
+		suite.Require().NoError(err)
+
+		// Try to login - should fail due to approval status
+		loggedInUser, err := suite.repo.Login(ctx, "unapproveduser", "mypassword123")
+		suite.Require().Error(err)
+		suite.Assert().Nil(loggedInUser)
+		suite.Assert().Contains(err.Error(), "account pending approval")
+	})
+
+	suite.Run("should fail login for user with inactive status", func() {
+		// Create an approved user but with inactive status
+		user := testutils.CreateUser("inactiveuser", "mypassword123")
+		user.Approved = true // Explicitly approve the user before creation
+		inactiveStatus := "inactive"
+		user.Status = &inactiveStatus
+		err := suite.repo.Create(ctx, user)
+		suite.Require().NoError(err)
+
+		// Try to login - should fail due to status
+		loggedInUser, err := suite.repo.Login(ctx, "inactiveuser", "mypassword123")
+		suite.Require().Error(err)
+		suite.Assert().Nil(loggedInUser)
+		suite.Assert().Contains(err.Error(), "account not active")
 	})
 
 	suite.Run("should fail with incorrect password", func() {

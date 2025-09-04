@@ -5,10 +5,11 @@ export interface User {
   username: string;
   email: string;
   role: string;
-  status: string;
+  approved: boolean;
+  status?: string;
   avatar?: string;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
 }
 
 export interface CreateUserRequest {
@@ -16,6 +17,7 @@ export interface CreateUserRequest {
   email: string;
   password: string;
   role?: string;
+  approved?: boolean;
   status?: string;
   avatar?: string;
 }

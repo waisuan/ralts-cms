@@ -6,6 +6,14 @@ import (
 	"time"
 )
 
+// User status constants
+const (
+	StatusPendingApproval = "pending_approval"
+	StatusApproved        = "approved"
+	StatusSuspended       = "suspended"
+	StatusInactive        = "inactive"
+)
+
 // User represents a user in the Ralts-CMS system
 type User struct {
 	ID        int64      `json:"id" db:"id"`
@@ -44,10 +52,22 @@ func (u *User) SetDefaultRole() {
 }
 
 // SetDefaultStatus sets the default status if not already set
+// New users get "pending_approval" status by default
 func (u *User) SetDefaultStatus() {
 	if u.Status == nil {
-		status := "active"
+		status := StatusPendingApproval
 		u.Status = &status
+	}
+}
+
+// SetDefaultApproval sets the default approval status if not already set
+// New users are not approved by default, but we don't override explicitly set values
+func (u *User) SetDefaultApproval() {
+	// Only set to false for new users if not explicitly set to true
+	// This ensures newly registered users require approval by default
+	// but allows explicit approval during creation
+	if u.CreatedAt.IsZero() && !u.Approved {
+		u.Approved = false
 	}
 }
 
@@ -55,6 +75,7 @@ func (u *User) SetDefaultStatus() {
 func (u *User) SetDefaults() {
 	u.SetDefaultRole()
 	u.SetDefaultStatus()
+	u.SetDefaultApproval()
 }
 
 // SetPassword hashes the provided plain text password and sets the salt
@@ -81,4 +102,14 @@ func (u *User) SetPassword(plainPassword string) error {
 	u.Salt = salt
 
 	return nil
+}
+
+// IsStatusActive checks if the user's status allows login
+// Returns true if the user has an approved status or legacy active status
+func (u *User) IsStatusActive() bool {
+	if u.Status == nil {
+		return false
+	}
+
+	return *u.Status == StatusApproved
 }

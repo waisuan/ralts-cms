@@ -207,7 +207,45 @@ func (suite *UsersHandlerTestSuite) TestLogin() {
 		suite.handler.Login(w, req)
 
 		suite.Assert().Equal(http.StatusUnauthorized, w.Code)
-		suite.Assert().Contains(w.Body.String(), "Failed to login")
+		suite.Assert().Contains(w.Body.String(), "Invalid username or password")
+	})
+
+	suite.Run("should return 403 when user is not approved", func() {
+		loginRequest := handlers.LoginRequest{
+			Username: "unapproved",
+			Password: "mypassword123",
+		}
+
+		suite.mockRepo.EXPECT().Login(gomock.Any(), "unapproved", "mypassword123").Return(nil, fmt.Errorf("account pending approval: your account is awaiting administrator approval"))
+
+		body, _ := json.Marshal(loginRequest)
+		req := httptest.NewRequest("POST", "/users/login", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		suite.handler.Login(w, req)
+
+		suite.Assert().Equal(http.StatusForbidden, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Account Pending Approval")
+	})
+
+	suite.Run("should return 403 when user account is not active", func() {
+		loginRequest := handlers.LoginRequest{
+			Username: "inactive",
+			Password: "mypassword123",
+		}
+
+		suite.mockRepo.EXPECT().Login(gomock.Any(), "inactive", "mypassword123").Return(nil, fmt.Errorf("account not active: your account status does not allow login"))
+
+		body, _ := json.Marshal(loginRequest)
+		req := httptest.NewRequest("POST", "/users/login", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		suite.handler.Login(w, req)
+
+		suite.Assert().Equal(http.StatusForbidden, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Account Not Active")
 	})
 }
 

@@ -82,7 +82,19 @@ func (h *UsersHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.deps.UsersRepository.Login(r.Context(), loginRequest.Username, loginRequest.Password)
 	if err != nil {
-		http.Error(w, "Failed to login", http.StatusUnauthorized)
+		// Check if it's an approval-related error and provide specific message
+		errMsg := err.Error()
+		if errMsg == "account pending approval: your account is awaiting administrator approval" {
+			http.Error(w, "Account Pending Approval: Your account is awaiting administrator approval. Please contact an administrator to activate your account.", http.StatusForbidden)
+			return
+		}
+		if errMsg == "account not active: your account status does not allow login" {
+			http.Error(w, "Account Not Active: Your account status does not allow login. Please contact an administrator.", http.StatusForbidden)
+			return
+		}
+
+		// Generic login failure message for other errors (password, username not found, etc.)
+		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
 		return
 	}
 
