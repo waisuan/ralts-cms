@@ -113,3 +113,14 @@ func (u *User) IsStatusActive() bool {
 
 	return *u.Status == StatusApproved
 }
+
+// ValidateStatusValue validates that the status is one of the allowed constants
+func ValidateStatusValue(status string) error {
+	validStatuses := []string{StatusPendingApproval, StatusApproved, StatusSuspended, StatusInactive}
+	for _, validStatus := range validStatuses {
+		if status == validStatus {
+			return nil
+		}
+	}
+	return fmt.Errorf("invalid status: %s. Must be one of: %v", status, validStatuses)
+}

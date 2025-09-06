@@ -48,6 +48,21 @@ func (mr *MockRepositoryMockRecorder) Create(ctx, user interface{}) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockRepository)(nil).Create), ctx, user)
 }
 
+// GetByID mocks base method.
+func (m *MockRepository) GetByID(ctx context.Context, id int64) (*User, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetByID", ctx, id)
+	ret0, _ := ret[0].(*User)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetByID indicates an expected call of GetByID.
+func (mr *MockRepositoryMockRecorder) GetByID(ctx, id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByID", reflect.TypeOf((*MockRepository)(nil).GetByID), ctx, id)
+}
+
 // GetByUsername mocks base method.
 func (m *MockRepository) GetByUsername(ctx context.Context, username string) (*User, error) {
 	m.ctrl.T.Helper()
@@ -63,6 +78,22 @@ func (mr *MockRepositoryMockRecorder) GetByUsername(ctx, username interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByUsername", reflect.TypeOf((*MockRepository)(nil).GetByUsername), ctx, username)
 }
 
+// ListUsers mocks base method.
+func (m *MockRepository) ListUsers(ctx context.Context, limit, offset int) ([]*User, int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListUsers", ctx, limit, offset)
+	ret0, _ := ret[0].([]*User)
+	ret1, _ := ret[1].(int)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// ListUsers indicates an expected call of ListUsers.
+func (mr *MockRepositoryMockRecorder) ListUsers(ctx, limit, offset interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListUsers", reflect.TypeOf((*MockRepository)(nil).ListUsers), ctx, limit, offset)
+}
+
 // Login mocks base method.
 func (m *MockRepository) Login(ctx context.Context, username, password string) (*User, error) {
 	m.ctrl.T.Helper()
@@ -76,4 +107,32 @@ func (m *MockRepository) Login(ctx context.Context, username, password string) (
 func (mr *MockRepositoryMockRecorder) Login(ctx, username, password interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Login", reflect.TypeOf((*MockRepository)(nil).Login), ctx, username, password)
+}
+
+// UpdateMultipleStatuses mocks base method.
+func (m *MockRepository) UpdateMultipleStatuses(ctx context.Context, userIDs []int64, status string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateMultipleStatuses", ctx, userIDs, status)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateMultipleStatuses indicates an expected call of UpdateMultipleStatuses.
+func (mr *MockRepositoryMockRecorder) UpdateMultipleStatuses(ctx, userIDs, status interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateMultipleStatuses", reflect.TypeOf((*MockRepository)(nil).UpdateMultipleStatuses), ctx, userIDs, status)
+}
+
+// UpdateStatus mocks base method.
+func (m *MockRepository) UpdateStatus(ctx context.Context, userID int64, status string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateStatus", ctx, userID, status)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateStatus indicates an expected call of UpdateStatus.
+func (mr *MockRepositoryMockRecorder) UpdateStatus(ctx, userID, status interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateStatus", reflect.TypeOf((*MockRepository)(nil).UpdateStatus), ctx, userID, status)
 }

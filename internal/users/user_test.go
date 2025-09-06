@@ -8,9 +8,16 @@ import (
 	"ralts-cms/internal/testutils"
 	"ralts-cms/internal/users"
 	"ralts-cms/pkg/auth"
+
+	"github.com/stretchr/testify/suite"
 )
 
-func TestUser_SetTimestamps(t *testing.T) {
+// UserTestSuite defines the test suite for user model
+type UserTestSuite struct {
+	suite.Suite
+}
+
+func (suite *UserTestSuite) TestSetTimestamps() {
 	tests := []struct {
 		name           string
 		initialUser    *users.User
@@ -36,7 +43,7 @@ func TestUser_SetTimestamps(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		suite.Run(tt.name, func() {
 			user := tt.initialUser
 			originalCreatedAt := user.CreatedAt
 			originalUpdatedAt := user.UpdatedAt
@@ -50,41 +57,37 @@ func TestUser_SetTimestamps(t *testing.T) {
 			afterTime := time.Now().UTC()
 
 			// Check that timestamps are within expected range
-			if user.UpdatedAt == nil || user.UpdatedAt.Before(beforeTime) || user.UpdatedAt.After(afterTime) {
-				t.Errorf("UpdatedAt should be between %v and %v, got %v", beforeTime, afterTime, user.UpdatedAt)
-			}
+			suite.Require().NotNil(user.UpdatedAt)
+			suite.Assert().True(user.UpdatedAt.After(beforeTime) || user.UpdatedAt.Equal(beforeTime))
+			suite.Assert().True(user.UpdatedAt.Before(afterTime) || user.UpdatedAt.Equal(afterTime))
 
 			// Check specific field updates
 			for _, field := range tt.expectedFields {
 				switch field {
 				case "CreatedAt":
-					if user.CreatedAt.IsZero() {
-						t.Errorf("CreatedAt should not be zero for new user")
-					}
-					if user.CreatedAt.Before(beforeTime) || user.CreatedAt.After(afterTime) {
-						t.Errorf("CreatedAt should be between %v and %v, got %v", beforeTime, afterTime, user.CreatedAt)
-					}
+					suite.Assert().False(user.CreatedAt.IsZero(), "CreatedAt should not be zero for new user")
+					suite.Assert().True(user.CreatedAt.After(beforeTime) || user.CreatedAt.Equal(beforeTime))
+					suite.Assert().True(user.CreatedAt.Before(afterTime) || user.CreatedAt.Equal(afterTime))
 				case "UpdatedAt":
-					if user.UpdatedAt == nil || user.UpdatedAt.IsZero() {
-						t.Errorf("UpdatedAt should not be zero")
-					}
+					suite.Require().NotNil(user.UpdatedAt)
+					suite.Assert().False(user.UpdatedAt.IsZero(), "UpdatedAt should not be zero")
 				}
 			}
 
 			// For existing users, CreatedAt should remain unchanged
-			if !originalCreatedAt.IsZero() && !user.CreatedAt.Equal(originalCreatedAt) {
-				t.Errorf("CreatedAt should remain unchanged for existing user, expected %v, got %v", originalCreatedAt, user.CreatedAt)
+			if !originalCreatedAt.IsZero() {
+				suite.Assert().True(user.CreatedAt.Equal(originalCreatedAt), "CreatedAt should remain unchanged for existing user")
 			}
 
 			// UpdatedAt should always be updated
-			if originalUpdatedAt != nil && user.UpdatedAt != nil && user.UpdatedAt.Equal(*originalUpdatedAt) {
-				t.Errorf("UpdatedAt should be updated, expected different from %v, got %v", originalUpdatedAt, user.UpdatedAt)
+			if originalUpdatedAt != nil {
+				suite.Assert().False(user.UpdatedAt.Equal(*originalUpdatedAt), "UpdatedAt should be updated")
 			}
 		})
 	}
 }
 
-func TestUser_SetDefaultRole(t *testing.T) {
+func (suite *UserTestSuite) TestSetDefaultRole() {
 	tests := []struct {
 		name        string
 		initialRole string
@@ -108,7 +111,7 @@ func TestUser_SetDefaultRole(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		suite.Run(tt.name, func() {
 			user := &users.User{
 				Username: "Test User",
 				Email:    "test@example.com",
@@ -117,14 +120,12 @@ func TestUser_SetDefaultRole(t *testing.T) {
 
 			user.SetDefaultRole()
 
-			if user.Role != tt.expected {
-				t.Errorf("expected role %s, got %s", tt.expected, user.Role)
-			}
+			suite.Assert().Equal(tt.expected, user.Role)
 		})
 	}
 }
 
-func TestUser_SetDefaultStatus(t *testing.T) {
+func (suite *UserTestSuite) TestSetDefaultStatus() {
 	tests := []struct {
 		name          string
 		initialStatus *string
@@ -148,7 +149,7 @@ func TestUser_SetDefaultStatus(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		suite.Run(tt.name, func() {
 			user := &users.User{
 				Username: "Test User",
 				Email:    "test@example.com",
@@ -157,14 +158,13 @@ func TestUser_SetDefaultStatus(t *testing.T) {
 
 			user.SetDefaultStatus()
 
-			if user.Status == nil || *user.Status != tt.expected {
-				t.Errorf("expected status %s, got %v", tt.expected, user.Status)
-			}
+			suite.Require().NotNil(user.Status)
+			suite.Assert().Equal(tt.expected, *user.Status)
 		})
 	}
 }
 
-func TestUser_SetDefaultApproval(t *testing.T) {
+func (suite *UserTestSuite) TestSetDefaultApproval() {
 	tests := []struct {
 		name             string
 		initialUser      *users.User
@@ -192,19 +192,17 @@ func TestUser_SetDefaultApproval(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		suite.Run(tt.name, func() {
 			user := tt.initialUser
 
 			user.SetDefaultApproval()
 
-			if user.Approved != tt.expectedApproval {
-				t.Errorf("expected approval %v, got %v", tt.expectedApproval, user.Approved)
-			}
+			suite.Assert().Equal(tt.expectedApproval, user.Approved)
 		})
 	}
 }
 
-func TestUser_SetDefaults(t *testing.T) {
+func (suite *UserTestSuite) TestSetDefaults() {
 	tests := []struct {
 		name             string
 		initialUser      *users.User
@@ -255,27 +253,20 @@ func TestUser_SetDefaults(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		suite.Run(tt.name, func() {
 			user := tt.initialUser
 
 			user.SetDefaults()
 
-			if user.Role != tt.expectedRole {
-				t.Errorf("expected role %s, got %s", tt.expectedRole, user.Role)
-			}
-
-			if user.Status == nil || *user.Status != tt.expectedStatus {
-				t.Errorf("expected status %s, got %v", tt.expectedStatus, user.Status)
-			}
-
-			if user.Approved != tt.expectedApproval {
-				t.Errorf("expected approval %v, got %v", tt.expectedApproval, user.Approved)
-			}
+			suite.Assert().Equal(tt.expectedRole, user.Role)
+			suite.Require().NotNil(user.Status)
+			suite.Assert().Equal(tt.expectedStatus, *user.Status)
+			suite.Assert().Equal(tt.expectedApproval, user.Approved)
 		})
 	}
 }
 
-func TestUser_SetPassword(t *testing.T) {
+func (suite *UserTestSuite) TestSetPassword() {
 	tests := []struct {
 		name        string
 		password    string
@@ -306,7 +297,7 @@ func TestUser_SetPassword(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		suite.Run(tt.name, func() {
 			user := &users.User{
 				Username: "Test User",
 				Email:    "test@example.com",
@@ -315,49 +306,34 @@ func TestUser_SetPassword(t *testing.T) {
 			err := user.SetPassword(tt.password)
 
 			if tt.expectError {
-				if err == nil {
-					t.Errorf("expected error but got none")
-					return
-				}
-				if !strings.Contains(err.Error(), tt.errorMsg) {
-					t.Errorf("expected error message containing '%s', got '%s'", tt.errorMsg, err.Error())
-				}
+				suite.Require().Error(err)
+				suite.Assert().Contains(err.Error(), tt.errorMsg)
 				return
 			}
 
-			if err != nil {
-				t.Errorf("unexpected error: %v", err)
-				return
-			}
+			suite.Require().NoError(err)
 
 			// Check that password and salt are set
-			if user.Password == "" {
-				t.Errorf("password should not be empty after hashing")
-			}
-
-			if user.Salt == "" {
-				t.Errorf("salt should not be empty after hashing")
-			}
+			suite.Assert().NotEmpty(user.Password, "password should not be empty after hashing")
+			suite.Assert().NotEmpty(user.Salt, "salt should not be empty after hashing")
 
 			// Check that password is hashed (should start with bcrypt identifier)
-			if !strings.HasPrefix(user.Password, "$2a$") && !strings.HasPrefix(user.Password, "$2b$") {
-				t.Errorf("password should be hashed with bcrypt, got: %s", user.Password)
-			}
+			suite.Assert().True(
+				strings.HasPrefix(user.Password, "$2a$") || strings.HasPrefix(user.Password, "$2b$"),
+				"password should be hashed with bcrypt, got: %s", user.Password,
+			)
 
 			// Check salt format (should be hexadecimal)
-			if len(user.Salt) != 32 {
-				t.Errorf("salt should be 32 characters long, got %d", len(user.Salt))
-			}
+			suite.Assert().Len(user.Salt, 32, "salt should be 32 characters long")
 
 			// Verify the password can be verified
-			if err := auth.VerifyPassword(tt.password, user.Password, user.Salt); err != nil {
-				t.Errorf("password verification failed: %v", err)
-			}
+			err = auth.VerifyPassword(tt.password, user.Password, user.Salt)
+			suite.Assert().NoError(err, "password verification failed")
 		})
 	}
 }
 
-func TestUser_IsStatusActive(t *testing.T) {
+func (suite *UserTestSuite) TestIsStatusActive() {
 	tests := []struct {
 		name     string
 		status   *string
@@ -391,7 +367,7 @@ func TestUser_IsStatusActive(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		suite.Run(tt.name, func() {
 			user := &users.User{
 				Username: "Test User",
 				Email:    "test@example.com",
@@ -400,14 +376,12 @@ func TestUser_IsStatusActive(t *testing.T) {
 
 			result := user.IsStatusActive()
 
-			if result != tt.expected {
-				t.Errorf("expected %v, got %v", tt.expected, result)
-			}
+			suite.Assert().Equal(tt.expected, result)
 		})
 	}
 }
 
-func TestUser_SetPassword_Verification(t *testing.T) {
+func (suite *UserTestSuite) TestSetPasswordVerification() {
 	tests := []struct {
 		name        string
 		password    string
@@ -435,7 +409,7 @@ func TestUser_SetPassword_Verification(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		suite.Run(tt.name, func() {
 			user := &users.User{
 				Username: "Test User",
 				Email:    "test@example.com",
@@ -443,22 +417,81 @@ func TestUser_SetPassword_Verification(t *testing.T) {
 
 			// Set the password
 			err := user.SetPassword(tt.password)
-			if err != nil {
-				t.Errorf("failed to set password: %v", err)
-				return
-			}
+			suite.Require().NoError(err, "failed to set password")
 
 			// Verify correct password works
 			err = auth.VerifyPassword(tt.password, user.Password, user.Salt)
-			if err != nil {
-				t.Errorf("correct password verification failed: %v", err)
-			}
+			suite.Assert().NoError(err, "correct password verification failed")
 
 			// Verify wrong password fails
 			err = auth.VerifyPassword(tt.wrongPass, user.Password, user.Salt)
-			if !tt.expectError || err == nil {
-				t.Errorf("wrong password should fail verification")
+			if tt.expectError {
+				suite.Assert().Error(err, "wrong password should fail verification")
+			} else {
+				suite.Assert().NoError(err, "wrong password verification should succeed")
 			}
 		})
 	}
+}
+
+func (suite *UserTestSuite) TestValidateStatusValue() {
+	tests := []struct {
+		name        string
+		status      string
+		expectError bool
+	}{
+		{
+			name:        "should accept pending_approval status",
+			status:      users.StatusPendingApproval,
+			expectError: false,
+		},
+		{
+			name:        "should accept approved status",
+			status:      users.StatusApproved,
+			expectError: false,
+		},
+		{
+			name:        "should accept suspended status",
+			status:      users.StatusSuspended,
+			expectError: false,
+		},
+		{
+			name:        "should accept inactive status",
+			status:      users.StatusInactive,
+			expectError: false,
+		},
+		{
+			name:        "should reject invalid status",
+			status:      "invalid_status",
+			expectError: true,
+		},
+		{
+			name:        "should reject empty status",
+			status:      "",
+			expectError: true,
+		},
+		{
+			name:        "should reject uppercase status",
+			status:      "APPROVED",
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		suite.Run(tt.name, func() {
+			err := users.ValidateStatusValue(tt.status)
+
+			if tt.expectError {
+				suite.Require().Error(err)
+				suite.Assert().Contains(err.Error(), "invalid status")
+			} else {
+				suite.Assert().NoError(err)
+			}
+		})
+	}
+}
+
+// TestUserTestSuite runs the user test suite
+func TestUserTestSuite(t *testing.T) {
+	suite.Run(t, new(UserTestSuite))
 }

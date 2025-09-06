@@ -241,6 +241,245 @@ func (suite *UserRepositoryTestSuite) TestLogin() {
 
 }
 
+func (suite *UserRepositoryTestSuite) TestListUsers() {
+	ctx := context.Background()
+
+	suite.Run("should return empty list when no users exist", func() {
+		users, totalCount, err := suite.repo.ListUsers(ctx, 10, 0)
+		suite.Require().NoError(err)
+		suite.Assert().Empty(users)
+		suite.Assert().Equal(0, totalCount)
+	})
+
+	suite.Run("should list users with pagination", func() {
+		// Create test users
+		user1 := testutils.CreateUser("user1", "password123")
+		user2 := testutils.CreateUser("user2", "password123")
+		user3 := testutils.CreateUser("user3", "password123")
+
+		err := suite.repo.Create(ctx, user1)
+		suite.Require().NoError(err)
+		err = suite.repo.Create(ctx, user2)
+		suite.Require().NoError(err)
+		err = suite.repo.Create(ctx, user3)
+		suite.Require().NoError(err)
+
+		// Test first page
+		users, totalCount, err := suite.repo.ListUsers(ctx, 2, 0)
+		suite.Require().NoError(err)
+		suite.Assert().Len(users, 2)
+		suite.Assert().Equal(3, totalCount)
+		// Should be ordered by created_at DESC (newest first)
+		suite.Assert().Equal(user3.Username, users[0].Username)
+		suite.Assert().Equal(user2.Username, users[1].Username)
+
+		// Test second page
+		users, totalCount, err = suite.repo.ListUsers(ctx, 2, 2)
+		suite.Require().NoError(err)
+		suite.Assert().Len(users, 1)
+		suite.Assert().Equal(3, totalCount)
+		suite.Assert().Equal(user1.Username, users[0].Username)
+	})
+
+	suite.Run("should validate pagination parameters", func() {
+		// Test invalid limit
+		_, _, err := suite.repo.ListUsers(ctx, 0, 0)
+		suite.Assert().Error(err)
+		suite.Assert().Contains(err.Error(), "limit must be between 1 and 100")
+
+		_, _, err = suite.repo.ListUsers(ctx, 101, 0)
+		suite.Assert().Error(err)
+		suite.Assert().Contains(err.Error(), "limit must be between 1 and 100")
+
+		// Test invalid offset
+		_, _, err = suite.repo.ListUsers(ctx, 10, -1)
+		suite.Assert().Error(err)
+		suite.Assert().Contains(err.Error(), "offset must be non-negative")
+	})
+}
+
+func (suite *UserRepositoryTestSuite) TestGetByID() {
+	ctx := context.Background()
+
+	suite.Run("should get user by ID successfully", func() {
+		user := testutils.CreateUser("testuser", "password123")
+		err := suite.repo.Create(ctx, user)
+		suite.Require().NoError(err)
+
+		retrievedUser, err := suite.repo.GetByID(ctx, user.ID)
+		suite.Require().NoError(err)
+		suite.Assert().Equal(user.ID, retrievedUser.ID)
+		suite.Assert().Equal(user.Username, retrievedUser.Username)
+		suite.Assert().Equal(user.Email, retrievedUser.Email)
+		suite.Assert().Equal(user.Role, retrievedUser.Role)
+	})
+
+	suite.Run("should return error for non-existent user", func() {
+		_, err := suite.repo.GetByID(ctx, 999999)
+		suite.Assert().Error(err)
+		suite.Assert().Contains(err.Error(), "user with ID 999999 not found")
+	})
+}
+
+func (suite *UserRepositoryTestSuite) TestUpdateStatus() {
+	ctx := context.Background()
+
+	suite.Run("should update user status successfully", func() {
+		user := testutils.CreateUser("testuser", "password123")
+		err := suite.repo.Create(ctx, user)
+		suite.Require().NoError(err)
+
+		// Update to approved status
+		err = suite.repo.UpdateStatus(ctx, user.ID, users.StatusApproved)
+		suite.Require().NoError(err)
+
+		// Verify status was updated
+		updatedUser, err := suite.repo.GetByID(ctx, user.ID)
+		suite.Require().NoError(err)
+		suite.Assert().Equal(users.StatusApproved, *updatedUser.Status)
+		suite.Assert().True(updatedUser.Approved)
+	})
+
+	suite.Run("should update to suspended status", func() {
+		user := testutils.CreateUser("testuser2", "password123")
+		err := suite.repo.Create(ctx, user)
+		suite.Require().NoError(err)
+
+		// Update to suspended status
+		err = suite.repo.UpdateStatus(ctx, user.ID, users.StatusSuspended)
+		suite.Require().NoError(err)
+
+		// Verify status was updated but approved remains unchanged
+		updatedUser, err := suite.repo.GetByID(ctx, user.ID)
+		suite.Require().NoError(err)
+		suite.Assert().Equal(users.StatusSuspended, *updatedUser.Status)
+		suite.Assert().False(updatedUser.Approved) // Should remain false
+	})
+
+	suite.Run("should validate status value", func() {
+		user := testutils.CreateUser("testuser3", "password123")
+		err := suite.repo.Create(ctx, user)
+		suite.Require().NoError(err)
+
+		err = suite.repo.UpdateStatus(ctx, user.ID, "invalid_status")
+		suite.Assert().Error(err)
+		suite.Assert().Contains(err.Error(), "invalid status: invalid_status")
+	})
+
+	suite.Run("should return error for non-existent user", func() {
+		err := suite.repo.UpdateStatus(ctx, 999999, users.StatusApproved)
+		suite.Assert().Error(err)
+		suite.Assert().Contains(err.Error(), "user with ID 999999 not found")
+	})
+}
+
+func (suite *UserRepositoryTestSuite) TestUpdateMultipleStatuses() {
+	ctx := context.Background()
+
+	suite.Run("should update multiple users successfully", func() {
+		// Create test users
+		user1 := testutils.CreateUser("user1", "password123")
+		user2 := testutils.CreateUser("user2", "password123")
+		user3 := testutils.CreateUser("user3", "password123")
+
+		err := suite.repo.Create(ctx, user1)
+		suite.Require().NoError(err)
+		err = suite.repo.Create(ctx, user2)
+		suite.Require().NoError(err)
+		err = suite.repo.Create(ctx, user3)
+		suite.Require().NoError(err)
+
+		userIDs := []int64{user1.ID, user2.ID, user3.ID}
+
+		// Update all to approved status
+		err = suite.repo.UpdateMultipleStatuses(ctx, userIDs, users.StatusApproved)
+		suite.Require().NoError(err)
+
+		// Verify all users were updated
+		for _, userID := range userIDs {
+			updatedUser, err := suite.repo.GetByID(ctx, userID)
+			suite.Require().NoError(err)
+			suite.Assert().Equal(users.StatusApproved, *updatedUser.Status)
+			suite.Assert().True(updatedUser.Approved)
+		}
+	})
+
+	suite.Run("should update multiple users to suspended status", func() {
+		// Create test users
+		user1 := testutils.CreateUser("user4", "password123")
+		user2 := testutils.CreateUser("user5", "password123")
+
+		err := suite.repo.Create(ctx, user1)
+		suite.Require().NoError(err)
+		err = suite.repo.Create(ctx, user2)
+		suite.Require().NoError(err)
+
+		userIDs := []int64{user1.ID, user2.ID}
+
+		// Update all to suspended status
+		err = suite.repo.UpdateMultipleStatuses(ctx, userIDs, users.StatusSuspended)
+		suite.Require().NoError(err)
+
+		// Verify all users were updated
+		for _, userID := range userIDs {
+			updatedUser, err := suite.repo.GetByID(ctx, userID)
+			suite.Require().NoError(err)
+			suite.Assert().Equal(users.StatusSuspended, *updatedUser.Status)
+			suite.Assert().False(updatedUser.Approved) // Should remain false
+		}
+	})
+
+	suite.Run("should validate user IDs", func() {
+		err := suite.repo.UpdateMultipleStatuses(ctx, []int64{}, users.StatusApproved)
+		suite.Assert().Error(err)
+		suite.Assert().Contains(err.Error(), "userIDs cannot be empty")
+
+		err = suite.repo.UpdateMultipleStatuses(ctx, []int64{1, 0, 3}, users.StatusApproved)
+		suite.Assert().Error(err)
+		suite.Assert().Contains(err.Error(), "all user IDs must be positive")
+
+		err = suite.repo.UpdateMultipleStatuses(ctx, []int64{1, -2, 3}, users.StatusApproved)
+		suite.Assert().Error(err)
+		suite.Assert().Contains(err.Error(), "all user IDs must be positive")
+	})
+
+	suite.Run("should validate status value", func() {
+		user := testutils.CreateUser("user6", "password123")
+		err := suite.repo.Create(ctx, user)
+		suite.Require().NoError(err)
+
+		err = suite.repo.UpdateMultipleStatuses(ctx, []int64{user.ID}, "invalid_status")
+		suite.Assert().Error(err)
+		suite.Assert().Contains(err.Error(), "invalid status: invalid_status")
+	})
+
+	suite.Run("should handle partial failure", func() {
+		user := testutils.CreateUser("user7", "password123")
+		err := suite.repo.Create(ctx, user)
+		suite.Require().NoError(err)
+
+		// Mix of valid and invalid user IDs
+		userIDs := []int64{user.ID, 999999}
+
+		err = suite.repo.UpdateMultipleStatuses(ctx, userIDs, users.StatusApproved)
+		suite.Assert().Error(err)
+		suite.Assert().Contains(err.Error(), "expected to update 2 users, but updated 1")
+	})
+
+	suite.Run("should handle single user update", func() {
+		user := testutils.CreateUser("user8", "password123")
+		err := suite.repo.Create(ctx, user)
+		suite.Require().NoError(err)
+
+		err = suite.repo.UpdateMultipleStatuses(ctx, []int64{user.ID}, users.StatusInactive)
+		suite.Require().NoError(err)
+
+		updatedUser, err := suite.repo.GetByID(ctx, user.ID)
+		suite.Require().NoError(err)
+		suite.Assert().Equal(users.StatusInactive, *updatedUser.Status)
+	})
+}
+
 func TestUserRepositoryTestSuite(t *testing.T) {
 	suite.Run(t, new(UserRepositoryTestSuite))
 }
