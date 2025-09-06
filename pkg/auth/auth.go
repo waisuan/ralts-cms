@@ -53,10 +53,11 @@ func VerifyPassword(password, hash, salt string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(passwordForBcrypt))
 }
 
-// GenerateJWTToken creates a new JWT token for the given entity ID with the provided secret
-func GenerateJWTToken(entityID int, secret string) (string, error) {
+// GenerateJWTToken creates a new JWT token for the given entity ID and role with the provided secret
+func GenerateJWTToken(entityID int, role, secret string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"entity_id": strconv.Itoa(entityID),
+		"role":      role,
 		"exp":       time.Now().Add(24 * time.Hour).Unix(), // Token expires in 24 hours
 		"iat":       time.Now().Unix(),
 	})

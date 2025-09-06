@@ -14,6 +14,12 @@ const (
 	StatusInactive        = "inactive"
 )
 
+// User role constants
+const (
+	RoleAdmin    = "ADMIN"
+	RoleNonAdmin = "NON_ADMIN"
+)
+
 // User represents a user in the Ralts-CMS system
 type User struct {
 	ID        int64      `json:"id" db:"id"`
@@ -47,7 +53,7 @@ func (u *User) SetTimestamps() {
 // SetDefaultRole sets the default role if not already set
 func (u *User) SetDefaultRole() {
 	if u.Role == "" {
-		u.Role = "NON_ADMIN"
+		u.Role = RoleNonAdmin
 	}
 }
 

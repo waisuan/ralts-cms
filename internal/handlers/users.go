@@ -98,8 +98,8 @@ func (h *UsersHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate JWT token
-	tokenString, err := auth.GenerateJWTToken(int(user.ID), h.deps.Config.JWTSecret)
+	// Generate JWT token with user role
+	tokenString, err := auth.GenerateJWTToken(int(user.ID), user.Role, h.deps.Config.JWTSecret)
 	if err != nil {
 		h.deps.Logger.Error("Failed to generate JWT token",
 			"error", err,

@@ -204,11 +204,11 @@ func buildStatusUpdateQuery(status string, userID int64) (string, []interface{})
 		query := `UPDATE users SET status = $1, updated_at = NOW(), approved = true WHERE id = $2`
 		args := []interface{}{status, userID}
 		return query, args
-	} else {
-		query := `UPDATE users SET status = $1, updated_at = NOW() WHERE id = $2`
-		args := []interface{}{status, userID}
-		return query, args
 	}
+
+	query := `UPDATE users SET status = $1, updated_at = NOW() WHERE id = $2`
+	args := []interface{}{status, userID}
+	return query, args
 }
 
 func (r *db) UpdateStatus(ctx context.Context, userID int64, status string) error {

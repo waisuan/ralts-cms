@@ -7,12 +7,15 @@ import (
 	"fmt"
 	"net/http"
 	"ralts-cms/pkg/auth"
+	"strconv"
 	"strings"
 )
 
 // UserContext represents the user information extracted from JWT token
 type UserContext struct {
 	EntityID string `json:"entity_id"`
+	UserID   int64  `json:"user_id"`
+	Role     string `json:"role"`
 }
 
 // contextKey is a custom type for context keys to avoid collisions
@@ -55,13 +58,29 @@ func AuthenticationMiddleware(jwtSecret string) func(http.Handler) http.Handler 
 				return
 			}
 
-			// Create user context
-			user := &UserContext{
+			// Extract role from claims
+			role, ok := claims["role"].(string)
+			if !ok {
+				http.Error(w, "Invalid token: missing role", http.StatusUnauthorized)
+				return
+			}
+
+			// Convert entity_id to int64
+			userID, err := strconv.ParseInt(entityID, 10, 64)
+			if err != nil {
+				http.Error(w, "Invalid token: invalid entity_id format", http.StatusUnauthorized)
+				return
+			}
+
+			// Create user context with information from JWT token
+			userCtx := &UserContext{
 				EntityID: entityID,
+				UserID:   userID,
+				Role:     role,
 			}
 
 			// Add user context to request
-			ctx := context.WithValue(r.Context(), UserContextKey, user)
+			ctx := context.WithValue(r.Context(), UserContextKey, userCtx)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -74,4 +93,27 @@ func GetUserFromContext(ctx context.Context) (*UserContext, error) {
 		return nil, fmt.Errorf("user not found in context")
 	}
 	return user, nil
+}
+
+// ExtractUserIDFromJWT extracts the user ID from a JWT token string
+func ExtractUserIDFromJWT(tokenString, jwtSecret string) (int64, error) {
+	// Validate JWT token
+	claims, err := auth.ValidateJWTToken(tokenString, jwtSecret)
+	if err != nil {
+		return 0, fmt.Errorf("invalid token: %w", err)
+	}
+
+	// Extract entity_id from claims
+	entityID, ok := claims["entity_id"].(string)
+	if !ok {
+		return 0, fmt.Errorf("invalid token: missing entity_id")
+	}
+
+	// Convert to int64
+	userID, err := strconv.ParseInt(entityID, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid token: invalid entity_id format: %w", err)
+	}
+
+	return userID, nil
 }

@@ -381,12 +381,21 @@ func TestGenerateJWTToken(t *testing.T) {
 	tests := []struct {
 		name        string
 		entityID    int
+		role        string
 		secret      string
 		expectError bool
 	}{
 		{
-			name:        "should generate token successfully",
+			name:        "should generate token successfully with admin role",
 			entityID:    1234567890,
+			role:        "ADMIN",
+			secret:      "your-jwt-secret-key",
+			expectError: false,
+		},
+		{
+			name:        "should generate token successfully with non-admin role",
+			entityID:    9876543210,
+			role:        "NON_ADMIN",
 			secret:      "your-jwt-secret-key",
 			expectError: false,
 		},
@@ -394,7 +403,7 @@ func TestGenerateJWTToken(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			token, err := auth.GenerateJWTToken(tt.entityID, tt.secret)
+			token, err := auth.GenerateJWTToken(tt.entityID, tt.role, tt.secret)
 			if err != nil {
 				t.Errorf("failed to generate token: %v", err)
 				return
@@ -411,6 +420,7 @@ func TestValidateJWTToken(t *testing.T) {
 	tests := []struct {
 		name        string
 		entityID    int
+		role        string
 		secret      string
 		wrongSecret string
 		expectError bool
@@ -418,6 +428,7 @@ func TestValidateJWTToken(t *testing.T) {
 		{
 			name:        "should validate token successfully",
 			entityID:    1234567890,
+			role:        "ADMIN",
 			secret:      "your-jwt-secret-key",
 			wrongSecret: "wrong-secret",
 			expectError: false,
@@ -427,7 +438,7 @@ func TestValidateJWTToken(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Generate a valid token
-			token, err := auth.GenerateJWTToken(tt.entityID, tt.secret)
+			token, err := auth.GenerateJWTToken(tt.entityID, tt.role, tt.secret)
 			if err != nil {
 				t.Errorf("failed to generate token: %v", err)
 				return
@@ -454,6 +465,17 @@ func TestValidateJWTToken(t *testing.T) {
 
 			if entityID != strconv.Itoa(tt.entityID) {
 				t.Errorf("expected entity_id %d, got %s", tt.entityID, entityID)
+			}
+
+			// Check that role is present in claims
+			role, ok := claims["role"].(string)
+			if !ok {
+				t.Errorf("role should be present in claims")
+				return
+			}
+
+			if role != tt.role {
+				t.Errorf("expected role %s, got %s", tt.role, role)
 			}
 
 			// Test with wrong secret
