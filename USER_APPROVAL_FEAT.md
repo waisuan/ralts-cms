@@ -189,19 +189,19 @@ Admins can perform bulk status updates by:
 - [x] Modify `AuthenticationMiddleware` to fetch and store user role in context
 
 #### Handler Layer
-- [ ] Create `internal/handlers/admin_users.go` file
-- [ ] Create `AdminUsersHandler` struct with dependencies
-- [ ] Implement `ListUsers` handler for `GET /api/v1/admin/users`
-- [ ] Implement `UpdateUserStatus` handler for `PUT /api/v1/admin/users/{id}/status`
-- [ ] Implement `BulkUpdateStatus` handler for `PUT /api/v1/admin/users/bulk-status`
-- [ ] Add input validation for status values in all handlers
-- [ ] Add proper error handling and HTTP status codes
-- [ ] Add request/response logging for audit trail
+- [x] ~~Create `internal/handlers/admin_users.go` file~~ (Extended existing UsersHandler instead)
+- [x] ~~Create `AdminUsersHandler` struct with dependencies~~ (Extended existing UsersHandler instead)
+- [x] Implement `ListUsers` handler for `GET /api/v1/admin/users`
+- [x] Implement `UpdateUserStatus` handler for `PUT /api/v1/admin/users/{id}/status`
+- [x] Implement `BulkUpdateStatus` handler for `PUT /api/v1/admin/users/bulk-status`
+- [x] Add input validation for status values in all handlers
+- [x] Add proper error handling and HTTP status codes
+- [x] Add request/response logging for audit trail
 
 #### Router Configuration
-- [ ] Add admin routes to `internal/router/router.go`
-- [ ] Chain `AdminOnlyMiddleware` with `AuthenticationMiddleware` for admin routes
-- [ ] Test that non-admin users get 403 Forbidden on admin endpoints
+- [x] Add admin routes to `internal/router/router.go`
+- [x] Chain `AdminOnlyMiddleware` with `AuthenticationMiddleware` for admin routes
+- [x] Test that non-admin users get 403 Forbidden on admin endpoints
 
 ### Phase 2: Frontend Implementation
 
@@ -268,9 +268,9 @@ Admins can perform bulk status updates by:
 ### Phase 4: Testing & Documentation
 
 #### Backend Tests
-- [ ] Write unit tests for new repository methods
-- [ ] Write unit tests for admin middleware
-- [ ] Write unit tests for admin handlers
+- [x] Write unit tests for new repository methods
+- [x] Write unit tests for admin middleware
+- [x] Write unit tests for admin handlers
 - [ ] Write integration tests for admin API endpoints
 - [ ] Test error scenarios and edge cases
 

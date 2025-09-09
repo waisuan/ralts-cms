@@ -11,10 +11,12 @@ import (
 	"os"
 	"ralts-cms/internal/deps"
 	"ralts-cms/internal/handlers"
+	"ralts-cms/internal/middlewares"
 	"ralts-cms/internal/users"
 	"testing"
 
 	"github.com/golang/mock/gomock"
+	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -246,6 +248,353 @@ func (suite *UsersHandlerTestSuite) TestLogin() {
 
 		suite.Assert().Equal(http.StatusForbidden, w.Code)
 		suite.Assert().Contains(w.Body.String(), "Account Not Active")
+	})
+}
+
+// TestListUsers tests the admin ListUsers endpoint
+func (suite *UsersHandlerTestSuite) TestListUsers() {
+	suite.Run("should list users successfully with default pagination", func() {
+		// Create test users
+		testUsers := []*users.User{
+			{
+				ID:       1,
+				Username: "user1",
+				Email:    "user1@example.com",
+				Role:     users.RoleNonAdmin,
+				Status:   &[]string{users.StatusApproved}[0],
+			},
+			{
+				ID:       2,
+				Username: "user2",
+				Email:    "user2@example.com",
+				Role:     users.RoleNonAdmin,
+				Status:   &[]string{users.StatusPendingApproval}[0],
+			},
+		}
+
+		// Setup mock expectations
+		suite.mockRepo.EXPECT().
+			ListUsers(gomock.Any(), 50, 0).
+			Return(testUsers, 2, nil)
+
+		// Create request with admin user context
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/users", nil)
+		req = req.WithContext(context.WithValue(req.Context(), middlewares.UserContextKey, &middlewares.UserContext{
+			UserID: 1,
+			Role:   users.RoleAdmin,
+		}))
+
+		// Create response recorder
+		rr := httptest.NewRecorder()
+
+		// Call handler
+		suite.handler.ListUsers(rr, req)
+
+		// Assertions
+		suite.Equal(http.StatusOK, rr.Code)
+
+		var response handlers.ListUsersResponse
+		err := json.Unmarshal(rr.Body.Bytes(), &response)
+		suite.NoError(err)
+
+		suite.Equal(2, response.TotalCount)
+		suite.Equal(50, response.Limit)
+		suite.Equal(0, response.Offset)
+		suite.Len(response.Users, 2)
+		suite.Equal("user1", response.Users[0].Username)
+		suite.Equal("user2", response.Users[1].Username)
+	})
+
+	suite.Run("should handle custom pagination parameters", func() {
+		testUsers := []*users.User{
+			{ID: 3, Username: "user3", Email: "user3@example.com"},
+		}
+
+		suite.mockRepo.EXPECT().
+			ListUsers(gomock.Any(), 25, 10).
+			Return(testUsers, 1, nil)
+
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/users?limit=25&offset=10", nil)
+		req = req.WithContext(context.WithValue(req.Context(), middlewares.UserContextKey, &middlewares.UserContext{
+			UserID: 1,
+			Role:   users.RoleAdmin,
+		}))
+
+		rr := httptest.NewRecorder()
+		suite.handler.ListUsers(rr, req)
+
+		suite.Equal(http.StatusOK, rr.Code)
+
+		var response handlers.ListUsersResponse
+		err := json.Unmarshal(rr.Body.Bytes(), &response)
+		suite.NoError(err)
+
+		suite.Equal(25, response.Limit)
+		suite.Equal(10, response.Offset)
+	})
+
+	suite.Run("should return 400 for invalid limit", func() {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/users?limit=150", nil)
+		req = req.WithContext(context.WithValue(req.Context(), middlewares.UserContextKey, &middlewares.UserContext{
+			UserID: 1,
+			Role:   users.RoleAdmin,
+		}))
+
+		rr := httptest.NewRecorder()
+		suite.handler.ListUsers(rr, req)
+
+		suite.Equal(http.StatusBadRequest, rr.Code)
+		suite.Contains(rr.Body.String(), "Invalid limit parameter")
+	})
+
+	suite.Run("should return 500 on repository error", func() {
+		suite.mockRepo.EXPECT().
+			ListUsers(gomock.Any(), 50, 0).
+			Return(nil, 0, fmt.Errorf("database error"))
+
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/users", nil)
+		rr := httptest.NewRecorder()
+
+		suite.handler.ListUsers(rr, req)
+
+		suite.Equal(http.StatusInternalServerError, rr.Code)
+		suite.Contains(rr.Body.String(), "Failed to retrieve users")
+	})
+}
+
+// TestUpdateUserStatus tests the admin UpdateUserStatus endpoint
+func (suite *UsersHandlerTestSuite) TestUpdateUserStatus() {
+	suite.Run("should update user status successfully", func() {
+		// Setup mock expectations
+		suite.mockRepo.EXPECT().
+			UpdateStatus(gomock.Any(), int64(2), users.StatusApproved).
+			Return(nil)
+
+		// Create request body
+		requestBody := handlers.UpdateUserStatusRequest{
+			Status: users.StatusApproved,
+		}
+		bodyBytes, _ := json.Marshal(requestBody)
+
+		// Create request with admin user context and mux vars
+		req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/users/2/status", bytes.NewReader(bodyBytes))
+		req = mux.SetURLVars(req, map[string]string{"id": "2"})
+		req = req.WithContext(context.WithValue(req.Context(), middlewares.UserContextKey, &middlewares.UserContext{
+			UserID: 1,
+			Role:   users.RoleAdmin,
+		}))
+		req.Header.Set("Content-Type", "application/json")
+
+		// Create response recorder
+		rr := httptest.NewRecorder()
+
+		// Call handler
+		suite.handler.UpdateUserStatus(rr, req)
+
+		// Assertions
+		suite.Equal(http.StatusOK, rr.Code)
+
+		var response map[string]interface{}
+		err := json.Unmarshal(rr.Body.Bytes(), &response)
+		suite.NoError(err)
+
+		suite.Equal("User status updated successfully", response["message"])
+		suite.Equal(float64(2), response["user_id"])
+		suite.Equal(users.StatusApproved, response["status"])
+	})
+
+	suite.Run("should return 400 for invalid user ID", func() {
+		requestBody := handlers.UpdateUserStatusRequest{
+			Status: users.StatusApproved,
+		}
+		bodyBytes, _ := json.Marshal(requestBody)
+
+		req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/users/invalid/status", bytes.NewReader(bodyBytes))
+		req = mux.SetURLVars(req, map[string]string{"id": "invalid"})
+		req = req.WithContext(context.WithValue(req.Context(), middlewares.UserContextKey, &middlewares.UserContext{
+			UserID: 1,
+			Role:   users.RoleAdmin,
+		}))
+
+		rr := httptest.NewRecorder()
+		suite.handler.UpdateUserStatus(rr, req)
+
+		suite.Equal(http.StatusBadRequest, rr.Code)
+		suite.Contains(rr.Body.String(), "Invalid user ID")
+	})
+
+	suite.Run("should return 400 for invalid status", func() {
+		requestBody := handlers.UpdateUserStatusRequest{
+			Status: "invalid_status",
+		}
+		bodyBytes, _ := json.Marshal(requestBody)
+
+		req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/users/2/status", bytes.NewReader(bodyBytes))
+		req = mux.SetURLVars(req, map[string]string{"id": "2"})
+		req = req.WithContext(context.WithValue(req.Context(), middlewares.UserContextKey, &middlewares.UserContext{
+			UserID: 1,
+			Role:   users.RoleAdmin,
+		}))
+
+		rr := httptest.NewRecorder()
+		suite.handler.UpdateUserStatus(rr, req)
+
+		suite.Equal(http.StatusBadRequest, rr.Code)
+		suite.Contains(rr.Body.String(), "Invalid status")
+	})
+
+	suite.Run("should return 500 on repository error", func() {
+		suite.mockRepo.EXPECT().
+			UpdateStatus(gomock.Any(), int64(999), users.StatusApproved).
+			Return(fmt.Errorf("user with ID 999 not found"))
+
+		requestBody := handlers.UpdateUserStatusRequest{
+			Status: users.StatusApproved,
+		}
+		bodyBytes, _ := json.Marshal(requestBody)
+
+		req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/users/999/status", bytes.NewReader(bodyBytes))
+		req = mux.SetURLVars(req, map[string]string{"id": "999"})
+		req = req.WithContext(context.WithValue(req.Context(), middlewares.UserContextKey, &middlewares.UserContext{
+			UserID: 1,
+			Role:   users.RoleAdmin,
+		}))
+
+		rr := httptest.NewRecorder()
+		suite.handler.UpdateUserStatus(rr, req)
+
+		suite.Equal(http.StatusInternalServerError, rr.Code)
+		suite.Contains(rr.Body.String(), "Failed to update user status")
+	})
+}
+
+// TestBulkUpdateStatus tests the admin BulkUpdateStatus endpoint
+func (suite *UsersHandlerTestSuite) TestBulkUpdateStatus() {
+	suite.Run("should update multiple user statuses successfully", func() {
+		userIDs := []int64{2, 3, 4}
+
+		// Setup mock expectations
+		suite.mockRepo.EXPECT().
+			UpdateMultipleStatuses(gomock.Any(), userIDs, users.StatusSuspended).
+			Return(nil)
+
+		// Create request body
+		requestBody := handlers.BulkUpdateStatusRequest{
+			UserIDs: userIDs,
+			Status:  users.StatusSuspended,
+		}
+		bodyBytes, _ := json.Marshal(requestBody)
+
+		// Create request with admin user context
+		req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/users/bulk-status", bytes.NewReader(bodyBytes))
+		req = req.WithContext(context.WithValue(req.Context(), middlewares.UserContextKey, &middlewares.UserContext{
+			UserID: 1,
+			Role:   users.RoleAdmin,
+		}))
+		req.Header.Set("Content-Type", "application/json")
+
+		// Create response recorder
+		rr := httptest.NewRecorder()
+
+		// Call handler
+		suite.handler.BulkUpdateStatus(rr, req)
+
+		// Assertions
+		suite.Equal(http.StatusOK, rr.Code)
+
+		var response map[string]interface{}
+		err := json.Unmarshal(rr.Body.Bytes(), &response)
+		suite.NoError(err)
+
+		suite.Equal("User statuses updated successfully", response["message"])
+		suite.Equal(float64(3), response["updated_count"])
+		suite.Equal(users.StatusSuspended, response["status"])
+	})
+
+	suite.Run("should return 400 for empty user IDs", func() {
+		requestBody := handlers.BulkUpdateStatusRequest{
+			UserIDs: []int64{},
+			Status:  users.StatusSuspended,
+		}
+		bodyBytes, _ := json.Marshal(requestBody)
+
+		req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/users/bulk-status", bytes.NewReader(bodyBytes))
+		req = req.WithContext(context.WithValue(req.Context(), middlewares.UserContextKey, &middlewares.UserContext{
+			UserID: 1,
+			Role:   users.RoleAdmin,
+		}))
+
+		rr := httptest.NewRecorder()
+		suite.handler.BulkUpdateStatus(rr, req)
+
+		suite.Equal(http.StatusBadRequest, rr.Code)
+		suite.Contains(rr.Body.String(), "User IDs list cannot be empty")
+	})
+
+	suite.Run("should return 400 for too many user IDs", func() {
+		// Create 101 user IDs
+		userIDs := make([]int64, 101)
+		for i := 0; i < 101; i++ {
+			userIDs[i] = int64(i + 1)
+		}
+
+		requestBody := handlers.BulkUpdateStatusRequest{
+			UserIDs: userIDs,
+			Status:  users.StatusSuspended,
+		}
+		bodyBytes, _ := json.Marshal(requestBody)
+
+		req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/users/bulk-status", bytes.NewReader(bodyBytes))
+		req = req.WithContext(context.WithValue(req.Context(), middlewares.UserContextKey, &middlewares.UserContext{
+			UserID: 1,
+			Role:   users.RoleAdmin,
+		}))
+
+		rr := httptest.NewRecorder()
+		suite.handler.BulkUpdateStatus(rr, req)
+
+		suite.Equal(http.StatusBadRequest, rr.Code)
+		suite.Contains(rr.Body.String(), "Cannot update more than 100 users at once")
+	})
+
+	suite.Run("should return 400 for invalid user IDs", func() {
+		requestBody := handlers.BulkUpdateStatusRequest{
+			UserIDs: []int64{1, -1, 3}, // -1 is invalid
+			Status:  users.StatusSuspended,
+		}
+		bodyBytes, _ := json.Marshal(requestBody)
+
+		req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/users/bulk-status", bytes.NewReader(bodyBytes))
+		req = req.WithContext(context.WithValue(req.Context(), middlewares.UserContextKey, &middlewares.UserContext{
+			UserID: 1,
+			Role:   users.RoleAdmin,
+		}))
+
+		rr := httptest.NewRecorder()
+		suite.handler.BulkUpdateStatus(rr, req)
+
+		suite.Equal(http.StatusBadRequest, rr.Code)
+		suite.Contains(rr.Body.String(), "All user IDs must be positive integers")
+	})
+
+	suite.Run("should return 400 for invalid status", func() {
+		requestBody := handlers.BulkUpdateStatusRequest{
+			UserIDs: []int64{1, 2, 3},
+			Status:  "invalid_status",
+		}
+		bodyBytes, _ := json.Marshal(requestBody)
+
+		req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/users/bulk-status", bytes.NewReader(bodyBytes))
+		req = req.WithContext(context.WithValue(req.Context(), middlewares.UserContextKey, &middlewares.UserContext{
+			UserID: 1,
+			Role:   users.RoleAdmin,
+		}))
+
+		rr := httptest.NewRecorder()
+		suite.handler.BulkUpdateStatus(rr, req)
+
+		suite.Equal(http.StatusBadRequest, rr.Code)
+		suite.Contains(rr.Body.String(), "Invalid status")
 	})
 }
 

@@ -7,6 +7,9 @@ import (
 	"ralts-cms/internal/deps"
 	"ralts-cms/internal/users"
 	"ralts-cms/pkg/auth"
+	"strconv"
+
+	"github.com/gorilla/mux"
 )
 
 // UsersHandler handles HTTP requests for user-related operations
@@ -29,6 +32,25 @@ type CreateUserRequest struct {
 type LoginRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
+}
+
+// UpdateUserStatusRequest represents the request structure for updating user status
+type UpdateUserStatusRequest struct {
+	Status string `json:"status" validate:"required"`
+}
+
+// BulkUpdateStatusRequest represents the request structure for bulk status updates
+type BulkUpdateStatusRequest struct {
+	UserIDs []int64 `json:"user_ids" validate:"required,min=1"`
+	Status  string  `json:"status" validate:"required"`
+}
+
+// ListUsersResponse represents the response structure for user listing
+type ListUsersResponse struct {
+	Users      []*users.User `json:"users"`
+	TotalCount int           `json:"total_count"`
+	Limit      int           `json:"limit"`
+	Offset     int           `json:"offset"`
 }
 
 // NewUsersHandler creates a new users handler instance with the given dependencies
@@ -122,6 +144,156 @@ func (h *UsersHandler) Login(w http.ResponseWriter, r *http.Request) {
 		"user_id", user.ID,
 		"username", user.Username,
 		"email", user.Email)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+
+// ListUsers handles GET /api/v1/admin/users for listing all users with pagination
+func (h *UsersHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
+	// Extract query parameters
+	limitStr := r.URL.Query().Get("limit")
+	offsetStr := r.URL.Query().Get("offset")
+
+	// Set default values
+	limit := 50
+	offset := 0
+
+	// Parse limit if provided
+	if limitStr != "" {
+		parsedLimit, err := strconv.Atoi(limitStr)
+		if err != nil || parsedLimit <= 0 || parsedLimit > 100 {
+			http.Error(w, "Invalid limit parameter: must be between 1 and 100", http.StatusBadRequest)
+			return
+		}
+		limit = parsedLimit
+	}
+
+	// Parse offset if provided
+	if offsetStr != "" {
+		parsedOffset, err := strconv.Atoi(offsetStr)
+		if err != nil || parsedOffset < 0 {
+			http.Error(w, "Invalid offset parameter: must be non-negative", http.StatusBadRequest)
+			return
+		}
+		offset = parsedOffset
+	}
+
+	// Fetch users from repository
+	userList, totalCount, err := h.deps.UsersRepository.ListUsers(r.Context(), limit, offset)
+	if err != nil {
+		http.Error(w, "Failed to retrieve users", http.StatusInternalServerError)
+		return
+	}
+
+	// Create response
+	response := ListUsersResponse{
+		Users:      userList,
+		TotalCount: totalCount,
+		Limit:      limit,
+		Offset:     offset,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+
+// UpdateUserStatus handles PUT /api/v1/admin/users/{id}/status for updating a single user's status
+func (h *UsersHandler) UpdateUserStatus(w http.ResponseWriter, r *http.Request) {
+	// Extract user ID from URL path variables
+	vars := mux.Vars(r)
+	userIDStr, ok := vars["id"]
+	if !ok {
+		http.Error(w, "Missing user ID in URL path", http.StatusBadRequest)
+		return
+	}
+
+	userID, err := strconv.ParseInt(userIDStr, 10, 64)
+	if err != nil || userID <= 0 {
+		http.Error(w, "Invalid user ID: must be a positive integer", http.StatusBadRequest)
+		return
+	}
+
+	// Parse request body
+	var updateRequest UpdateUserStatusRequest
+	if err := json.NewDecoder(r.Body).Decode(&updateRequest); err != nil {
+		http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	// Validate status value
+	if err := users.ValidateStatusValue(updateRequest.Status); err != nil {
+		http.Error(w, fmt.Sprintf("Invalid status: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	// Update user status
+	if err := h.deps.UsersRepository.UpdateStatus(r.Context(), userID, updateRequest.Status); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to update user status: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Return success response
+	response := map[string]interface{}{
+		"message": "User status updated successfully",
+		"user_id": userID,
+		"status":  updateRequest.Status,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+
+// BulkUpdateStatus handles PUT /api/v1/admin/users/bulk-status for updating multiple users' status
+func (h *UsersHandler) BulkUpdateStatus(w http.ResponseWriter, r *http.Request) {
+	// Parse request body
+	var bulkRequest BulkUpdateStatusRequest
+	if err := json.NewDecoder(r.Body).Decode(&bulkRequest); err != nil {
+		http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	// Validate request
+	if len(bulkRequest.UserIDs) == 0 {
+		http.Error(w, "User IDs list cannot be empty", http.StatusBadRequest)
+		return
+	}
+
+	if len(bulkRequest.UserIDs) > 100 {
+		http.Error(w, "Cannot update more than 100 users at once", http.StatusBadRequest)
+		return
+	}
+
+	// Validate all user IDs
+	for _, userID := range bulkRequest.UserIDs {
+		if userID <= 0 {
+			http.Error(w, "All user IDs must be positive integers", http.StatusBadRequest)
+			return
+		}
+	}
+
+	// Validate status value
+	if err := users.ValidateStatusValue(bulkRequest.Status); err != nil {
+		http.Error(w, fmt.Sprintf("Invalid status: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	// Update multiple user statuses
+	if err := h.deps.UsersRepository.UpdateMultipleStatuses(r.Context(), bulkRequest.UserIDs, bulkRequest.Status); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to update user statuses: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Return success response
+	response := map[string]interface{}{
+		"message":        "User statuses updated successfully",
+		"updated_count":  len(bulkRequest.UserIDs),
+		"status":         bulkRequest.Status,
+		"affected_users": bulkRequest.UserIDs,
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

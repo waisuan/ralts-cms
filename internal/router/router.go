@@ -67,5 +67,17 @@ func NewRouter(deps *deps.Dependencies) http.Handler {
 	// Apply middleware to protected endpoints only
 	api.Use(middlewares.AuthenticationMiddleware(deps.Config.JWTSecret))
 
+	// Admin-only subrouter for admin endpoints
+	adminAPI := r.PathPrefix("/api/v1/admin/").Subrouter()
+
+	// Admin user management endpoints (protected by both auth and admin middleware)
+	adminAPI.HandleFunc("/users", handlers.NewUsersHandler(deps).ListUsers).Methods(http.MethodGet)
+	adminAPI.HandleFunc("/users/{id:[0-9]+}/status", handlers.NewUsersHandler(deps).UpdateUserStatus).Methods(http.MethodPut)
+	adminAPI.HandleFunc("/users/bulk-status", handlers.NewUsersHandler(deps).BulkUpdateStatus).Methods(http.MethodPut)
+
+	// Apply both authentication and admin middleware to admin endpoints
+	adminAPI.Use(middlewares.AuthenticationMiddleware(deps.Config.JWTSecret))
+	adminAPI.Use(middlewares.AdminOnlyMiddleware())
+
 	return r
 }
