@@ -839,6 +839,44 @@ Both machine and maintenance list endpoints return responses in the following fo
 }
 ```
 
+## CLI Tools
+
+### Admin Account Creation
+
+The application includes a CLI tool for creating admin accounts. This is useful for initial setup when you need to create the first admin user.
+
+```bash
+# Build the CLI tool
+go build -o admin-cli ./cmd/cli
+
+# Create an admin account with username and password
+./admin-cli -type admin -username myadmin -password mypassword123
+```
+
+Requirements:
+- **Username**: Must be at least 3 characters long
+- **Password**: Must be at least 8 characters long
+- **Email**: Automatically generated as `{username}@admin.local`
+
+The admin account will be created with:
+- Role: `ADMIN`
+- Status: `APPROVED` (automatically approved)
+- Full access to the admin panel
+
+### Test Data Generation
+
+You can also use the CLI tool to generate test data:
+
+```bash
+# Generate test machines (will delete existing data)
+./admin-cli -type machine -count 50
+
+# Generate test users (will delete existing data)
+./admin-cli -type user -count 20
+```
+
+**Note**: The test data generation commands will delete all existing data of that type before creating new records.
+
 ## Development
 
 ### Building

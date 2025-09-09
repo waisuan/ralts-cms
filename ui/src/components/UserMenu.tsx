@@ -2,7 +2,9 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { USER_ROLE } from '@/services/adminUserService';
 
 export default function UserMenu() {
   const { user, logout } = useAuth();
@@ -71,6 +73,37 @@ export default function UserMenu() {
             <p className="text-sm font-medium text-gray-900">{user.username}</p>
             <p className="text-xs text-gray-500">{user.email}</p>
           </div>
+
+          {/* Admin-only menu items */}
+          {user.role === USER_ROLE.ADMIN && (
+            <Link
+              href="/admin/users"
+              onClick={() => setIsOpen(false)}
+              className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 focus:outline-none focus:bg-gray-100"
+            >
+              <div className="flex items-center">
+                <svg
+                  className="mr-3 h-4 w-4 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"
+                  />
+                </svg>
+                Manage Users
+              </div>
+            </Link>
+          )}
+
+          {/* Separator for admin items */}
+          {user.role === USER_ROLE.ADMIN && (
+            <div className="border-t border-gray-100 my-1"></div>
+          )}
 
           <button
             onClick={handleLogout}

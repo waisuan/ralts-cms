@@ -1,5 +1,6 @@
 // Package main provides a CLI tool for generating test data
-// including machines, users, and maintenance records for the Ralts-CMS application.
+// including machines, users, and maintenance records for the Ralts-CMS application,
+// as well as creating admin accounts.
 package main
 
 import (
@@ -16,18 +17,30 @@ import (
 	"time"
 )
 
-// This is a CLI tool that accepts a few arguments:-
-// 1. The type of entity: machine, user
-// 2. The number of entities to create
+// This is a CLI tool that accepts the following arguments:
+// 1. The type of entity: machine, user, admin
+// 2. The number of entities to create (required for machine/user)
+// 3. For admin creation: --username and --password flags
 //
 // Each entity should be unique and have a random value for the fields.
 // Each entity should be saved to the database.
 func main() {
-	entityType := flag.String("type", "", "The type of entity to create")
-	entityCount := flag.Int("count", 0, "The number of entities to create")
+	entityType := flag.String("type", "", "The type of entity to create (machine, user, admin)")
+	entityCount := flag.Int("count", 0, "The number of entities to create (not required for admin)")
+	adminUsername := flag.String("username", "", "Username for admin account (required when type=admin)")
+	adminPassword := flag.String("password", "", "Password for admin account (required when type=admin)")
 	flag.Parse()
 
-	if *entityType == "" || *entityCount == 0 {
+	if *entityType == "" {
+		log.Fatal("Please provide entity type (machine, user, admin)")
+	}
+
+	// Validate admin-specific flags
+	if *entityType == "admin" {
+		if *adminUsername == "" || *adminPassword == "" {
+			log.Fatal("For admin creation, both --username and --password are required")
+		}
+	} else if *entityCount == 0 {
 		log.Fatal("Please provide both entity type and count")
 	}
 
@@ -41,8 +54,10 @@ func main() {
 	case "user":
 		deps.PostgresClient.Exec(context.Background(), "DELETE FROM users")
 		createUsers(deps, *entityCount)
+	case "admin":
+		createAdminAccount(deps, *adminUsername, *adminPassword)
 	default:
-		log.Fatalf("Invalid entity type: %s", *entityType)
+		log.Fatalf("Invalid entity type: %s. Valid options: machine, user, admin", *entityType)
 	}
 }
 
@@ -266,4 +281,53 @@ func stringPtr(s string) *string {
 		return nil
 	}
 	return &s
+}
+
+// createAdminAccount creates a new admin user account with provided credentials
+func createAdminAccount(deps *deps.Dependencies, username, password string) {
+	ctx := context.Background()
+
+	// Validate username
+	if len(username) < 3 {
+		log.Fatalf("Username must be at least 3 characters long")
+	}
+
+	// Validate password
+	if len(password) < 8 {
+		log.Fatalf("Password must be at least 8 characters long")
+	}
+
+	// Generate email from username (simple approach)
+	email := username + "@admin.local"
+
+	// Check if user already exists (by username)
+	existingUser, err := deps.UsersRepository.GetByUsername(ctx, username)
+	if err == nil && existingUser != nil {
+		log.Fatalf("User with username %s already exists", username)
+	}
+
+	// Create admin user
+	status := users.StatusApproved // Admin accounts are automatically approved
+	adminUser := &users.User{
+		Username: username,
+		Email:    email,
+		Password: password, // Will be hashed by SetPassword method
+		Role:     users.RoleAdmin,
+		Approved: true, // Admin accounts are automatically approved
+		Status:   &status,
+		Avatar:   nil, // No avatar for CLI-created admin
+	}
+
+	// Create the admin user
+	err = deps.UsersRepository.Create(ctx, adminUser)
+	if err != nil {
+		log.Fatalf("Failed to create admin user: %v", err)
+	}
+
+	fmt.Printf("✅ Admin account created successfully!\n")
+	fmt.Printf("   Username: %s\n", username)
+	fmt.Printf("   Email: %s\n", email)
+	fmt.Printf("   Role: ADMIN\n")
+	fmt.Printf("   Status: APPROVED\n")
+	fmt.Println("You can now log in to the admin panel with these credentials.")
 }
