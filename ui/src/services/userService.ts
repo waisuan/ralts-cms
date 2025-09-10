@@ -1,4 +1,4 @@
-import { apiClient, ApiResponse } from '../utils/api';
+import { apiClient, ApiResponse, ApiError } from '../utils/api';
 
 export interface User {
   id: number;
@@ -45,15 +45,28 @@ export class UserService {
       hasPassword: !!data.password 
     });
     
-    const response = await apiClient.post<User>(this.BASE_PATH, data);
-    
-    console.log('👤 API: POST /api/v1/users response', { 
-      userId: response.data?.id,
-      username: response.data?.username,
-      userEmail: response.data?.email
-    });
+    try {
+      const response = await apiClient.post<User>(this.BASE_PATH, data);
+      
+      console.log('👤 API: POST /api/v1/users response', { 
+        userId: response.data?.id,
+        username: response.data?.username,
+        userEmail: response.data?.email
+      });
 
-    return response;
+      return response;
+    } catch (error) {
+      // Handle user-specific 409 conflict errors
+      if (error instanceof ApiError && error.status === 409) {
+        throw new ApiError(
+          'This user already exists. Please try different credentials.',
+          error.status,
+          error.details
+        );
+      }
+      // Re-throw other errors unchanged
+      throw error;
+    }
   }
 
   /**
@@ -65,14 +78,36 @@ export class UserService {
       hasPassword: !!data.password 
     });
     
-    const response = await apiClient.post<LoginResponse>(`${this.BASE_PATH}/login`, data);
-    
-    console.log('👤 API: POST /api/v1/users/login response', { 
-      userId: response.data?.user?.id,
-      username: response.data?.user?.username,
-      hasToken: !!response.data?.token
-    });
+    try {
+      const response = await apiClient.post<LoginResponse>(`${this.BASE_PATH}/login`, data);
+      
+      console.log('👤 API: POST /api/v1/users/login response', { 
+        userId: response.data?.user?.id,
+        username: response.data?.user?.username,
+        hasToken: !!response.data?.token
+      });
 
-    return response;
+      return response;
+    } catch (error) {
+      // Handle user-specific login errors
+      if (error instanceof ApiError) {
+        if (error.status === 401) {
+          throw new ApiError(
+            'Invalid username or password.',
+            error.status,
+            error.details
+          );
+        }
+        if (error.status === 403) {
+          throw new ApiError(
+            'Your account is not currently approved for the system. Please contact an administrator to activate your account.',
+            error.status,
+            error.details
+          );
+        }
+      }
+      // Re-throw other errors unchanged
+      throw error;
+    }
   }
 } 

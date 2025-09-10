@@ -16,7 +16,7 @@ interface AuthUser {
 interface AuthContextType {
   user: AuthUser | null;
   isLoading: boolean;
-  login: (username: string, password: string) => Promise<boolean>;
+  login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   isAuthenticated: boolean;
 }
@@ -45,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const login = async (username: string, password: string): Promise<boolean> => {
+  const login = async (username: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
       const response = await UserService.loginUser({ username, password });
       
@@ -62,17 +62,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(userData);
         localStorage.setItem('ralts_user', JSON.stringify(userData));
         localStorage.setItem('ralts_token', response.data.token);
-        return true;
+        return { success: true };
       }
       
-      return false;
+      return { success: false, error: 'Invalid username or password' };
     } catch (error) {
       console.error('Login error:', error);
+      
+      // Extract the error message from the API error
+      let errorMessage = 'An error occurred during login';
+      
+      if (error && typeof error === 'object' && 'message' in error) {
+        errorMessage = (error as any).message;
+      } else if (error && typeof error === 'object' && 'details' in error && (error as any).details) {
+        // Handle case where error details contain the message
+        const details = (error as any).details;
+        if (typeof details === 'string') {
+          errorMessage = details;
+        } else if (details && typeof details === 'object' && 'message' in details) {
+          errorMessage = details.message;
+        }
+      }
+      
       // Don't redirect on login errors since we're already on the login page
       if (isAuthError(error)) {
         console.log('🔐 Login failed due to authentication error');
       }
-      return false;
+      
+      return { success: false, error: errorMessage };
     }
   };
 

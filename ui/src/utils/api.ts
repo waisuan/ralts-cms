@@ -47,10 +47,23 @@ export class ApiClient {
       const response = await fetch(url, config);
       
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        // Try to parse as JSON first, fallback to text
+        let errorData: any = {};
+        let errorMessage = '';
         
-        // Provide user-friendly messages for specific status codes
-        let errorMessage = errorData.message;
+        try {
+          errorData = await response.json();
+          errorMessage = errorData.message || '';
+        } catch {
+          // If JSON parsing fails, try to get the text content
+          try {
+            errorMessage = await response.text();
+          } catch {
+            errorMessage = '';
+          }
+        }
+        
+        // Provide user-friendly messages for specific status codes if no message from server
         if (!errorMessage) {
           switch (response.status) {
             case 501:
@@ -67,6 +80,9 @@ export class ApiClient {
               break;
             case 403:
               errorMessage = 'You do not have permission to perform this action.';
+              break;
+            case 409:
+              errorMessage = 'The resource already exists or there is a conflict.';
               break;
             case 500:
               errorMessage = 'Server error. Please try again later.';
@@ -187,9 +203,22 @@ export class ApiClient {
       const response = await fetch(url, config);
       
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        // Try to parse as JSON first, fallback to text
+        let errorData: any = {};
+        let errorMessage = '';
         
-        let errorMessage = errorData.message;
+        try {
+          errorData = await response.json();
+          errorMessage = errorData.message || '';
+        } catch {
+          // If JSON parsing fails, try to get the text content
+          try {
+            errorMessage = await response.text();
+          } catch {
+            errorMessage = '';
+          }
+        }
+        
         if (!errorMessage) {
           switch (response.status) {
             case 501:
@@ -206,6 +235,9 @@ export class ApiClient {
               break;
             case 403:
               errorMessage = 'You do not have permission to perform this action.';
+              break;
+            case 409:
+              errorMessage = 'The resource already exists or there is a conflict.';
               break;
             case 500:
               errorMessage = 'Server error. Please try again later.';
@@ -280,9 +312,22 @@ export class ApiClient {
       const response = await fetch(url, config);
       
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        // Try to parse as JSON first, fallback to text
+        let errorData: any = {};
+        let errorMessage = '';
         
-        let errorMessage = errorData.message;
+        try {
+          errorData = await response.json();
+          errorMessage = errorData.message || '';
+        } catch {
+          // If JSON parsing fails, try to get the text content
+          try {
+            errorMessage = await response.text();
+          } catch {
+            errorMessage = '';
+          }
+        }
+        
         if (!errorMessage) {
           switch (response.status) {
             case 501:
@@ -299,6 +344,9 @@ export class ApiClient {
               break;
             case 403:
               errorMessage = 'You do not have permission to perform this action.';
+              break;
+            case 409:
+              errorMessage = 'The resource already exists or there is a conflict.';
               break;
             case 500:
               errorMessage = 'Server error. Please try again later.';

@@ -32,9 +32,9 @@ export default function LoginPage() {
     }
 
     try {
-      const success = await login(username.trim(), password);
-      if (!success) {
-        setError('Invalid username or password');
+      const result = await login(username.trim(), password);
+      if (!result.success) {
+        setError(result.error || 'Invalid username or password');
       }
     } catch {
       setError('An error occurred during login');

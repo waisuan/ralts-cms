@@ -8,6 +8,7 @@ import (
 	"ralts-cms/internal/users"
 	"ralts-cms/pkg/auth"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/mux"
 )
@@ -85,6 +86,11 @@ func (h *UsersHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.deps.UsersRepository.Create(r.Context(), user); err != nil {
+		// Check for duplicate key constraint violations
+		if strings.Contains(err.Error(), "duplicate key") || strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			http.Error(w, "A user with this username or email already exists. Please try different credentials.", http.StatusConflict)
+			return
+		}
 		http.Error(w, fmt.Sprintf("Failed to create user: %v", err), http.StatusInternalServerError)
 		return
 	}

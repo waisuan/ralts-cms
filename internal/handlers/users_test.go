@@ -127,6 +127,28 @@ func (suite *UsersHandlerTestSuite) TestCreateUser() {
 		suite.Assert().Equal(http.StatusBadRequest, w.Code)
 		suite.Assert().Contains(w.Body.String(), "Invalid request body")
 	})
+
+	suite.Run("should return 409 when user already exists", func() {
+		userData := handlers.CreateUserRequest{
+			Username: "duplicate_user",
+			Email:    "duplicate@example.com",
+			Password: "mypassword123",
+		}
+
+		// Mock repository to return a duplicate key error
+		suite.mockRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(
+			fmt.Errorf("duplicate key value violates unique constraint"))
+
+		body, _ := json.Marshal(userData)
+		req := httptest.NewRequest("POST", "/users", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		suite.handler.CreateUser(w, req)
+
+		suite.Assert().Equal(http.StatusConflict, w.Code)
+		suite.Assert().Contains(w.Body.String(), "A user with this username or email already exists. Please try different credentials.")
+	})
 }
 
 func (suite *UsersHandlerTestSuite) TestLogin() {
