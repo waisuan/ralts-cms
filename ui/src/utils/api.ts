@@ -48,12 +48,12 @@ export class ApiClient {
       
       if (!response.ok) {
         // Try to parse as JSON first, fallback to text
-        let errorData: any = {};
+        let errorData: Record<string, unknown> = {};
         let errorMessage = '';
         
         try {
           errorData = await response.json();
-          errorMessage = errorData.message || '';
+          errorMessage = (errorData.message as string) || '';
         } catch {
           // If JSON parsing fails, try to get the text content
           try {
@@ -204,12 +204,12 @@ export class ApiClient {
       
       if (!response.ok) {
         // Try to parse as JSON first, fallback to text
-        let errorData: any = {};
+        let errorData: Record<string, unknown> = {};
         let errorMessage = '';
         
         try {
           errorData = await response.json();
-          errorMessage = errorData.message || '';
+          errorMessage = (errorData.message as string) || '';
         } catch {
           // If JSON parsing fails, try to get the text content
           try {
@@ -313,12 +313,12 @@ export class ApiClient {
       
       if (!response.ok) {
         // Try to parse as JSON first, fallback to text
-        let errorData: any = {};
+        let errorData: Record<string, unknown> = {};
         let errorMessage = '';
         
         try {
           errorData = await response.json();
-          errorMessage = errorData.message || '';
+          errorMessage = (errorData.message as string) || '';
         } catch {
           // If JSON parsing fails, try to get the text content
           try {

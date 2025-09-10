@@ -73,14 +73,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       let errorMessage = 'An error occurred during login';
       
       if (error && typeof error === 'object' && 'message' in error) {
-        errorMessage = (error as any).message;
-      } else if (error && typeof error === 'object' && 'details' in error && (error as any).details) {
+        errorMessage = (error as { message: string }).message;
+      } else if (error && typeof error === 'object' && 'details' in error) {
         // Handle case where error details contain the message
-        const details = (error as any).details;
+        const details = (error as { details: unknown }).details;
         if (typeof details === 'string') {
           errorMessage = details;
-        } else if (details && typeof details === 'object' && 'message' in details) {
-          errorMessage = details.message;
+        } else if (details && typeof details === 'object' && details !== null && 'message' in details) {
+          errorMessage = (details as { message: string }).message;
         }
       }
       
