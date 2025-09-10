@@ -106,7 +106,11 @@ describe('RegisterPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Registration Successful!')).toBeInTheDocument();
       expect(
-        screen.getByText('Your account has been created successfully. You can now sign in.')
+        screen.getByText('Your account has been created successfully.')
+      ).toBeInTheDocument();
+      expect(screen.getByText('Account Approval Required')).toBeInTheDocument();
+      expect(
+        screen.getByText('Your account requires administrator approval before you can log in. Please contact an administrator to activate your account.')
       ).toBeInTheDocument();
       expect(screen.getByText('Go to Sign In')).toBeInTheDocument();
     });

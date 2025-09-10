@@ -117,7 +117,7 @@ func (suite *MachineRepositoryTestSuite) TestGetBySerialNumber() {
 
 	suite.Run("should return machine with PPM status", func() {
 		machine := testutils.CreateMachine("MACHINE006")
-		machine.PpmDate = time.Now().AddDate(0, 0, -1)
+		machine.PpmDate = time.Now().UTC().AddDate(0, 0, -1)
 		suite.Require().NoError(suite.repo.Create(ctx, machine))
 
 		retrieved, err := suite.repo.GetBySerialNumber(ctx, "MACHINE006")
@@ -142,7 +142,7 @@ func (suite *MachineRepositoryTestSuite) TestGetBySerialNumber() {
 				$1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 				NULL, NULL, $2, $3
 			)
-		`, "MACHINE_WITH_NULLS", time.Now(), time.Now())
+		`, "MACHINE_WITH_NULLS", time.Now().UTC(), time.Now().UTC())
 		suite.Require().NoError(err)
 
 		// This should not cause a deserialization error thanks to COALESCE
@@ -266,15 +266,15 @@ func (suite *MachineRepositoryTestSuite) TestList() {
 
 	suite.Run("should return machines with PPM status", func() {
 		machine1 := testutils.CreateMachine("LIST004")
-		machine1.PpmDate = time.Now().AddDate(0, 0, -1)
+		machine1.PpmDate = time.Now().UTC().AddDate(0, 0, -1)
 		suite.Require().NoError(suite.repo.Create(ctx, machine1))
 
 		machine2 := testutils.CreateMachine("LIST005")
-		machine2.PpmDate = time.Now()
+		machine2.PpmDate = time.Now().UTC()
 		suite.Require().NoError(suite.repo.Create(ctx, machine2))
 
 		machine3 := testutils.CreateMachine("LIST006")
-		machine3.PpmDate = time.Now().AddDate(0, 0, 10)
+		machine3.PpmDate = time.Now().UTC().AddDate(0, 0, 10)
 		suite.Require().NoError(suite.repo.Create(ctx, machine3))
 
 		options := &machines.ListOptions{Limit: 50, Offset: 0, Sort: machines.SortOrderUpdatedAtAsc}
@@ -410,19 +410,19 @@ func (suite *MachineRepositoryTestSuite) TestList() {
 	suite.Run("should filter by overdue PPM status", func() {
 		// Create machines with different PPM dates
 		overdueMachine := testutils.CreateMachine("OVERDUE001")
-		overdueMachine.PpmDate = time.Now().AddDate(0, 0, -1) // Yesterday (overdue)
+		overdueMachine.PpmDate = time.Now().UTC().AddDate(0, 0, -1) // Yesterday (overdue)
 		suite.Require().NoError(suite.repo.Create(ctx, overdueMachine))
 
 		dueMachine := testutils.CreateMachine("DUE001")
-		dueMachine.PpmDate = time.Now() // Today (due)
+		dueMachine.PpmDate = time.Now().UTC() // Today (due)
 		suite.Require().NoError(suite.repo.Create(ctx, dueMachine))
 
 		almostDueMachine := testutils.CreateMachine("ALMOSTDUE001")
-		almostDueMachine.PpmDate = time.Now().AddDate(0, 0, 10) // 10 days from now (almost due)
+		almostDueMachine.PpmDate = time.Now().UTC().AddDate(0, 0, 10) // 10 days from now (almost due)
 		suite.Require().NoError(suite.repo.Create(ctx, almostDueMachine))
 
 		futureMachine := testutils.CreateMachine("FUTURE001")
-		futureMachine.PpmDate = time.Now().AddDate(0, 0, 30) // 30 days from now (not due)
+		futureMachine.PpmDate = time.Now().UTC().AddDate(0, 0, 30) // 30 days from now (not due)
 		suite.Require().NoError(suite.repo.Create(ctx, futureMachine))
 
 		options := &machines.ListOptions{
@@ -444,15 +444,15 @@ func (suite *MachineRepositoryTestSuite) TestList() {
 	suite.Run("should filter by due PPM status", func() {
 		// Create machines with different PPM dates
 		overdueMachine := testutils.CreateMachine("OVERDUE002")
-		overdueMachine.PpmDate = time.Now().AddDate(0, 0, -1) // Yesterday (overdue)
+		overdueMachine.PpmDate = time.Now().UTC().AddDate(0, 0, -1) // Yesterday (overdue)
 		suite.Require().NoError(suite.repo.Create(ctx, overdueMachine))
 
 		dueMachine := testutils.CreateMachine("DUE002")
-		dueMachine.PpmDate = time.Now() // Today (due)
+		dueMachine.PpmDate = time.Now().UTC() // Today (due)
 		suite.Require().NoError(suite.repo.Create(ctx, dueMachine))
 
 		almostDueMachine := testutils.CreateMachine("ALMOSTDUE002")
-		almostDueMachine.PpmDate = time.Now().AddDate(0, 0, 10) // 10 days from now (almost due)
+		almostDueMachine.PpmDate = time.Now().UTC().AddDate(0, 0, 10) // 10 days from now (almost due)
 		suite.Require().NoError(suite.repo.Create(ctx, almostDueMachine))
 
 		options := &machines.ListOptions{
@@ -474,19 +474,19 @@ func (suite *MachineRepositoryTestSuite) TestList() {
 	suite.Run("should filter by almost due PPM status", func() {
 		// Create machines with different PPM dates
 		overdueMachine := testutils.CreateMachine("OVERDUE003")
-		overdueMachine.PpmDate = time.Now().AddDate(0, 0, -1) // Yesterday (overdue)
+		overdueMachine.PpmDate = time.Now().UTC().AddDate(0, 0, -1) // Yesterday (overdue)
 		suite.Require().NoError(suite.repo.Create(ctx, overdueMachine))
 
 		dueMachine := testutils.CreateMachine("DUE003")
-		dueMachine.PpmDate = time.Now() // Today (due)
+		dueMachine.PpmDate = time.Now().UTC() // Today (due)
 		suite.Require().NoError(suite.repo.Create(ctx, dueMachine))
 
 		almostDueMachine := testutils.CreateMachine("ALMOSTDUE003")
-		almostDueMachine.PpmDate = time.Now().AddDate(0, 0, 10) // 10 days from now (almost due)
+		almostDueMachine.PpmDate = time.Now().UTC().AddDate(0, 0, 10) // 10 days from now (almost due)
 		suite.Require().NoError(suite.repo.Create(ctx, almostDueMachine))
 
 		futureMachine := testutils.CreateMachine("FUTURE003")
-		futureMachine.PpmDate = time.Now().AddDate(0, 0, 30) // 30 days from now (not due)
+		futureMachine.PpmDate = time.Now().UTC().AddDate(0, 0, 30) // 30 days from now (not due)
 		suite.Require().NoError(suite.repo.Create(ctx, futureMachine))
 
 		options := &machines.ListOptions{
@@ -509,7 +509,7 @@ func (suite *MachineRepositoryTestSuite) TestList() {
 		// Create multiple overdue machines
 		for i := 1; i <= 5; i++ {
 			machine := testutils.CreateMachine(fmt.Sprintf("OVERDUE%03d", i+10))
-			machine.PpmDate = time.Now().AddDate(0, 0, -i) // All overdue
+			machine.PpmDate = time.Now().UTC().AddDate(0, 0, -i) // All overdue
 			suite.Require().NoError(suite.repo.Create(ctx, machine))
 		}
 
@@ -538,12 +538,12 @@ func (suite *MachineRepositoryTestSuite) TestList() {
 	suite.Run("should combine PpmStatusFilter with sorting", func() {
 		// Create machines with different PPM dates and creation times
 		overdueMachine1 := testutils.CreateMachine("OVERDUE020")
-		overdueMachine1.PpmDate = time.Now().AddDate(0, 0, -1)
+		overdueMachine1.PpmDate = time.Now().UTC().AddDate(0, 0, -1)
 		suite.Require().NoError(suite.repo.Create(ctx, overdueMachine1))
 		time.Sleep(10 * time.Millisecond)
 
 		overdueMachine2 := testutils.CreateMachine("OVERDUE021")
-		overdueMachine2.PpmDate = time.Now().AddDate(0, 0, -2)
+		overdueMachine2.PpmDate = time.Now().UTC().AddDate(0, 0, -2)
 		suite.Require().NoError(suite.repo.Create(ctx, overdueMachine2))
 
 		options := &machines.ListOptions{
@@ -617,19 +617,19 @@ func (suite *MachineRepositoryTestSuite) TestCountByStatus() {
 	suite.Run("should return correct counts for different PPM statuses", func() {
 		// Create machines with different PPM dates
 		overdueMachine := testutils.CreateMachine("OVERDUE001")
-		overdueMachine.PpmDate = time.Now().AddDate(0, 0, -1) // Yesterday (overdue)
+		overdueMachine.PpmDate = time.Now().UTC().AddDate(0, 0, -1) // Yesterday (overdue)
 		suite.Require().NoError(suite.repo.Create(ctx, overdueMachine))
 
 		dueMachine := testutils.CreateMachine("DUE001")
-		dueMachine.PpmDate = time.Now() // Today (due)
+		dueMachine.PpmDate = time.Now().UTC() // Today (due)
 		suite.Require().NoError(suite.repo.Create(ctx, dueMachine))
 
 		almostDueMachine := testutils.CreateMachine("ALMOSTDUE001")
-		almostDueMachine.PpmDate = time.Now().AddDate(0, 0, 10) // 10 days from now (almost due)
+		almostDueMachine.PpmDate = time.Now().UTC().AddDate(0, 0, 10) // 10 days from now (almost due)
 		suite.Require().NoError(suite.repo.Create(ctx, almostDueMachine))
 
 		futureMachine := testutils.CreateMachine("FUTURE001")
-		futureMachine.PpmDate = time.Now().AddDate(0, 0, 30) // 30 days from now (not due)
+		futureMachine.PpmDate = time.Now().UTC().AddDate(0, 0, 30) // 30 days from now (not due)
 		suite.Require().NoError(suite.repo.Create(ctx, futureMachine))
 
 		overdueCount, dueCount, almostDueCount, err := suite.repo.CountByStatus(ctx)
@@ -649,7 +649,7 @@ func (suite *MachineRepositoryTestSuite) TestCountByStatus() {
 
 	suite.Run("should return zero counts when no machines are due", func() {
 		futureMachine := testutils.CreateMachine("FUTURE002")
-		futureMachine.PpmDate = time.Now().AddDate(0, 0, 30) // 30 days from now
+		futureMachine.PpmDate = time.Now().UTC().AddDate(0, 0, 30) // 30 days from now
 		suite.Require().NoError(suite.repo.Create(ctx, futureMachine))
 
 		overdueCount, dueCount, almostDueCount, err := suite.repo.CountByStatus(ctx)
@@ -663,14 +663,14 @@ func (suite *MachineRepositoryTestSuite) TestCountByStatus() {
 		// Create multiple overdue machines
 		for i := 1; i <= 3; i++ {
 			machine := testutils.CreateMachine(fmt.Sprintf("OVERDUE%03d", i))
-			machine.PpmDate = time.Now().AddDate(0, 0, -i) // Different overdue dates
+			machine.PpmDate = time.Now().UTC().AddDate(0, 0, -i) // Different overdue dates
 			suite.Require().NoError(suite.repo.Create(ctx, machine))
 		}
 
 		// Create multiple due machines
 		for i := 1; i <= 2; i++ {
 			machine := testutils.CreateMachine(fmt.Sprintf("DUE%03d", i))
-			machine.PpmDate = time.Now() // All due today
+			machine.PpmDate = time.Now().UTC() // All due today
 			suite.Require().NoError(suite.repo.Create(ctx, machine))
 		}
 
@@ -766,13 +766,13 @@ func (suite *MachineRepositoryTestSuite) TestSearch() {
 		// Create overdue machine
 		overdueMachine := testutils.CreateMachine("OVERDUE001")
 		overdueMachine.Brand = "HP"
-		overdueMachine.PpmDate = time.Now().AddDate(0, 0, -1) // Yesterday
+		overdueMachine.PpmDate = time.Now().UTC().AddDate(0, 0, -1) // Yesterday
 		suite.Require().NoError(suite.repo.Create(ctx, overdueMachine))
 
 		// Create future machine (not overdue)
 		futureMachine := testutils.CreateMachine("FUTURE001")
 		futureMachine.Brand = "HP"
-		futureMachine.PpmDate = time.Now().AddDate(0, 0, 30) // 30 days from now
+		futureMachine.PpmDate = time.Now().UTC().AddDate(0, 0, 30) // 30 days from now
 		suite.Require().NoError(suite.repo.Create(ctx, futureMachine))
 
 		// Search for HP machines that are overdue
@@ -790,13 +790,13 @@ func (suite *MachineRepositoryTestSuite) TestSearch() {
 		// Create machine due today
 		dueMachine := testutils.CreateMachine("DUE001")
 		dueMachine.Brand = "Canon"
-		dueMachine.PpmDate = time.Now() // Today
+		dueMachine.PpmDate = time.Now().UTC() // Today
 		suite.Require().NoError(suite.repo.Create(ctx, dueMachine))
 
 		// Create machine due tomorrow
 		tomorrowMachine := testutils.CreateMachine("TOMORROW001")
 		tomorrowMachine.Brand = "Canon"
-		tomorrowMachine.PpmDate = time.Now().AddDate(0, 0, 1) // Tomorrow
+		tomorrowMachine.PpmDate = time.Now().UTC().AddDate(0, 0, 1) // Tomorrow
 		suite.Require().NoError(suite.repo.Create(ctx, tomorrowMachine))
 
 		// Search for Canon machines due today
@@ -814,13 +814,13 @@ func (suite *MachineRepositoryTestSuite) TestSearch() {
 		// Create machine almost due (within 2 weeks)
 		almostDueMachine := testutils.CreateMachine("ALMOSTDUE001")
 		almostDueMachine.Brand = "Brother"
-		almostDueMachine.PpmDate = time.Now().AddDate(0, 0, 10) // 10 days from now
+		almostDueMachine.PpmDate = time.Now().UTC().AddDate(0, 0, 10) // 10 days from now
 		suite.Require().NoError(suite.repo.Create(ctx, almostDueMachine))
 
 		// Create machine far in future (not almost due)
 		farFutureMachine := testutils.CreateMachine("FARFUTURE001")
 		farFutureMachine.Brand = "Brother"
-		farFutureMachine.PpmDate = time.Now().AddDate(0, 0, 30) // 30 days from now
+		farFutureMachine.PpmDate = time.Now().UTC().AddDate(0, 0, 30) // 30 days from now
 		suite.Require().NoError(suite.repo.Create(ctx, farFutureMachine))
 
 		// Search for Brother machines almost due
@@ -1008,13 +1008,13 @@ func (suite *MachineRepositoryTestSuite) TestSearch() {
 		// Create overdue HP machine
 		overdueMachine := testutils.CreateMachine("HP001")
 		overdueMachine.Brand = "HP"
-		overdueMachine.PpmDate = time.Now().AddDate(0, 0, -1) // Yesterday
+		overdueMachine.PpmDate = time.Now().UTC().AddDate(0, 0, -1) // Yesterday
 		suite.Require().NoError(suite.repo.Create(ctx, overdueMachine))
 
 		// Create future HP machine (not overdue)
 		futureMachine := testutils.CreateMachine("HP002")
 		futureMachine.Brand = "HP"
-		futureMachine.PpmDate = time.Now().AddDate(0, 0, 30) // 30 days from now
+		futureMachine.PpmDate = time.Now().UTC().AddDate(0, 0, 30) // 30 days from now
 		suite.Require().NoError(suite.repo.Create(ctx, futureMachine))
 
 		// Count HP machines that are overdue
