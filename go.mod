@@ -14,7 +14,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.38.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.38.0
-	golang.org/x/crypto v0.41.0
+	golang.org/x/crypto v0.42.0
 )
 
 require (
@@ -69,7 +69,6 @@ require (
 	go.opentelemetry.io/otel/sdk v1.37.0 // indirect
 	go.opentelemetry.io/otel/trace v1.37.0 // indirect
 	golang.org/x/sys v0.36.0 // indirect
-	golang.org/x/term v0.35.0 // indirect
 	google.golang.org/grpc v1.75.0 // indirect
 	google.golang.org/protobuf v1.36.7 // indirect
 )
@@ -99,7 +98,7 @@ require (
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
-	golang.org/x/sync v0.16.0 // indirect
-	golang.org/x/text v0.28.0 // indirect
+	golang.org/x/sync v0.17.0 // indirect
+	golang.org/x/text v0.29.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
