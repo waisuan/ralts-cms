@@ -16,7 +16,7 @@
     "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "next": "15.5.2",
+    "next": "15.5.3",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "tailwindcss": "^4",
