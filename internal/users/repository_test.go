@@ -480,6 +480,114 @@ func (suite *UserRepositoryTestSuite) TestUpdateMultipleStatuses() {
 	})
 }
 
+func (suite *UserRepositoryTestSuite) TestUpdatePassword() {
+	ctx := context.Background()
+
+	suite.Run("should update password successfully", func() {
+		// Create a user with initial password
+		user := testutils.CreateUser("passworduser", "oldpassword123")
+		user.Approved = true
+		status := users.StatusApproved
+		user.Status = &status
+		err := suite.repo.Create(ctx, user)
+		suite.Require().NoError(err)
+
+		// Update password
+		err = suite.repo.UpdatePassword(ctx, user.ID, "newpassword456")
+		suite.Require().NoError(err)
+
+		// Verify new password works by logging in
+		loggedInUser, err := suite.repo.Login(ctx, "passworduser", "newpassword456")
+		suite.Require().NoError(err)
+		suite.Assert().NotNil(loggedInUser)
+		suite.Assert().Equal(user.ID, loggedInUser.ID)
+	})
+
+	suite.Run("should fail login with old password after update", func() {
+		// Create a user with initial password
+		user := testutils.CreateUser("passworduser2", "oldpassword123")
+		user.Approved = true
+		status := users.StatusApproved
+		user.Status = &status
+		err := suite.repo.Create(ctx, user)
+		suite.Require().NoError(err)
+
+		// Update password
+		err = suite.repo.UpdatePassword(ctx, user.ID, "newpassword456")
+		suite.Require().NoError(err)
+
+		// Verify old password no longer works
+		_, err = suite.repo.Login(ctx, "passworduser2", "oldpassword123")
+		suite.Require().Error(err)
+		suite.Assert().Contains(err.Error(), "invalid password")
+	})
+
+	suite.Run("should update updated_at timestamp", func() {
+		// Create a user
+		user := testutils.CreateUser("timestampuser", "password123")
+		err := suite.repo.Create(ctx, user)
+		suite.Require().NoError(err)
+
+		originalUpdatedAt := user.UpdatedAt
+
+		// Update password
+		err = suite.repo.UpdatePassword(ctx, user.ID, "newpassword456")
+		suite.Require().NoError(err)
+
+		// Get updated user and verify timestamp changed
+		updatedUser, err := suite.repo.GetByID(ctx, user.ID)
+		suite.Require().NoError(err)
+		suite.Assert().NotNil(updatedUser.UpdatedAt)
+		suite.Assert().True(updatedUser.UpdatedAt.After(*originalUpdatedAt) || updatedUser.UpdatedAt.Equal(*originalUpdatedAt))
+	})
+
+	suite.Run("should generate new salt on password update", func() {
+		// Create a user
+		user := testutils.CreateUser("saltuser", "password123")
+		err := suite.repo.Create(ctx, user)
+		suite.Require().NoError(err)
+
+		originalSalt := user.Salt
+		originalPassword := user.Password
+
+		// Update password
+		err = suite.repo.UpdatePassword(ctx, user.ID, "newpassword456")
+		suite.Require().NoError(err)
+
+		// Get updated user and verify salt and password hash changed
+		updatedUser, err := suite.repo.GetByID(ctx, user.ID)
+		suite.Require().NoError(err)
+		suite.Assert().NotEqual(originalSalt, updatedUser.Salt)
+		suite.Assert().NotEqual(originalPassword, updatedUser.Password)
+	})
+
+	suite.Run("should fail with invalid user ID", func() {
+		err := suite.repo.UpdatePassword(ctx, 0, "newpassword")
+		suite.Assert().Error(err)
+		suite.Assert().Contains(err.Error(), "user ID must be positive")
+
+		err = suite.repo.UpdatePassword(ctx, -1, "newpassword")
+		suite.Assert().Error(err)
+		suite.Assert().Contains(err.Error(), "user ID must be positive")
+	})
+
+	suite.Run("should fail with empty password", func() {
+		user := testutils.CreateUser("emptypassuser", "password123")
+		err := suite.repo.Create(ctx, user)
+		suite.Require().NoError(err)
+
+		err = suite.repo.UpdatePassword(ctx, user.ID, "")
+		suite.Assert().Error(err)
+		suite.Assert().Contains(err.Error(), "password cannot be empty")
+	})
+
+	suite.Run("should fail for non-existent user", func() {
+		err := suite.repo.UpdatePassword(ctx, 999999, "newpassword")
+		suite.Assert().Error(err)
+		suite.Assert().Contains(err.Error(), "user with ID 999999 not found")
+	})
+}
+
 func TestUserRepositoryTestSuite(t *testing.T) {
 	suite.Run(t, new(UserRepositoryTestSuite))
 }

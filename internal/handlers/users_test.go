@@ -13,6 +13,7 @@ import (
 	"ralts-cms/internal/handlers"
 	"ralts-cms/internal/middlewares"
 	"ralts-cms/internal/users"
+	"ralts-cms/pkg/auth"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -617,6 +618,236 @@ func (suite *UsersHandlerTestSuite) TestBulkUpdateStatus() {
 
 		suite.Equal(http.StatusBadRequest, rr.Code)
 		suite.Contains(rr.Body.String(), "Invalid status")
+	})
+}
+
+// TestUpdatePassword tests the UpdatePassword endpoint
+func (suite *UsersHandlerTestSuite) TestUpdatePassword() {
+	suite.Run("should update password successfully", func() {
+		// Generate real password hash for testing
+		salt, err := auth.GenerateSalt()
+		suite.Require().NoError(err)
+		hashedPassword, err := auth.HashPassword("oldpassword123", salt)
+		suite.Require().NoError(err)
+
+		// Create mock user data for GetByID with real hash
+		existingUser := &users.User{
+			ID:       1,
+			Username: "testuser",
+			Email:    "test@example.com",
+			Password: hashedPassword,
+			Salt:     salt,
+		}
+
+		// Setup mock expectations
+		suite.mockRepo.EXPECT().
+			GetByID(gomock.Any(), int64(1)).
+			Return(existingUser, nil)
+		suite.mockRepo.EXPECT().
+			UpdatePassword(gomock.Any(), int64(1), "newpassword123").
+			Return(nil)
+
+		// Create request body
+		requestBody := handlers.UpdatePasswordRequest{
+			CurrentPassword: "oldpassword123",
+			NewPassword:     "newpassword123",
+		}
+		bodyBytes, _ := json.Marshal(requestBody)
+
+		// Create request with authenticated user context
+		req := httptest.NewRequest(http.MethodPut, "/api/v1/users/password", bytes.NewReader(bodyBytes))
+		req = req.WithContext(context.WithValue(req.Context(), middlewares.UserContextKey, &middlewares.UserContext{
+			UserID: 1,
+			Role:   users.RoleNonAdmin,
+		}))
+		req.Header.Set("Content-Type", "application/json")
+
+		rr := httptest.NewRecorder()
+		suite.handler.UpdatePassword(rr, req)
+
+		suite.Equal(http.StatusOK, rr.Code)
+
+		var response map[string]string
+		err = json.Unmarshal(rr.Body.Bytes(), &response)
+		suite.NoError(err)
+		suite.Equal("Password updated successfully", response["message"])
+	})
+
+	suite.Run("should return 401 when user context is missing", func() {
+		requestBody := handlers.UpdatePasswordRequest{
+			CurrentPassword: "oldpassword123",
+			NewPassword:     "newpassword123",
+		}
+		bodyBytes, _ := json.Marshal(requestBody)
+
+		// Create request without user context
+		req := httptest.NewRequest(http.MethodPut, "/api/v1/users/password", bytes.NewReader(bodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+
+		rr := httptest.NewRecorder()
+		suite.handler.UpdatePassword(rr, req)
+
+		suite.Equal(http.StatusUnauthorized, rr.Code)
+		suite.Contains(rr.Body.String(), "Unauthorized")
+	})
+
+	suite.Run("should return 400 for invalid request body", func() {
+		req := httptest.NewRequest(http.MethodPut, "/api/v1/users/password", bytes.NewBufferString("invalid json"))
+		req = req.WithContext(context.WithValue(req.Context(), middlewares.UserContextKey, &middlewares.UserContext{
+			UserID: 1,
+			Role:   users.RoleNonAdmin,
+		}))
+		req.Header.Set("Content-Type", "application/json")
+
+		rr := httptest.NewRecorder()
+		suite.handler.UpdatePassword(rr, req)
+
+		suite.Equal(http.StatusBadRequest, rr.Code)
+		suite.Contains(rr.Body.String(), "Invalid request body")
+	})
+
+	suite.Run("should return 400 when current password is empty", func() {
+		requestBody := handlers.UpdatePasswordRequest{
+			CurrentPassword: "",
+			NewPassword:     "newpassword123",
+		}
+		bodyBytes, _ := json.Marshal(requestBody)
+
+		req := httptest.NewRequest(http.MethodPut, "/api/v1/users/password", bytes.NewReader(bodyBytes))
+		req = req.WithContext(context.WithValue(req.Context(), middlewares.UserContextKey, &middlewares.UserContext{
+			UserID: 1,
+			Role:   users.RoleNonAdmin,
+		}))
+		req.Header.Set("Content-Type", "application/json")
+
+		rr := httptest.NewRecorder()
+		suite.handler.UpdatePassword(rr, req)
+
+		suite.Equal(http.StatusBadRequest, rr.Code)
+		suite.Contains(rr.Body.String(), "Current password is required")
+	})
+
+	suite.Run("should return 400 when new password is too short", func() {
+		requestBody := handlers.UpdatePasswordRequest{
+			CurrentPassword: "oldpassword123",
+			NewPassword:     "short",
+		}
+		bodyBytes, _ := json.Marshal(requestBody)
+
+		req := httptest.NewRequest(http.MethodPut, "/api/v1/users/password", bytes.NewReader(bodyBytes))
+		req = req.WithContext(context.WithValue(req.Context(), middlewares.UserContextKey, &middlewares.UserContext{
+			UserID: 1,
+			Role:   users.RoleNonAdmin,
+		}))
+		req.Header.Set("Content-Type", "application/json")
+
+		rr := httptest.NewRecorder()
+		suite.handler.UpdatePassword(rr, req)
+
+		suite.Equal(http.StatusBadRequest, rr.Code)
+		suite.Contains(rr.Body.String(), "New password must be at least 6 characters")
+	})
+
+	suite.Run("should return 404 when user not found", func() {
+		suite.mockRepo.EXPECT().
+			GetByID(gomock.Any(), int64(999)).
+			Return(nil, fmt.Errorf("user with ID 999 not found"))
+
+		requestBody := handlers.UpdatePasswordRequest{
+			CurrentPassword: "oldpassword123",
+			NewPassword:     "newpassword123",
+		}
+		bodyBytes, _ := json.Marshal(requestBody)
+
+		req := httptest.NewRequest(http.MethodPut, "/api/v1/users/password", bytes.NewReader(bodyBytes))
+		req = req.WithContext(context.WithValue(req.Context(), middlewares.UserContextKey, &middlewares.UserContext{
+			UserID: 999,
+			Role:   users.RoleNonAdmin,
+		}))
+		req.Header.Set("Content-Type", "application/json")
+
+		rr := httptest.NewRecorder()
+		suite.handler.UpdatePassword(rr, req)
+
+		suite.Equal(http.StatusNotFound, rr.Code)
+		suite.Contains(rr.Body.String(), "User not found")
+	})
+
+	suite.Run("should return 401 when current password is incorrect", func() {
+		// Create mock user with specific password/salt that will fail verification
+		existingUser := &users.User{
+			ID:       1,
+			Username: "testuser",
+			Email:    "test@example.com",
+			Password: "correcthashedpassword",
+			Salt:     "salt123",
+		}
+
+		suite.mockRepo.EXPECT().
+			GetByID(gomock.Any(), int64(1)).
+			Return(existingUser, nil)
+
+		requestBody := handlers.UpdatePasswordRequest{
+			CurrentPassword: "wrongpassword",
+			NewPassword:     "newpassword123",
+		}
+		bodyBytes, _ := json.Marshal(requestBody)
+
+		req := httptest.NewRequest(http.MethodPut, "/api/v1/users/password", bytes.NewReader(bodyBytes))
+		req = req.WithContext(context.WithValue(req.Context(), middlewares.UserContextKey, &middlewares.UserContext{
+			UserID: 1,
+			Role:   users.RoleNonAdmin,
+		}))
+		req.Header.Set("Content-Type", "application/json")
+
+		rr := httptest.NewRecorder()
+		suite.handler.UpdatePassword(rr, req)
+
+		suite.Equal(http.StatusUnauthorized, rr.Code)
+		suite.Contains(rr.Body.String(), "Current password is incorrect")
+	})
+
+	suite.Run("should return 500 when repository update fails", func() {
+		// Generate real password hash for testing
+		salt, err := auth.GenerateSalt()
+		suite.Require().NoError(err)
+		hashedPassword, err := auth.HashPassword("oldpassword123", salt)
+		suite.Require().NoError(err)
+
+		// Create mock user data for GetByID with real hash
+		existingUser := &users.User{
+			ID:       1,
+			Username: "testuser",
+			Email:    "test@example.com",
+			Password: hashedPassword,
+			Salt:     salt,
+		}
+
+		suite.mockRepo.EXPECT().
+			GetByID(gomock.Any(), int64(1)).
+			Return(existingUser, nil)
+		suite.mockRepo.EXPECT().
+			UpdatePassword(gomock.Any(), int64(1), "newpassword123").
+			Return(fmt.Errorf("database error"))
+
+		requestBody := handlers.UpdatePasswordRequest{
+			CurrentPassword: "oldpassword123",
+			NewPassword:     "newpassword123",
+		}
+		bodyBytes, _ := json.Marshal(requestBody)
+
+		req := httptest.NewRequest(http.MethodPut, "/api/v1/users/password", bytes.NewReader(bodyBytes))
+		req = req.WithContext(context.WithValue(req.Context(), middlewares.UserContextKey, &middlewares.UserContext{
+			UserID: 1,
+			Role:   users.RoleNonAdmin,
+		}))
+		req.Header.Set("Content-Type", "application/json")
+
+		rr := httptest.NewRecorder()
+		suite.handler.UpdatePassword(rr, req)
+
+		suite.Equal(http.StatusInternalServerError, rr.Code)
+		suite.Contains(rr.Body.String(), "Failed to update password")
 	})
 }
 

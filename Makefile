@@ -1,7 +1,8 @@
 .PHONY: generate fmt build run test clean setup-env dev \
 	db-dev-up db-dev-down db-test-up db-test-down db-clean \
 	test-with-db dev-with-db db-status db-logs \
-	migrate-dev migrate-test migrate-up migrate-down lint
+	migrate-dev migrate-test migrate-up migrate-down lint \
+	server client
 
 generate:
 	go generate ./...
@@ -21,6 +22,12 @@ build:
 
 run:
 	APP_ENV=development go run cmd/web/main.go
+
+server:
+	APP_ENV=development go run cmd/web/main.go
+
+client:
+	cd ui/ && npm run dev
 
 test:
 	APP_ENV=test go test ./...

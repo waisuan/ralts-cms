@@ -32,6 +32,15 @@ export interface LoginResponse {
   token: string;
 }
 
+export interface UpdatePasswordRequest {
+  current_password: string;
+  new_password: string;
+}
+
+export interface UpdatePasswordResponse {
+  message: string;
+}
+
 export class UserService {
   private static readonly BASE_PATH = '/api/v1/users';
 
@@ -110,4 +119,41 @@ export class UserService {
       throw error;
     }
   }
-} 
+
+  /**
+   * Update user password
+   */
+  static async updatePassword(data: UpdatePasswordRequest): Promise<ApiResponse<UpdatePasswordResponse>> {
+    console.log('🔐 API: PUT /api/v1/users/password');
+    
+    try {
+      const response = await apiClient.put<UpdatePasswordResponse>(`${this.BASE_PATH}/password`, data);
+      
+      console.log('🔐 API: PUT /api/v1/users/password response', { 
+        message: response.data?.message
+      });
+
+      return response;
+    } catch (error) {
+      // Handle password update specific errors
+      if (error instanceof ApiError) {
+        if (error.status === 401) {
+          throw new ApiError(
+            'Current password is incorrect.',
+            error.status,
+            error.details
+          );
+        }
+        if (error.status === 400) {
+          throw new ApiError(
+            error.message || 'Invalid password format. Password must be at least 6 characters.',
+            error.status,
+            error.details
+          );
+        }
+      }
+      // Re-throw other errors unchanged
+      throw error;
+    }
+  }
+}

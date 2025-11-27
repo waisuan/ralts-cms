@@ -123,6 +123,20 @@ func (mr *MockRepositoryMockRecorder) UpdateMultipleStatuses(ctx, userIDs, statu
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateMultipleStatuses", reflect.TypeOf((*MockRepository)(nil).UpdateMultipleStatuses), ctx, userIDs, status)
 }
 
+// UpdatePassword mocks base method.
+func (m *MockRepository) UpdatePassword(ctx context.Context, userID int64, password string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdatePassword", ctx, userID, password)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdatePassword indicates an expected call of UpdatePassword.
+func (mr *MockRepositoryMockRecorder) UpdatePassword(ctx, userID, password interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdatePassword", reflect.TypeOf((*MockRepository)(nil).UpdatePassword), ctx, userID, password)
+}
+
 // UpdateStatus mocks base method.
 func (m *MockRepository) UpdateStatus(ctx context.Context, userID int64, status string) error {
 	m.ctrl.T.Helper()

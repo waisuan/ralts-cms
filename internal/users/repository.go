@@ -22,6 +22,7 @@ type Repository interface {
 	GetByID(ctx context.Context, id int64) (*User, error)
 	UpdateStatus(ctx context.Context, userID int64, status string) error
 	UpdateMultipleStatuses(ctx context.Context, userIDs []int64, status string) error
+	UpdatePassword(ctx context.Context, userID int64, password string) error
 }
 
 type db struct {
@@ -278,6 +279,39 @@ func (r *db) UpdateMultipleStatuses(ctx context.Context, userIDs []int64, status
 
 	if totalRowsAffected != int64(len(userIDs)) {
 		return fmt.Errorf("expected to update %d users, but updated %d", len(userIDs), totalRowsAffected)
+	}
+
+	return nil
+}
+
+func (r *db) UpdatePassword(ctx context.Context, userID int64, password string) error {
+	if userID <= 0 {
+		return fmt.Errorf("user ID must be positive")
+	}
+	if password == "" {
+		return fmt.Errorf("password cannot be empty")
+	}
+
+	// Generate new salt for the new password
+	salt, err := auth.GenerateSalt()
+	if err != nil {
+		return fmt.Errorf("failed to generate salt: %w", err)
+	}
+
+	// Hash the new password with the new salt
+	hashedPassword, err := auth.HashPassword(password, salt)
+	if err != nil {
+		return fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	query := `UPDATE users SET password = $1, salt = $2, updated_at = NOW() WHERE id = $3`
+	result, err := r.client.Exec(ctx, query, hashedPassword, salt, userID)
+	if err != nil {
+		return fmt.Errorf("failed to update password: %w", err)
+	}
+
+	if result.RowsAffected() == 0 {
+		return fmt.Errorf("user with ID %d not found", userID)
 	}
 
 	return nil

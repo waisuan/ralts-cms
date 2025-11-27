@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"ralts-cms/internal/deps"
+	"ralts-cms/internal/middlewares"
 	"ralts-cms/internal/users"
 	"ralts-cms/pkg/auth"
 	"strconv"
@@ -44,6 +45,12 @@ type UpdateUserStatusRequest struct {
 type BulkUpdateStatusRequest struct {
 	UserIDs []int64 `json:"user_ids" validate:"required,min=1"`
 	Status  string  `json:"status" validate:"required"`
+}
+
+// UpdatePasswordRequest represents the request structure for password updates
+type UpdatePasswordRequest struct {
+	CurrentPassword string `json:"current_password" validate:"required"`
+	NewPassword     string `json:"new_password" validate:"required,min=6"`
 }
 
 // ListUsersResponse represents the response structure for user listing
@@ -304,4 +311,63 @@ func (h *UsersHandler) BulkUpdateStatus(w http.ResponseWriter, r *http.Request) 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
+}
+
+// UpdatePassword handles PUT /api/v1/users/password for updating the authenticated user's password
+func (h *UsersHandler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
+	// Get authenticated user from context
+	userCtx, err := middlewares.GetUserFromContext(r.Context())
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// Parse request body
+	var req UpdatePasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	// Validate current password is provided
+	if req.CurrentPassword == "" {
+		http.Error(w, "Current password is required", http.StatusBadRequest)
+		return
+	}
+
+	// Validate new password length
+	if len(req.NewPassword) < 6 {
+		http.Error(w, "New password must be at least 6 characters", http.StatusBadRequest)
+		return
+	}
+
+	// Get user to verify current password
+	user, err := h.deps.UsersRepository.GetByID(r.Context(), userCtx.UserID)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	// Verify current password
+	if err := auth.VerifyPassword(req.CurrentPassword, user.Password, user.Salt); err != nil {
+		http.Error(w, "Current password is incorrect", http.StatusUnauthorized)
+		return
+	}
+
+	// Update password
+	if err := h.deps.UsersRepository.UpdatePassword(r.Context(), userCtx.UserID, req.NewPassword); err != nil {
+		h.deps.Logger.Error("Failed to update password",
+			"error", err,
+			"user_id", userCtx.UserID)
+		http.Error(w, "Failed to update password", http.StatusInternalServerError)
+		return
+	}
+
+	// Log successful password update
+	h.deps.Logger.Info("User password updated successfully",
+		"user_id", userCtx.UserID)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Password updated successfully"})
 }

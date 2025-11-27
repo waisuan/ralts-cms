@@ -64,6 +64,9 @@ func NewRouter(deps *deps.Dependencies) http.Handler {
 	api.HandleFunc("/machines/{serial_number}/maintenance/{work_order_number}/attachments/{attachment_name}", handlers.NewAttachmentHandler(deps).ReplaceMaintenanceAttachment).Methods(http.MethodPut)
 	api.HandleFunc("/machines/{serial_number}/maintenance/{work_order_number}/attachments/{attachment_name}", handlers.NewAttachmentHandler(deps).DeleteMaintenanceAttachment).Methods(http.MethodDelete)
 
+	// User self-service endpoints (protected)
+	api.HandleFunc("/users/password", handlers.NewUsersHandler(deps).UpdatePassword).Methods(http.MethodPut)
+
 	// Apply middleware to protected endpoints only
 	api.Use(middlewares.AuthenticationMiddleware(deps.Config.JWTSecret))
 
