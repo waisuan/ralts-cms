@@ -386,6 +386,263 @@ func (suite *MachineRepositoryTestSuite) TestList() {
 		suite.Assert().Equal("SORT004", machines[2].SerialNumber)
 	})
 
+	suite.Run("should support sorting by ppm_date ascending", func() {
+		// Create machines with different PPM dates
+		machine1 := testutils.CreateMachine("PPMSORT001")
+		machine1.PpmDate = time.Date(2025, 3, 15, 0, 0, 0, 0, time.UTC) // Latest
+		machine2 := testutils.CreateMachine("PPMSORT002")
+		machine2.PpmDate = time.Date(2025, 1, 10, 0, 0, 0, 0, time.UTC) // Earliest
+		machine3 := testutils.CreateMachine("PPMSORT003")
+		machine3.PpmDate = time.Date(2025, 2, 20, 0, 0, 0, 0, time.UTC) // Middle
+
+		suite.Require().NoError(suite.repo.Create(ctx, machine1))
+		suite.Require().NoError(suite.repo.Create(ctx, machine2))
+		suite.Require().NoError(suite.repo.Create(ctx, machine3))
+
+		options := &machines.ListOptions{Limit: 10, Offset: 0, Sort: machines.SortOrderPpmDateAsc}
+		machinesList, err := suite.repo.List(ctx, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machinesList, 3)
+		// Should be sorted by PPM date ascending (earliest first)
+		suite.Assert().Equal("PPMSORT002", machinesList[0].SerialNumber) // Jan 10
+		suite.Assert().Equal("PPMSORT003", machinesList[1].SerialNumber) // Feb 20
+		suite.Assert().Equal("PPMSORT001", machinesList[2].SerialNumber) // Mar 15
+	})
+
+	suite.Run("should support sorting by ppm_date descending", func() {
+		// Create machines with different PPM dates
+		machine1 := testutils.CreateMachine("PPMSORT004")
+		machine1.PpmDate = time.Date(2025, 3, 15, 0, 0, 0, 0, time.UTC) // Latest
+		machine2 := testutils.CreateMachine("PPMSORT005")
+		machine2.PpmDate = time.Date(2025, 1, 10, 0, 0, 0, 0, time.UTC) // Earliest
+		machine3 := testutils.CreateMachine("PPMSORT006")
+		machine3.PpmDate = time.Date(2025, 2, 20, 0, 0, 0, 0, time.UTC) // Middle
+
+		suite.Require().NoError(suite.repo.Create(ctx, machine1))
+		suite.Require().NoError(suite.repo.Create(ctx, machine2))
+		suite.Require().NoError(suite.repo.Create(ctx, machine3))
+
+		options := &machines.ListOptions{Limit: 10, Offset: 0, Sort: machines.SortOrderPpmDateDesc}
+		machinesList, err := suite.repo.List(ctx, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machinesList, 3)
+		// Should be sorted by PPM date descending (latest first)
+		suite.Assert().Equal("PPMSORT004", machinesList[0].SerialNumber) // Mar 15
+		suite.Assert().Equal("PPMSORT006", machinesList[1].SerialNumber) // Feb 20
+		suite.Assert().Equal("PPMSORT005", machinesList[2].SerialNumber) // Jan 10
+	})
+
+	suite.Run("should support sorting by tnc_date ascending", func() {
+		// Create machines with different TNC dates
+		machine1 := testutils.CreateMachine("TNCSORT001")
+		machine1.TncDate = time.Date(2025, 4, 25, 0, 0, 0, 0, time.UTC) // Latest
+		machine2 := testutils.CreateMachine("TNCSORT002")
+		machine2.TncDate = time.Date(2025, 2, 5, 0, 0, 0, 0, time.UTC) // Earliest
+		machine3 := testutils.CreateMachine("TNCSORT003")
+		machine3.TncDate = time.Date(2025, 3, 15, 0, 0, 0, 0, time.UTC) // Middle
+
+		suite.Require().NoError(suite.repo.Create(ctx, machine1))
+		suite.Require().NoError(suite.repo.Create(ctx, machine2))
+		suite.Require().NoError(suite.repo.Create(ctx, machine3))
+
+		options := &machines.ListOptions{Limit: 10, Offset: 0, Sort: machines.SortOrderTncDateAsc}
+		machinesList, err := suite.repo.List(ctx, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machinesList, 3)
+		// Should be sorted by TNC date ascending (earliest first)
+		suite.Assert().Equal("TNCSORT002", machinesList[0].SerialNumber) // Feb 5
+		suite.Assert().Equal("TNCSORT003", machinesList[1].SerialNumber) // Mar 15
+		suite.Assert().Equal("TNCSORT001", machinesList[2].SerialNumber) // Apr 25
+	})
+
+	suite.Run("should support sorting by tnc_date descending", func() {
+		// Create machines with different TNC dates
+		machine1 := testutils.CreateMachine("TNCSORT004")
+		machine1.TncDate = time.Date(2025, 4, 25, 0, 0, 0, 0, time.UTC) // Latest
+		machine2 := testutils.CreateMachine("TNCSORT005")
+		machine2.TncDate = time.Date(2025, 2, 5, 0, 0, 0, 0, time.UTC) // Earliest
+		machine3 := testutils.CreateMachine("TNCSORT006")
+		machine3.TncDate = time.Date(2025, 3, 15, 0, 0, 0, 0, time.UTC) // Middle
+
+		suite.Require().NoError(suite.repo.Create(ctx, machine1))
+		suite.Require().NoError(suite.repo.Create(ctx, machine2))
+		suite.Require().NoError(suite.repo.Create(ctx, machine3))
+
+		options := &machines.ListOptions{Limit: 10, Offset: 0, Sort: machines.SortOrderTncDateDesc}
+		machinesList, err := suite.repo.List(ctx, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machinesList, 3)
+		// Should be sorted by TNC date descending (latest first)
+		suite.Assert().Equal("TNCSORT004", machinesList[0].SerialNumber) // Apr 25
+		suite.Assert().Equal("TNCSORT006", machinesList[1].SerialNumber) // Mar 15
+		suite.Assert().Equal("TNCSORT005", machinesList[2].SerialNumber) // Feb 5
+	})
+
+	suite.Run("should filter by ppm_date_from", func() {
+		// Create machines with different PPM dates
+		machine1 := testutils.CreateMachine("PPMRANGE001")
+		machine1.PpmDate = time.Date(2025, 1, 10, 0, 0, 0, 0, time.UTC)
+		machine2 := testutils.CreateMachine("PPMRANGE002")
+		machine2.PpmDate = time.Date(2025, 2, 15, 0, 0, 0, 0, time.UTC)
+		machine3 := testutils.CreateMachine("PPMRANGE003")
+		machine3.PpmDate = time.Date(2025, 3, 20, 0, 0, 0, 0, time.UTC)
+
+		suite.Require().NoError(suite.repo.Create(ctx, machine1))
+		suite.Require().NoError(suite.repo.Create(ctx, machine2))
+		suite.Require().NoError(suite.repo.Create(ctx, machine3))
+
+		fromDate := time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC)
+		options := &machines.ListOptions{
+			Limit:       10,
+			Offset:      0,
+			Sort:        machines.SortOrderPpmDateAsc,
+			PpmDateFrom: &fromDate,
+		}
+		machinesList, err := suite.repo.List(ctx, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machinesList, 2) // Only Feb 15 and Mar 20
+		suite.Assert().Equal("PPMRANGE002", machinesList[0].SerialNumber)
+		suite.Assert().Equal("PPMRANGE003", machinesList[1].SerialNumber)
+	})
+
+	suite.Run("should filter by ppm_date_to", func() {
+		// Create machines with different PPM dates
+		machine1 := testutils.CreateMachine("PPMRANGE004")
+		machine1.PpmDate = time.Date(2025, 1, 10, 0, 0, 0, 0, time.UTC)
+		machine2 := testutils.CreateMachine("PPMRANGE005")
+		machine2.PpmDate = time.Date(2025, 2, 15, 0, 0, 0, 0, time.UTC)
+		machine3 := testutils.CreateMachine("PPMRANGE006")
+		machine3.PpmDate = time.Date(2025, 3, 20, 0, 0, 0, 0, time.UTC)
+
+		suite.Require().NoError(suite.repo.Create(ctx, machine1))
+		suite.Require().NoError(suite.repo.Create(ctx, machine2))
+		suite.Require().NoError(suite.repo.Create(ctx, machine3))
+
+		toDate := time.Date(2025, 2, 28, 0, 0, 0, 0, time.UTC)
+		options := &machines.ListOptions{
+			Limit:     10,
+			Offset:    0,
+			Sort:      machines.SortOrderPpmDateAsc,
+			PpmDateTo: &toDate,
+		}
+		machinesList, err := suite.repo.List(ctx, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machinesList, 2) // Only Jan 10 and Feb 15
+		suite.Assert().Equal("PPMRANGE004", machinesList[0].SerialNumber)
+		suite.Assert().Equal("PPMRANGE005", machinesList[1].SerialNumber)
+	})
+
+	suite.Run("should filter by ppm_date range", func() {
+		// Create machines with different PPM dates
+		machine1 := testutils.CreateMachine("PPMRANGE007")
+		machine1.PpmDate = time.Date(2025, 1, 10, 0, 0, 0, 0, time.UTC)
+		machine2 := testutils.CreateMachine("PPMRANGE008")
+		machine2.PpmDate = time.Date(2025, 2, 15, 0, 0, 0, 0, time.UTC)
+		machine3 := testutils.CreateMachine("PPMRANGE009")
+		machine3.PpmDate = time.Date(2025, 3, 20, 0, 0, 0, 0, time.UTC)
+
+		suite.Require().NoError(suite.repo.Create(ctx, machine1))
+		suite.Require().NoError(suite.repo.Create(ctx, machine2))
+		suite.Require().NoError(suite.repo.Create(ctx, machine3))
+
+		fromDate := time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC)
+		toDate := time.Date(2025, 2, 28, 0, 0, 0, 0, time.UTC)
+		options := &machines.ListOptions{
+			Limit:       10,
+			Offset:      0,
+			Sort:        machines.SortOrderPpmDateAsc,
+			PpmDateFrom: &fromDate,
+			PpmDateTo:   &toDate,
+		}
+		machinesList, err := suite.repo.List(ctx, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machinesList, 1) // Only Feb 15
+		suite.Assert().Equal("PPMRANGE008", machinesList[0].SerialNumber)
+	})
+
+	suite.Run("should filter by single ppm_date when from equals to", func() {
+		// Create machines with different PPM dates
+		machine1 := testutils.CreateMachine("PPMRANGE010")
+		machine1.PpmDate = time.Date(2025, 2, 14, 0, 0, 0, 0, time.UTC)
+		machine2 := testutils.CreateMachine("PPMRANGE011")
+		machine2.PpmDate = time.Date(2025, 2, 15, 0, 0, 0, 0, time.UTC)
+		machine3 := testutils.CreateMachine("PPMRANGE012")
+		machine3.PpmDate = time.Date(2025, 2, 16, 0, 0, 0, 0, time.UTC)
+
+		suite.Require().NoError(suite.repo.Create(ctx, machine1))
+		suite.Require().NoError(suite.repo.Create(ctx, machine2))
+		suite.Require().NoError(suite.repo.Create(ctx, machine3))
+
+		exactDate := time.Date(2025, 2, 15, 0, 0, 0, 0, time.UTC)
+		options := &machines.ListOptions{
+			Limit:       10,
+			Offset:      0,
+			Sort:        machines.SortOrderPpmDateAsc,
+			PpmDateFrom: &exactDate,
+			PpmDateTo:   &exactDate,
+		}
+		machinesList, err := suite.repo.List(ctx, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machinesList, 1) // Only exact match
+		suite.Assert().Equal("PPMRANGE011", machinesList[0].SerialNumber)
+	})
+
+	suite.Run("should filter by tnc_date range", func() {
+		// Create machines with different TNC dates
+		machine1 := testutils.CreateMachine("TNCRANGE001")
+		machine1.TncDate = time.Date(2025, 1, 10, 0, 0, 0, 0, time.UTC)
+		machine2 := testutils.CreateMachine("TNCRANGE002")
+		machine2.TncDate = time.Date(2025, 2, 15, 0, 0, 0, 0, time.UTC)
+		machine3 := testutils.CreateMachine("TNCRANGE003")
+		machine3.TncDate = time.Date(2025, 3, 20, 0, 0, 0, 0, time.UTC)
+
+		suite.Require().NoError(suite.repo.Create(ctx, machine1))
+		suite.Require().NoError(suite.repo.Create(ctx, machine2))
+		suite.Require().NoError(suite.repo.Create(ctx, machine3))
+
+		fromDate := time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC)
+		toDate := time.Date(2025, 2, 28, 0, 0, 0, 0, time.UTC)
+		options := &machines.ListOptions{
+			Limit:       10,
+			Offset:      0,
+			Sort:        machines.SortOrderTncDateAsc,
+			TncDateFrom: &fromDate,
+			TncDateTo:   &toDate,
+		}
+		machinesList, err := suite.repo.List(ctx, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machinesList, 1) // Only Feb 15
+		suite.Assert().Equal("TNCRANGE002", machinesList[0].SerialNumber)
+	})
+
+	suite.Run("should combine date range with ppm status filter", func() {
+		// Create machines with different PPM dates
+		machine1 := testutils.CreateMachine("COMBINED001")
+		machine1.PpmDate = time.Now().UTC().AddDate(0, 0, -5) // 5 days ago (overdue)
+		machine2 := testutils.CreateMachine("COMBINED002")
+		machine2.PpmDate = time.Now().UTC().AddDate(0, 0, -10) // 10 days ago (overdue)
+		machine3 := testutils.CreateMachine("COMBINED003")
+		machine3.PpmDate = time.Now().UTC().AddDate(0, 0, 5) // 5 days from now (not overdue)
+
+		suite.Require().NoError(suite.repo.Create(ctx, machine1))
+		suite.Require().NoError(suite.repo.Create(ctx, machine2))
+		suite.Require().NoError(suite.repo.Create(ctx, machine3))
+
+		// Filter overdue machines from 7 days ago onwards
+		fromDate := time.Now().UTC().AddDate(0, 0, -7)
+		options := &machines.ListOptions{
+			Limit:           10,
+			Offset:          0,
+			Sort:            machines.SortOrderPpmDateAsc,
+			PpmStatusFilter: machines.PPMStatusOverdue,
+			PpmDateFrom:     &fromDate,
+		}
+		machinesList, err := suite.repo.List(ctx, options)
+		suite.Require().NoError(err)
+		suite.Assert().Len(machinesList, 1) // Only machine1 (5 days ago is within 7 days)
+		suite.Assert().Equal("COMBINED001", machinesList[0].SerialNumber)
+	})
+
 	suite.Run("should use default options when nil is passed", func() {
 		machine := testutils.CreateMachine("DEFAULT001")
 		suite.Require().NoError(suite.repo.Create(ctx, machine))
@@ -862,6 +1119,118 @@ func (suite *MachineRepositoryTestSuite) TestSearch() {
 		suite.Require().NoError(err)
 		suite.Assert().Len(results, 1)
 		suite.Assert().Equal("CASE001", results[0].SerialNumber)
+	})
+
+	suite.Run("should support sorting search results by ppm_date ascending", func() {
+		// Create machines with same searchable content but different PPM dates
+		machine1 := testutils.CreateMachine("SRCHPPM001")
+		machine1.Brand = "Xerox"
+		machine1.PpmDate = time.Date(2025, 3, 15, 0, 0, 0, 0, time.UTC) // Latest
+		machine2 := testutils.CreateMachine("SRCHPPM002")
+		machine2.Brand = "Xerox"
+		machine2.PpmDate = time.Date(2025, 1, 10, 0, 0, 0, 0, time.UTC) // Earliest
+		machine3 := testutils.CreateMachine("SRCHPPM003")
+		machine3.Brand = "Xerox"
+		machine3.PpmDate = time.Date(2025, 2, 20, 0, 0, 0, 0, time.UTC) // Middle
+
+		suite.Require().NoError(suite.repo.Create(ctx, machine1))
+		suite.Require().NoError(suite.repo.Create(ctx, machine2))
+		suite.Require().NoError(suite.repo.Create(ctx, machine3))
+
+		results, err := suite.repo.Search(ctx, "Xerox", &machines.ListOptions{
+			Limit: 10,
+			Sort:  machines.SortOrderPpmDateAsc,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Len(results, 3)
+		// Should be sorted by PPM date ascending (earliest first)
+		suite.Assert().Equal("SRCHPPM002", results[0].SerialNumber) // Jan 10
+		suite.Assert().Equal("SRCHPPM003", results[1].SerialNumber) // Feb 20
+		suite.Assert().Equal("SRCHPPM001", results[2].SerialNumber) // Mar 15
+	})
+
+	suite.Run("should support sorting search results by ppm_date descending", func() {
+		// Create machines with same searchable content but different PPM dates
+		machine1 := testutils.CreateMachine("SRCHPPM004")
+		machine1.Brand = "Ricoh"
+		machine1.PpmDate = time.Date(2025, 3, 15, 0, 0, 0, 0, time.UTC) // Latest
+		machine2 := testutils.CreateMachine("SRCHPPM005")
+		machine2.Brand = "Ricoh"
+		machine2.PpmDate = time.Date(2025, 1, 10, 0, 0, 0, 0, time.UTC) // Earliest
+		machine3 := testutils.CreateMachine("SRCHPPM006")
+		machine3.Brand = "Ricoh"
+		machine3.PpmDate = time.Date(2025, 2, 20, 0, 0, 0, 0, time.UTC) // Middle
+
+		suite.Require().NoError(suite.repo.Create(ctx, machine1))
+		suite.Require().NoError(suite.repo.Create(ctx, machine2))
+		suite.Require().NoError(suite.repo.Create(ctx, machine3))
+
+		results, err := suite.repo.Search(ctx, "Ricoh", &machines.ListOptions{
+			Limit: 10,
+			Sort:  machines.SortOrderPpmDateDesc,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Len(results, 3)
+		// Should be sorted by PPM date descending (latest first)
+		suite.Assert().Equal("SRCHPPM004", results[0].SerialNumber) // Mar 15
+		suite.Assert().Equal("SRCHPPM006", results[1].SerialNumber) // Feb 20
+		suite.Assert().Equal("SRCHPPM005", results[2].SerialNumber) // Jan 10
+	})
+
+	suite.Run("should support sorting search results by tnc_date ascending", func() {
+		// Create machines with same searchable content but different TNC dates
+		machine1 := testutils.CreateMachine("SRCHTNC001")
+		machine1.Brand = "Konica"
+		machine1.TncDate = time.Date(2025, 4, 25, 0, 0, 0, 0, time.UTC) // Latest
+		machine2 := testutils.CreateMachine("SRCHTNC002")
+		machine2.Brand = "Konica"
+		machine2.TncDate = time.Date(2025, 2, 5, 0, 0, 0, 0, time.UTC) // Earliest
+		machine3 := testutils.CreateMachine("SRCHTNC003")
+		machine3.Brand = "Konica"
+		machine3.TncDate = time.Date(2025, 3, 15, 0, 0, 0, 0, time.UTC) // Middle
+
+		suite.Require().NoError(suite.repo.Create(ctx, machine1))
+		suite.Require().NoError(suite.repo.Create(ctx, machine2))
+		suite.Require().NoError(suite.repo.Create(ctx, machine3))
+
+		results, err := suite.repo.Search(ctx, "Konica", &machines.ListOptions{
+			Limit: 10,
+			Sort:  machines.SortOrderTncDateAsc,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Len(results, 3)
+		// Should be sorted by TNC date ascending (earliest first)
+		suite.Assert().Equal("SRCHTNC002", results[0].SerialNumber) // Feb 5
+		suite.Assert().Equal("SRCHTNC003", results[1].SerialNumber) // Mar 15
+		suite.Assert().Equal("SRCHTNC001", results[2].SerialNumber) // Apr 25
+	})
+
+	suite.Run("should support sorting search results by tnc_date descending", func() {
+		// Create machines with same searchable content but different TNC dates
+		machine1 := testutils.CreateMachine("SRCHTNC004")
+		machine1.Brand = "Epson"
+		machine1.TncDate = time.Date(2025, 4, 25, 0, 0, 0, 0, time.UTC) // Latest
+		machine2 := testutils.CreateMachine("SRCHTNC005")
+		machine2.Brand = "Epson"
+		machine2.TncDate = time.Date(2025, 2, 5, 0, 0, 0, 0, time.UTC) // Earliest
+		machine3 := testutils.CreateMachine("SRCHTNC006")
+		machine3.Brand = "Epson"
+		machine3.TncDate = time.Date(2025, 3, 15, 0, 0, 0, 0, time.UTC) // Middle
+
+		suite.Require().NoError(suite.repo.Create(ctx, machine1))
+		suite.Require().NoError(suite.repo.Create(ctx, machine2))
+		suite.Require().NoError(suite.repo.Create(ctx, machine3))
+
+		results, err := suite.repo.Search(ctx, "Epson", &machines.ListOptions{
+			Limit: 10,
+			Sort:  machines.SortOrderTncDateDesc,
+		})
+		suite.Require().NoError(err)
+		suite.Assert().Len(results, 3)
+		// Should be sorted by TNC date descending (latest first)
+		suite.Assert().Equal("SRCHTNC004", results[0].SerialNumber) // Apr 25
+		suite.Assert().Equal("SRCHTNC006", results[1].SerialNumber) // Mar 15
+		suite.Assert().Equal("SRCHTNC005", results[2].SerialNumber) // Feb 5
 	})
 
 	suite.Run("should handle empty search query", func() {

@@ -8,6 +8,7 @@ import (
 	"ralts-cms/internal/machines"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 )
@@ -61,12 +62,17 @@ func (h *MachinesHandler) GetMachine(w http.ResponseWriter, r *http.Request) {
 
 // ListMachines handles GET /machines
 func (h *MachinesHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
-	// Parse query parameters for pagination, sorting, and search
+	// Parse query parameters for pagination, sorting, search, and date filters
 	limitStr := r.URL.Query().Get("limit")
 	offsetStr := r.URL.Query().Get("offset")
 	sortStr := r.URL.Query().Get("sort")
 	ppmStatusFilterStr := r.URL.Query().Get("ppm_status_filter")
 	query := r.URL.Query().Get("q")
+	// Date range filter parameters
+	ppmDateFromStr := r.URL.Query().Get("ppm_date_from")
+	ppmDateToStr := r.URL.Query().Get("ppm_date_to")
+	tncDateFromStr := r.URL.Query().Get("tnc_date_from")
+	tncDateToStr := r.URL.Query().Get("tnc_date_to")
 
 	// Parse limit parameter
 	limit := h.deps.Config.DefaultMachinesLimit
@@ -98,8 +104,16 @@ func (h *MachinesHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 			sort = machines.SortOrderUpdatedAtDesc
 		case "updated_at_asc":
 			sort = machines.SortOrderUpdatedAtAsc
+		case "ppm_date_asc":
+			sort = machines.SortOrderPpmDateAsc
+		case "ppm_date_desc":
+			sort = machines.SortOrderPpmDateDesc
+		case "tnc_date_asc":
+			sort = machines.SortOrderTncDateAsc
+		case "tnc_date_desc":
+			sort = machines.SortOrderTncDateDesc
 		default:
-			http.Error(w, "Invalid sort parameter. Must be 'updated_at_desc' or 'updated_at_asc'", http.StatusBadRequest)
+			http.Error(w, "Invalid sort parameter. Valid options: 'updated_at_desc', 'updated_at_asc', 'ppm_date_asc', 'ppm_date_desc', 'tnc_date_asc', 'tnc_date_desc'", http.StatusBadRequest)
 			return
 		}
 	}
@@ -120,12 +134,51 @@ func (h *MachinesHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Parse date range parameters (format: YYYY-MM-DD)
+	var ppmDateFrom, ppmDateTo, tncDateFrom, tncDateTo *time.Time
+	if ppmDateFromStr != "" {
+		if parsed, err := time.Parse("2006-01-02", ppmDateFromStr); err == nil {
+			ppmDateFrom = &parsed
+		} else {
+			http.Error(w, "Invalid ppm_date_from format. Use YYYY-MM-DD", http.StatusBadRequest)
+			return
+		}
+	}
+	if ppmDateToStr != "" {
+		if parsed, err := time.Parse("2006-01-02", ppmDateToStr); err == nil {
+			ppmDateTo = &parsed
+		} else {
+			http.Error(w, "Invalid ppm_date_to format. Use YYYY-MM-DD", http.StatusBadRequest)
+			return
+		}
+	}
+	if tncDateFromStr != "" {
+		if parsed, err := time.Parse("2006-01-02", tncDateFromStr); err == nil {
+			tncDateFrom = &parsed
+		} else {
+			http.Error(w, "Invalid tnc_date_from format. Use YYYY-MM-DD", http.StatusBadRequest)
+			return
+		}
+	}
+	if tncDateToStr != "" {
+		if parsed, err := time.Parse("2006-01-02", tncDateToStr); err == nil {
+			tncDateTo = &parsed
+		} else {
+			http.Error(w, "Invalid tnc_date_to format. Use YYYY-MM-DD", http.StatusBadRequest)
+			return
+		}
+	}
+
 	// Create list options
 	options := &machines.ListOptions{
 		Limit:           limit,
 		Offset:          offset,
 		Sort:            sort,
 		PpmStatusFilter: ppmStatusFilter,
+		PpmDateFrom:     ppmDateFrom,
+		PpmDateTo:       ppmDateTo,
+		TncDateFrom:     tncDateFrom,
+		TncDateTo:       tncDateTo,
 	}
 
 	// Get machines from repository (search if query provided, otherwise list)

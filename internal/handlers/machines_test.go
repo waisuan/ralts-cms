@@ -12,6 +12,7 @@ import (
 	"ralts-cms/internal/machines"
 	"ralts-cms/internal/maintenance"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/gorilla/mux"
@@ -633,6 +634,255 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.Assert().Equal(int32(0), response.OverdueCount)
 		suite.Assert().Equal(int32(0), response.DueCount)
 		suite.Assert().Equal(int32(0), response.AlmostDueCount)
+	})
+
+	suite.Run("should use ppm_date_asc sort when provided", func() {
+		expectedMachines := []*machines.Machine{
+			{SerialNumber: "MACHINE001", Customer: "Customer 1", Status: "Operational"},
+		}
+
+		expectedOptions := &machines.ListOptions{
+			Limit:           50,
+			Offset:          0,
+			Sort:            machines.SortOrderPpmDateAsc,
+			PpmStatusFilter: "",
+		}
+
+		suite.mockMachinesRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
+		suite.mockMachinesRepo.EXPECT().Count(gomock.Any()).Return(1, nil)
+		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "MACHINE001").Return(1, nil)
+
+		req := httptest.NewRequest("GET", "/machines?sort=ppm_date_asc", nil)
+		w := httptest.NewRecorder()
+
+		suite.handler.ListMachines(w, req)
+
+		suite.Assert().Equal(http.StatusOK, w.Code)
+
+		var response handlers.ListMachinesResponse
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		suite.Require().NoError(err)
+
+		suite.Assert().Equal("ppm_date_asc", response.Sort)
+	})
+
+	suite.Run("should use ppm_date_desc sort when provided", func() {
+		expectedMachines := []*machines.Machine{
+			{SerialNumber: "MACHINE001", Customer: "Customer 1", Status: "Operational"},
+		}
+
+		expectedOptions := &machines.ListOptions{
+			Limit:           50,
+			Offset:          0,
+			Sort:            machines.SortOrderPpmDateDesc,
+			PpmStatusFilter: "",
+		}
+
+		suite.mockMachinesRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
+		suite.mockMachinesRepo.EXPECT().Count(gomock.Any()).Return(1, nil)
+		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "MACHINE001").Return(1, nil)
+
+		req := httptest.NewRequest("GET", "/machines?sort=ppm_date_desc", nil)
+		w := httptest.NewRecorder()
+
+		suite.handler.ListMachines(w, req)
+
+		suite.Assert().Equal(http.StatusOK, w.Code)
+
+		var response handlers.ListMachinesResponse
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		suite.Require().NoError(err)
+
+		suite.Assert().Equal("ppm_date_desc", response.Sort)
+	})
+
+	suite.Run("should use tnc_date_asc sort when provided", func() {
+		expectedMachines := []*machines.Machine{
+			{SerialNumber: "MACHINE001", Customer: "Customer 1", Status: "Operational"},
+		}
+
+		expectedOptions := &machines.ListOptions{
+			Limit:           50,
+			Offset:          0,
+			Sort:            machines.SortOrderTncDateAsc,
+			PpmStatusFilter: "",
+		}
+
+		suite.mockMachinesRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
+		suite.mockMachinesRepo.EXPECT().Count(gomock.Any()).Return(1, nil)
+		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "MACHINE001").Return(1, nil)
+
+		req := httptest.NewRequest("GET", "/machines?sort=tnc_date_asc", nil)
+		w := httptest.NewRecorder()
+
+		suite.handler.ListMachines(w, req)
+
+		suite.Assert().Equal(http.StatusOK, w.Code)
+
+		var response handlers.ListMachinesResponse
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		suite.Require().NoError(err)
+
+		suite.Assert().Equal("tnc_date_asc", response.Sort)
+	})
+
+	suite.Run("should use tnc_date_desc sort when provided", func() {
+		expectedMachines := []*machines.Machine{
+			{SerialNumber: "MACHINE001", Customer: "Customer 1", Status: "Operational"},
+		}
+
+		expectedOptions := &machines.ListOptions{
+			Limit:           50,
+			Offset:          0,
+			Sort:            machines.SortOrderTncDateDesc,
+			PpmStatusFilter: "",
+		}
+
+		suite.mockMachinesRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
+		suite.mockMachinesRepo.EXPECT().Count(gomock.Any()).Return(1, nil)
+		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "MACHINE001").Return(1, nil)
+
+		req := httptest.NewRequest("GET", "/machines?sort=tnc_date_desc", nil)
+		w := httptest.NewRecorder()
+
+		suite.handler.ListMachines(w, req)
+
+		suite.Assert().Equal(http.StatusOK, w.Code)
+
+		var response handlers.ListMachinesResponse
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		suite.Require().NoError(err)
+
+		suite.Assert().Equal("tnc_date_desc", response.Sort)
+	})
+
+	suite.Run("should filter by ppm_date_from when provided", func() {
+		expectedMachines := []*machines.Machine{
+			{SerialNumber: "MACHINE001", Customer: "Customer 1", Status: "Operational"},
+		}
+
+		ppmDateFrom := time.Date(2025, 1, 15, 0, 0, 0, 0, time.UTC)
+		expectedOptions := &machines.ListOptions{
+			Limit:           50,
+			Offset:          0,
+			Sort:            machines.SortOrderUpdatedAtDesc,
+			PpmStatusFilter: "",
+			PpmDateFrom:     &ppmDateFrom,
+		}
+
+		suite.mockMachinesRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
+		suite.mockMachinesRepo.EXPECT().Count(gomock.Any()).Return(1, nil)
+		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "MACHINE001").Return(1, nil)
+
+		req := httptest.NewRequest("GET", "/machines?ppm_date_from=2025-01-15", nil)
+		w := httptest.NewRecorder()
+
+		suite.handler.ListMachines(w, req)
+
+		suite.Assert().Equal(http.StatusOK, w.Code)
+	})
+
+	suite.Run("should filter by ppm_date range when both provided", func() {
+		expectedMachines := []*machines.Machine{
+			{SerialNumber: "MACHINE001", Customer: "Customer 1", Status: "Operational"},
+		}
+
+		ppmDateFrom := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+		ppmDateTo := time.Date(2025, 1, 31, 0, 0, 0, 0, time.UTC)
+		expectedOptions := &machines.ListOptions{
+			Limit:           50,
+			Offset:          0,
+			Sort:            machines.SortOrderUpdatedAtDesc,
+			PpmStatusFilter: "",
+			PpmDateFrom:     &ppmDateFrom,
+			PpmDateTo:       &ppmDateTo,
+		}
+
+		suite.mockMachinesRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
+		suite.mockMachinesRepo.EXPECT().Count(gomock.Any()).Return(1, nil)
+		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "MACHINE001").Return(1, nil)
+
+		req := httptest.NewRequest("GET", "/machines?ppm_date_from=2025-01-01&ppm_date_to=2025-01-31", nil)
+		w := httptest.NewRecorder()
+
+		suite.handler.ListMachines(w, req)
+
+		suite.Assert().Equal(http.StatusOK, w.Code)
+	})
+
+	suite.Run("should filter by tnc_date range when provided", func() {
+		expectedMachines := []*machines.Machine{
+			{SerialNumber: "MACHINE001", Customer: "Customer 1", Status: "Operational"},
+		}
+
+		tncDateFrom := time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC)
+		tncDateTo := time.Date(2025, 2, 28, 0, 0, 0, 0, time.UTC)
+		expectedOptions := &machines.ListOptions{
+			Limit:           50,
+			Offset:          0,
+			Sort:            machines.SortOrderUpdatedAtDesc,
+			PpmStatusFilter: "",
+			TncDateFrom:     &tncDateFrom,
+			TncDateTo:       &tncDateTo,
+		}
+
+		suite.mockMachinesRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
+		suite.mockMachinesRepo.EXPECT().Count(gomock.Any()).Return(1, nil)
+		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "MACHINE001").Return(1, nil)
+
+		req := httptest.NewRequest("GET", "/machines?tnc_date_from=2025-02-01&tnc_date_to=2025-02-28", nil)
+		w := httptest.NewRecorder()
+
+		suite.handler.ListMachines(w, req)
+
+		suite.Assert().Equal(http.StatusOK, w.Code)
+	})
+
+	suite.Run("should return 400 for invalid ppm_date_from format", func() {
+		req := httptest.NewRequest("GET", "/machines?ppm_date_from=invalid-date", nil)
+		w := httptest.NewRecorder()
+
+		suite.handler.ListMachines(w, req)
+
+		suite.Assert().Equal(http.StatusBadRequest, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Invalid ppm_date_from format")
+	})
+
+	suite.Run("should return 400 for invalid ppm_date_to format", func() {
+		req := httptest.NewRequest("GET", "/machines?ppm_date_to=2025/01/15", nil)
+		w := httptest.NewRecorder()
+
+		suite.handler.ListMachines(w, req)
+
+		suite.Assert().Equal(http.StatusBadRequest, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Invalid ppm_date_to format")
+	})
+
+	suite.Run("should return 400 for invalid tnc_date_from format", func() {
+		req := httptest.NewRequest("GET", "/machines?tnc_date_from=01-15-2025", nil)
+		w := httptest.NewRecorder()
+
+		suite.handler.ListMachines(w, req)
+
+		suite.Assert().Equal(http.StatusBadRequest, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Invalid tnc_date_from format")
+	})
+
+	suite.Run("should return 400 for invalid tnc_date_to format", func() {
+		req := httptest.NewRequest("GET", "/machines?tnc_date_to=not-a-date", nil)
+		w := httptest.NewRecorder()
+
+		suite.handler.ListMachines(w, req)
+
+		suite.Assert().Equal(http.StatusBadRequest, w.Code)
+		suite.Assert().Contains(w.Body.String(), "Invalid tnc_date_to format")
 	})
 
 	suite.Run("should include PPM counts in response", func() {

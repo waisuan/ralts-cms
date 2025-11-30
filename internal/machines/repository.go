@@ -3,6 +3,7 @@ package machines
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -29,6 +30,14 @@ const (
 	SortOrderUpdatedAtDesc SortOrder = "updated_at_desc" // Most recently updated (default)
 	// SortOrderUpdatedAtAsc sorts machines by update date in ascending order (least recently updated first)
 	SortOrderUpdatedAtAsc SortOrder = "updated_at_asc" // Least recently updated
+	// SortOrderPpmDateAsc sorts machines by PPM date in ascending order (earliest PPM date first)
+	SortOrderPpmDateAsc SortOrder = "ppm_date_asc"
+	// SortOrderPpmDateDesc sorts machines by PPM date in descending order (latest PPM date first)
+	SortOrderPpmDateDesc SortOrder = "ppm_date_desc"
+	// SortOrderTncDateAsc sorts machines by TNC date in ascending order (earliest TNC date first)
+	SortOrderTncDateAsc SortOrder = "tnc_date_asc"
+	// SortOrderTncDateDesc sorts machines by TNC date in descending order (latest TNC date first)
+	SortOrderTncDateDesc SortOrder = "tnc_date_desc"
 )
 
 // ListOptions defines the options for listing machines
@@ -37,6 +46,11 @@ type ListOptions struct {
 	Offset          int32     `json:"offset"`
 	Sort            SortOrder `json:"sort"`
 	PpmStatusFilter PPMStatus `json:"ppm_status_filter"`
+	// Date range filters (inclusive, nil means no filter)
+	PpmDateFrom *time.Time `json:"ppm_date_from"`
+	PpmDateTo   *time.Time `json:"ppm_date_to"`
+	TncDateFrom *time.Time `json:"tnc_date_from"`
+	TncDateTo   *time.Time `json:"tnc_date_to"`
 }
 
 // DefaultListOptions returns default list options
@@ -47,6 +61,102 @@ func DefaultListOptions() *ListOptions {
 		Sort:            SortOrderUpdatedAtDesc,
 		PpmStatusFilter: "",
 	}
+}
+
+// filterResult holds the result of building filter conditions
+type filterResult struct {
+	conditions []string
+	args       []interface{}
+	nextIndex  int
+}
+
+// buildFilterConditions builds WHERE clause conditions from ListOptions
+// startIndex is the starting parameter index (e.g., 1 for List, 2 for Search which uses $1 for query)
+// Returns conditions slice, args slice, and the next available parameter index
+func buildFilterConditions(options *ListOptions, startIndex int) filterResult {
+	var conditions []string
+	var args []interface{}
+	argIndex := startIndex
+
+	// PPM Status Filter (no parameterized args needed)
+	if options.PpmStatusFilter != "" {
+		if cond := getPpmStatusCondition(options.PpmStatusFilter); cond != "" {
+			conditions = append(conditions, cond)
+		}
+	}
+
+	// PPM Date Range Filter (inclusive)
+	if options.PpmDateFrom != nil {
+		conditions = append(conditions, fmt.Sprintf(`"ppmDate" >= $%d`, argIndex))
+		args = append(args, *options.PpmDateFrom)
+		argIndex++
+	}
+	if options.PpmDateTo != nil {
+		conditions = append(conditions, fmt.Sprintf(`"ppmDate" <= $%d`, argIndex))
+		args = append(args, *options.PpmDateTo)
+		argIndex++
+	}
+
+	// TNC Date Range Filter (inclusive)
+	if options.TncDateFrom != nil {
+		conditions = append(conditions, fmt.Sprintf(`"tncDate" >= $%d`, argIndex))
+		args = append(args, *options.TncDateFrom)
+		argIndex++
+	}
+	if options.TncDateTo != nil {
+		conditions = append(conditions, fmt.Sprintf(`"tncDate" <= $%d`, argIndex))
+		args = append(args, *options.TncDateTo)
+		argIndex++
+	}
+
+	return filterResult{
+		conditions: conditions,
+		args:       args,
+		nextIndex:  argIndex,
+	}
+}
+
+// getPpmStatusCondition returns the SQL condition for a given PPM status
+func getPpmStatusCondition(status PPMStatus) string {
+	switch status {
+	case PPMStatusOverdue:
+		return `"ppmDate" < CURRENT_DATE`
+	case PPMStatusDue:
+		return `"ppmDate" = CURRENT_DATE`
+	case PPMStatusAlmostDue:
+		return `"ppmDate" > CURRENT_DATE AND "ppmDate" <= CURRENT_DATE + INTERVAL '2 weeks'`
+	default:
+		return ""
+	}
+}
+
+// buildOrderByClause returns the ORDER BY clause for the given sort option
+// If includeRank is true, rank DESC is prepended (used for search results)
+func buildOrderByClause(sort SortOrder, includeRank bool) string {
+	var column string
+	var direction string
+
+	switch sort {
+	case SortOrderUpdatedAtAsc:
+		column, direction = `"updatedAt"`, "ASC"
+	case SortOrderUpdatedAtDesc:
+		column, direction = `"updatedAt"`, "DESC"
+	case SortOrderPpmDateAsc:
+		column, direction = `"ppmDate"`, "ASC"
+	case SortOrderPpmDateDesc:
+		column, direction = `"ppmDate"`, "DESC"
+	case SortOrderTncDateAsc:
+		column, direction = `"tncDate"`, "ASC"
+	case SortOrderTncDateDesc:
+		column, direction = `"tncDate"`, "DESC"
+	default:
+		column, direction = `"updatedAt"`, "DESC"
+	}
+
+	if includeRank {
+		return fmt.Sprintf("ORDER BY rank DESC, %s %s", column, direction)
+	}
+	return fmt.Sprintf("ORDER BY %s %s", column, direction)
 }
 
 // Repository defines the interface for machine data access operations
@@ -114,32 +224,14 @@ func (r *db) List(ctx context.Context, options *ListOptions) ([]*Machine, error)
 		options = DefaultListOptions()
 	}
 
-	// Build the ORDER BY clause based on sort option
-	var orderByClause string
-	switch options.Sort {
-	case SortOrderUpdatedAtAsc:
-		orderByClause = `ORDER BY "updatedAt" ASC`
-	case SortOrderUpdatedAtDesc:
-		orderByClause = `ORDER BY "updatedAt" DESC`
-	default:
-		orderByClause = `ORDER BY "updatedAt" DESC` // Default to most recently updated first
-	}
+	// Build ORDER BY and WHERE clauses using helpers
+	orderByClause := buildOrderByClause(options.Sort, false)
+	filter := buildFilterConditions(options, 1)
 
-	// Build WHERE clause for PPM status filtering
+	// Build WHERE clause
 	var whereClause string
-	var args []interface{}
-	argIndex := 1
-
-	if options.PpmStatusFilter != "" {
-		// Filter by specific PPM status
-		switch options.PpmStatusFilter {
-		case PPMStatusOverdue:
-			whereClause = `WHERE "ppmDate" < CURRENT_DATE`
-		case PPMStatusDue:
-			whereClause = `WHERE "ppmDate" = CURRENT_DATE`
-		case PPMStatusAlmostDue:
-			whereClause = `WHERE "ppmDate" > CURRENT_DATE AND "ppmDate" <= CURRENT_DATE + INTERVAL '2 weeks'`
-		}
+	if len(filter.conditions) > 0 {
+		whereClause = "WHERE " + strings.Join(filter.conditions, " AND ")
 	}
 
 	query := fmt.Sprintf(`
@@ -152,10 +244,10 @@ func (r *db) List(ctx context.Context, options *ListOptions) ([]*Machine, error)
 		%s
 		%s
 		LIMIT $%d OFFSET $%d
-	`, whereClause, orderByClause, argIndex, argIndex+1)
+	`, whereClause, orderByClause, filter.nextIndex, filter.nextIndex+1)
 
 	// Add limit and offset to args
-	args = append(args, options.Limit, options.Offset)
+	args := append(filter.args, options.Limit, options.Offset)
 
 	rows, err := r.client.Query(ctx, query, args...)
 	if err != nil {
@@ -310,36 +402,22 @@ func (r *db) Search(ctx context.Context, query string, options *ListOptions) ([]
 		WHERE search_vector @@ plainto_tsquery('english', $1)
 	`
 
-	// Build WHERE clause for PPM status filtering
-	var args []interface{}
-	args = append(args, query)
-	argIndex := 2
+	// Build filter conditions using helper (start at $2 since $1 is used for search query)
+	filter := buildFilterConditions(options, 2)
 
-	if options.PpmStatusFilter != "" {
-		// Add PPM status filter condition
-		switch options.PpmStatusFilter {
-		case PPMStatusOverdue:
-			baseQuery += ` AND "ppmDate" < CURRENT_DATE`
-		case PPMStatusDue:
-			baseQuery += ` AND "ppmDate" = CURRENT_DATE`
-		case PPMStatusAlmostDue:
-			baseQuery += ` AND "ppmDate" > CURRENT_DATE AND "ppmDate" <= CURRENT_DATE + INTERVAL '2 weeks'`
-		}
+	// Append filter conditions to base query
+	for _, cond := range filter.conditions {
+		baseQuery += " AND " + cond
 	}
 
-	// Build ORDER BY clause based on sort option
-	var orderByClause string
-	switch options.Sort {
-	case SortOrderUpdatedAtAsc:
-		orderByClause = `ORDER BY rank DESC, "updatedAt" ASC`
-	case SortOrderUpdatedAtDesc:
-		orderByClause = `ORDER BY rank DESC, "updatedAt" DESC`
-	default:
-		orderByClause = `ORDER BY rank DESC, "updatedAt" DESC`
-	}
+	// Build args: search query first, then filter args
+	args := append([]interface{}{query}, filter.args...)
+
+	// Build ORDER BY clause with rank for search relevance
+	orderByClause := buildOrderByClause(options.Sort, true)
 
 	// Add pagination
-	finalQuery := fmt.Sprintf("%s %s LIMIT $%d OFFSET $%d", baseQuery, orderByClause, argIndex, argIndex+1)
+	finalQuery := fmt.Sprintf("%s %s LIMIT $%d OFFSET $%d", baseQuery, orderByClause, filter.nextIndex, filter.nextIndex+1)
 	args = append(args, options.Limit, options.Offset)
 
 	rows, err := r.client.Query(ctx, finalQuery, args...)
@@ -389,21 +467,16 @@ func (r *db) CountSearch(ctx context.Context, query string, options *ListOptions
 		WHERE search_vector @@ plainto_tsquery('english', $1)
 	`
 
-	// Build WHERE clause for PPM status filtering
-	var args []interface{}
-	args = append(args, query)
+	// Build filter conditions using helper (start at $2 since $1 is used for search query)
+	filter := buildFilterConditions(options, 2)
 
-	if options.PpmStatusFilter != "" {
-		// Add PPM status filter condition
-		switch options.PpmStatusFilter {
-		case PPMStatusOverdue:
-			baseQuery += ` AND "ppmDate" < CURRENT_DATE`
-		case PPMStatusDue:
-			baseQuery += ` AND "ppmDate" = CURRENT_DATE`
-		case PPMStatusAlmostDue:
-			baseQuery += ` AND "ppmDate" > CURRENT_DATE AND "ppmDate" <= CURRENT_DATE + INTERVAL '2 weeks'`
-		}
+	// Append filter conditions to base query
+	for _, cond := range filter.conditions {
+		baseQuery += " AND " + cond
 	}
+
+	// Build args: search query first, then filter args
+	args := append([]interface{}{query}, filter.args...)
 
 	var count int
 	err := r.client.QueryRow(ctx, baseQuery, args...).Scan(&count)

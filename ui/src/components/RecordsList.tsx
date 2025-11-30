@@ -14,7 +14,7 @@ import FullPageLoader from './FullPageLoader';
 import LoadingOverlay from './LoadingOverlay';
 
 type FilterType = 'all' | 'overdue' | 'due';
-export type SortType = 'newest' | 'oldest';
+export type SortType = 'newest' | 'oldest' | 'ppm_date_asc' | 'ppm_date_desc' | 'tnc_date_asc' | 'tnc_date_desc';
 
 interface RecordsListProps {
   searchOptions: SearchOptions;
@@ -67,6 +67,9 @@ export default function RecordsList({
       filters.sort = 'updated_at_desc';
     } else if (sortBy === 'oldest') {
       filters.sort = 'updated_at_asc';
+    } else {
+      // Pass through directly for ppm_date_* and tnc_date_*
+      filters.sort = sortBy;
     }
     
     // Handle search query - only send to API for 'any' property or specific supported properties
@@ -418,6 +421,10 @@ export default function RecordsList({
               >
                 <option value="newest">Newest First</option>
                 <option value="oldest">Oldest First</option>
+                <option value="ppm_date_asc">PPM Date (Earliest)</option>
+                <option value="ppm_date_desc">PPM Date (Latest)</option>
+                <option value="tnc_date_asc">TNC Date (Earliest)</option>
+                <option value="tnc_date_desc">TNC Date (Latest)</option>
               </select>
             </div>
           )}
