@@ -12,6 +12,7 @@ import RecordCard from './RecordCard';
 import MachineModal from './MachineModal';
 import FullPageLoader from './FullPageLoader';
 import LoadingOverlay from './LoadingOverlay';
+import DateRangePicker, { DateRangeValue } from './DateRangePicker';
 
 type FilterType = 'all' | 'overdue' | 'due';
 export type SortType = 'newest' | 'oldest' | 'ppm_date_asc' | 'ppm_date_desc' | 'tnc_date_asc' | 'tnc_date_desc';
@@ -45,6 +46,11 @@ export default function RecordsList({
   const [machineToEdit, setMachineToEdit] = useState<Machine | null>(null);
   const [isNavigating, setIsNavigating] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  
+  // Date range filter states
+  const [ppmDateRange, setPpmDateRange] = useState<DateRangeValue>({ from: undefined, to: undefined });
+  const [tncDateRange, setTncDateRange] = useState<DateRangeValue>({ from: undefined, to: undefined });
+  const [showDateFilters, setShowDateFilters] = useState(false);
 
   // CRUD operation loading states
   const [isDeletingMachine, setIsDeletingMachine] = useState(false);
@@ -86,8 +92,24 @@ export default function RecordsList({
       }
     }
     
+    // Handle PPM date range filter
+    if (ppmDateRange.from) {
+      filters.ppm_date_from = ppmDateRange.from;
+    }
+    if (ppmDateRange.to) {
+      filters.ppm_date_to = ppmDateRange.to;
+    }
+    
+    // Handle TNC date range filter
+    if (tncDateRange.from) {
+      filters.tnc_date_from = tncDateRange.from;
+    }
+    if (tncDateRange.to) {
+      filters.tnc_date_to = tncDateRange.to;
+    }
+    
     return filters;
-  }, [filterType, sortBy, searchOptions]);
+  }, [filterType, sortBy, searchOptions, ppmDateRange, tncDateRange]);
 
   // Use the machines API hook with server-side pagination and debounced search
   const {
@@ -410,6 +432,31 @@ export default function RecordsList({
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Date Filters Toggle Button */}
+          <button
+            onClick={() => setShowDateFilters(!showDateFilters)}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-colors text-sm border ${
+              showDateFilters || ppmDateRange.from || tncDateRange.from
+                ? 'bg-blue-50 border-blue-300 text-blue-700'
+                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+              />
+            </svg>
+            Date Filters
+            {(ppmDateRange.from || tncDateRange.from) && (
+              <span className="bg-blue-600 text-white text-xs px-1.5 py-0.5 rounded-full">
+                {(ppmDateRange.from ? 1 : 0) + (tncDateRange.from ? 1 : 0)}
+              </span>
+            )}
+          </button>
+
           {/* Sort By Dropdown */}
           {onSortChange && (
             <div className="flex items-center gap-2">
@@ -463,6 +510,74 @@ export default function RecordsList({
           </button>
         </div>
       </div>
+
+      {/* Date Range Filters Panel */}
+      {showDateFilters && (
+        <div className="mb-6 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-medium text-gray-700">Filter by Date Range</h3>
+            {(ppmDateRange.from || tncDateRange.from) && (
+              <button
+                onClick={() => {
+                  setPpmDateRange({ from: undefined, to: undefined });
+                  setTncDateRange({ from: undefined, to: undefined });
+                }}
+                className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+              >
+                Clear All Filters
+              </button>
+            )}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <DateRangePicker
+              label="PPM Date Range"
+              value={ppmDateRange}
+              onChange={setPpmDateRange}
+              placeholder="Filter by PPM date..."
+            />
+            <DateRangePicker
+              label="TNC Date Range"
+              value={tncDateRange}
+              onChange={setTncDateRange}
+              placeholder="Filter by TNC date..."
+            />
+          </div>
+          {(ppmDateRange.from || tncDateRange.from) && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {ppmDateRange.from && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                  PPM: {ppmDateRange.from === ppmDateRange.to || !ppmDateRange.to
+                    ? ppmDateRange.from
+                    : `${ppmDateRange.from} to ${ppmDateRange.to}`}
+                  <button
+                    onClick={() => setPpmDateRange({ from: undefined, to: undefined })}
+                    className="hover:bg-blue-200 rounded-full p-0.5"
+                  >
+                    <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </span>
+              )}
+              {tncDateRange.from && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                  TNC: {tncDateRange.from === tncDateRange.to || !tncDateRange.to
+                    ? tncDateRange.from
+                    : `${tncDateRange.from} to ${tncDateRange.to}`}
+                  <button
+                    onClick={() => setTncDateRange({ from: undefined, to: undefined })}
+                    className="hover:bg-green-200 rounded-full p-0.5"
+                  >
+                    <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredMachines.map((machine) => (

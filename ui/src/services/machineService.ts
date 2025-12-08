@@ -7,6 +7,11 @@ export interface MachineFilters {
   sort?: string;
   ppm_status_filter?: string;
   q?: string; // Search query parameter
+  // Date range filters (format: YYYY-MM-DD)
+  ppm_date_from?: string;
+  ppm_date_to?: string;
+  tnc_date_from?: string;
+  tnc_date_to?: string;
 }
 
 export interface MachineListResponse {
@@ -75,6 +80,14 @@ export class MachineService {
             params[key] = value.toString();
           } else if (key === 'q' && typeof value === 'string') {
             params['q'] = value;
+          } else if (key === 'ppm_date_from' && typeof value === 'string') {
+            params['ppm_date_from'] = value;
+          } else if (key === 'ppm_date_to' && typeof value === 'string') {
+            params['ppm_date_to'] = value;
+          } else if (key === 'tnc_date_from' && typeof value === 'string') {
+            params['tnc_date_from'] = value;
+          } else if (key === 'tnc_date_to' && typeof value === 'string') {
+            params['tnc_date_to'] = value;
           }
         }
       });
