@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { DayPicker, DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
-import 'react-day-picker/dist/style.css';
+import 'react-day-picker/style.css';
 
 export interface DateRangeValue {
   from: string | undefined; // YYYY-MM-DD format
@@ -25,6 +25,9 @@ export default function DateRangePicker({
 }: DateRangePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Internal pending state - only applied when "Done" is clicked
+  const [pendingRange, setPendingRange] = useState<DateRange | undefined>(undefined);
 
   // Convert string dates to Date objects for the picker
   const selectedRange: DateRange | undefined = {
@@ -32,12 +35,30 @@ export default function DateRangePicker({
     to: value.to ? new Date(value.to + 'T00:00:00') : undefined,
   };
 
-  // Handle date selection
+  // Sync pending range when dropdown opens or value changes externally
+  useEffect(() => {
+    if (isOpen) {
+      setPendingRange(selectedRange);
+    }
+  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Handle date selection (updates pending state only)
   const handleSelect = (range: DateRange | undefined) => {
+    setPendingRange(range);
+  };
+
+  // Apply selection when "Done" is clicked
+  const handleDone = () => {
     onChange({
-      from: range?.from ? format(range.from, 'yyyy-MM-dd') : undefined,
-      to: range?.to ? format(range.to, 'yyyy-MM-dd') : undefined,
+      from: pendingRange?.from ? format(pendingRange.from, 'yyyy-MM-dd') : undefined,
+      to: pendingRange?.to ? format(pendingRange.to, 'yyyy-MM-dd') : undefined,
     });
+    setIsOpen(false);
+  };
+
+  // Clear pending selection
+  const handleClearPending = () => {
+    setPendingRange(undefined);
   };
 
   // Close picker when clicking outside
@@ -142,48 +163,36 @@ export default function DateRangePicker({
 
       {/* Dropdown Calendar */}
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-lg">
+        <div className="absolute top-full left-0 mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-3 rdp-custom">
+          <style>{`
+            .rdp-custom {
+              --rdp-accent-color: #2563eb;
+              --rdp-accent-background-color: #dbeafe;
+            }
+            .rdp-custom .rdp-root {
+              color: #111827;
+            }
+          `}</style>
           <DayPicker
             mode="range"
-            selected={selectedRange}
+            selected={pendingRange}
             onSelect={handleSelect}
             numberOfMonths={1}
-            showOutsideDays
-            classNames={{
-              root: 'p-3',
-              months: 'flex flex-col',
-              month: 'space-y-4',
-              caption: 'flex justify-center pt-1 relative items-center',
-              caption_label: 'text-sm font-medium text-gray-900',
-              nav: 'space-x-1 flex items-center',
-              nav_button: 'h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 inline-flex items-center justify-center rounded-md border border-gray-200 hover:bg-gray-100',
-              nav_button_previous: 'absolute left-1',
-              nav_button_next: 'absolute right-1',
-              table: 'w-full border-collapse space-y-1',
-              head_row: 'flex',
-              head_cell: 'text-gray-500 rounded-md w-9 font-normal text-[0.8rem]',
-              row: 'flex w-full mt-2',
-              cell: 'text-center text-sm p-0 relative [&:has([aria-selected])]:bg-blue-50 first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20',
-              day: 'h-9 w-9 p-0 font-normal aria-selected:opacity-100 hover:bg-gray-100 rounded-md inline-flex items-center justify-center',
-              day_selected: 'bg-blue-600 text-white hover:bg-blue-600 hover:text-white focus:bg-blue-600 focus:text-white',
-              day_today: 'bg-gray-100 text-gray-900',
-              day_outside: 'text-gray-400 opacity-50',
-              day_disabled: 'text-gray-400 opacity-50',
-              day_range_middle: 'aria-selected:bg-blue-50 aria-selected:text-blue-900',
-              day_hidden: 'invisible',
-            }}
+            captionLayout="dropdown"
+            startMonth={new Date(2020, 0)}
+            endMonth={new Date(2030, 11)}
           />
-          <div className="border-t border-gray-200 p-2 flex justify-end gap-2">
+          <div className="border-t border-gray-200 pt-2 mt-2 flex justify-end gap-2">
             <button
               type="button"
-              onClick={() => onChange({ from: undefined, to: undefined })}
+              onClick={handleClearPending}
               className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
             >
               Clear
             </button>
             <button
               type="button"
-              onClick={() => setIsOpen(false)}
+              onClick={handleDone}
               className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
             >
               Done
@@ -194,4 +203,3 @@ export default function DateRangePicker({
     </div>
   );
 }
-
