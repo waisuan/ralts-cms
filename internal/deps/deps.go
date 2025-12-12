@@ -73,7 +73,14 @@ func Initialise() *Dependencies {
 
 	// Initialize services
 	attachmentService := attachments.NewService(s3Client, cfg.S3BucketName)
-	auditService := audit.NewService(auditRepo, logger)
+
+	// Initialize audit service with configured retention and cleanup interval
+	auditConfig := audit.ServiceConfig{
+		BufferSize:      audit.DefaultBufferSize,
+		RetentionDays:   cfg.AuditRetentionDays,
+		CleanupInterval: cfg.AuditCleanupInterval,
+	}
+	auditService := audit.NewServiceWithConfig(auditRepo, logger, auditConfig)
 	auditService.Start()
 
 	return &Dependencies{

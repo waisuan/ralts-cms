@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -16,6 +17,7 @@ type Repository interface {
 	Create(ctx context.Context, event *Event) error
 	List(ctx context.Context, options *ListOptions) ([]*Event, error)
 	Count(ctx context.Context, options *ListOptions) (int32, error)
+	DeleteOlderThan(ctx context.Context, cutoff time.Time) (int64, error)
 }
 
 // ListOptions defines parameters for listing audit events
@@ -208,4 +210,17 @@ func (r *db) Count(ctx context.Context, options *ListOptions) (int32, error) {
 	}
 
 	return count, nil
+}
+
+// DeleteOlderThan deletes audit events older than the specified cutoff time.
+// Returns the number of deleted events.
+func (r *db) DeleteOlderThan(ctx context.Context, cutoff time.Time) (int64, error) {
+	query := `DELETE FROM audit_logs WHERE created_at < $1`
+
+	result, err := r.client.Exec(ctx, query, cutoff)
+	if err != nil {
+		return 0, fmt.Errorf("failed to delete old audit logs: %w", err)
+	}
+
+	return result.RowsAffected(), nil
 }

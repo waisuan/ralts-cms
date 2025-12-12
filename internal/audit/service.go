@@ -14,6 +14,10 @@ const (
 	DefaultBufferSize = 1000
 	// DefaultShutdownTimeout is the default timeout for graceful shutdown
 	DefaultShutdownTimeout = 5 * time.Second
+	// DefaultRetentionDays is the default number of days to retain audit events
+	DefaultRetentionDays = 7
+	// DefaultCleanupInterval is the default interval between cleanup runs
+	DefaultCleanupInterval = 1 * time.Hour
 )
 
 // AuditService defines the interface for audit logging operations
@@ -25,33 +29,64 @@ type AuditService interface {
 	Stop(ctx context.Context)
 }
 
+// ServiceConfig holds configuration for the audit service
+type ServiceConfig struct {
+	BufferSize      int
+	RetentionDays   int
+	CleanupInterval time.Duration
+}
+
+// DefaultServiceConfig returns the default service configuration
+func DefaultServiceConfig() ServiceConfig {
+	return ServiceConfig{
+		BufferSize:      DefaultBufferSize,
+		RetentionDays:   DefaultRetentionDays,
+		CleanupInterval: DefaultCleanupInterval,
+	}
+}
+
 // Service handles asynchronous audit logging
 type Service struct {
-	repo      Repository
-	logger    *slog.Logger
-	eventChan chan Event
-	wg        sync.WaitGroup
-	stopChan  chan struct{}
-	started   bool
-	mu        sync.Mutex
+	repo          Repository
+	logger        *slog.Logger
+	config        ServiceConfig
+	eventChan     chan Event
+	wg            sync.WaitGroup
+	stopChan      chan struct{}
+	started       bool
+	mu            sync.Mutex
+	cleanupTicker *time.Ticker
 }
 
 // NewService creates a new audit service with the given repository and logger
 func NewService(repo Repository, logger *slog.Logger) *Service {
-	return &Service{
-		repo:      repo,
-		logger:    logger,
-		eventChan: make(chan Event, DefaultBufferSize),
-		stopChan:  make(chan struct{}),
-	}
+	return NewServiceWithConfig(repo, logger, DefaultServiceConfig())
 }
 
 // NewServiceWithBufferSize creates a new audit service with a custom buffer size
 func NewServiceWithBufferSize(repo Repository, logger *slog.Logger, bufferSize int) *Service {
+	config := DefaultServiceConfig()
+	config.BufferSize = bufferSize
+	return NewServiceWithConfig(repo, logger, config)
+}
+
+// NewServiceWithConfig creates a new audit service with custom configuration
+func NewServiceWithConfig(repo Repository, logger *slog.Logger, config ServiceConfig) *Service {
+	if config.BufferSize <= 0 {
+		config.BufferSize = DefaultBufferSize
+	}
+	if config.RetentionDays <= 0 {
+		config.RetentionDays = DefaultRetentionDays
+	}
+	if config.CleanupInterval <= 0 {
+		config.CleanupInterval = DefaultCleanupInterval
+	}
+
 	return &Service{
 		repo:      repo,
 		logger:    logger,
-		eventChan: make(chan Event, bufferSize),
+		config:    config,
+		eventChan: make(chan Event, config.BufferSize),
 		stopChan:  make(chan struct{}),
 	}
 }
@@ -91,9 +126,20 @@ func (s *Service) Start() {
 	}
 
 	s.started = true
+
+	// Start event worker
 	s.wg.Add(1)
 	go s.worker()
-	s.logger.Info("Audit service started")
+
+	// Start cleanup worker
+	s.cleanupTicker = time.NewTicker(s.config.CleanupInterval)
+	s.wg.Add(1)
+	go s.cleanupWorker()
+
+	s.logger.Info("Audit service started",
+		"retention_days", s.config.RetentionDays,
+		"cleanup_interval", s.config.CleanupInterval.String(),
+	)
 }
 
 // Stop gracefully shuts down the audit service, draining remaining events.
@@ -106,9 +152,14 @@ func (s *Service) Stop(ctx context.Context) {
 	}
 	s.mu.Unlock()
 
+	// Stop the cleanup ticker
+	if s.cleanupTicker != nil {
+		s.cleanupTicker.Stop()
+	}
+
 	close(s.stopChan)
 
-	// Wait for worker to finish or context timeout
+	// Wait for workers to finish or context timeout
 	done := make(chan struct{})
 	go func() {
 		s.wg.Wait()
@@ -138,6 +189,51 @@ func (s *Service) worker() {
 			return
 		}
 	}
+}
+
+// cleanupWorker periodically deletes old audit events
+func (s *Service) cleanupWorker() {
+	defer s.wg.Done()
+
+	// Run cleanup immediately on start
+	s.runCleanup()
+
+	for {
+		select {
+		case <-s.cleanupTicker.C:
+			s.runCleanup()
+
+		case <-s.stopChan:
+			return
+		}
+	}
+}
+
+// runCleanup performs the actual cleanup of old audit events
+func (s *Service) runCleanup() {
+	startTime := time.Now()
+	cutoff := time.Now().AddDate(0, 0, -s.config.RetentionDays)
+
+	s.logger.Info("Audit cleanup started",
+		"retention_days", s.config.RetentionDays,
+		"cutoff", cutoff.Format(time.RFC3339),
+	)
+
+	deleted, err := s.repo.DeleteOlderThan(context.Background(), cutoff)
+	duration := time.Since(startTime)
+
+	if err != nil {
+		s.logger.Error("Audit cleanup failed",
+			"error", err,
+			"duration", duration.String(),
+		)
+		return
+	}
+
+	s.logger.Info("Audit cleanup completed",
+		"deleted", deleted,
+		"duration", duration.String(),
+	)
 }
 
 // processEvent persists a single event to the database

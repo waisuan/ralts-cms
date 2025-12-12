@@ -51,6 +51,10 @@ type Config struct {
 	AWSDefaultRegion    string `env:"AWS_DEFAULT_REGION"`
 	AWSEndpointURL      string `env:"AWS_ENDPOINT_URL"`
 	AWSS3ForcePathStyle bool   `env:"AWS_S3_FORCE_PATH_STYLE" envDefault:"false"`
+
+	// Audit Configuration
+	AuditRetentionDays   int           `env:"AUDIT_RETENTION_DAYS" envDefault:"7"`
+	AuditCleanupInterval time.Duration `env:"AUDIT_CLEANUP_INTERVAL" envDefault:"1h"`
 }
 
 // LoadConfig loads and parses configuration from environment variables and .env files

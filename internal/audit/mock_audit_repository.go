@@ -7,6 +7,7 @@ package audit
 import (
 	context "context"
 	reflect "reflect"
+	time "time"
 
 	gomock "github.com/golang/mock/gomock"
 )
@@ -61,6 +62,21 @@ func (m *MockRepository) Create(ctx context.Context, event *Event) error {
 func (mr *MockRepositoryMockRecorder) Create(ctx, event interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockRepository)(nil).Create), ctx, event)
+}
+
+// DeleteOlderThan mocks base method.
+func (m *MockRepository) DeleteOlderThan(ctx context.Context, cutoff time.Time) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteOlderThan", ctx, cutoff)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DeleteOlderThan indicates an expected call of DeleteOlderThan.
+func (mr *MockRepositoryMockRecorder) DeleteOlderThan(ctx, cutoff interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteOlderThan", reflect.TypeOf((*MockRepository)(nil).DeleteOlderThan), ctx, cutoff)
 }
 
 // List mocks base method.

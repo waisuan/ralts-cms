@@ -886,6 +886,33 @@ Audit logging is implemented asynchronously to avoid impacting API performance:
 2. **Background Worker**: A goroutine processes events and persists them to PostgreSQL
 3. **Graceful Shutdown**: The service drains remaining events before the application exits
 4. **Buffer Overflow**: If the buffer is full (1000 events), events are dropped with a warning log
+5. **Automatic Cleanup**: A background goroutine periodically deletes old events based on the retention policy
+
+### Retention Policy
+
+Audit events are automatically cleaned up based on a configurable retention policy. The cleanup runs periodically and removes events older than the specified retention period.
+
+| Environment Variable | Default | Description |
+|---------------------|---------|-------------|
+| `AUDIT_RETENTION_DAYS` | `7` | Number of days to retain audit events |
+| `AUDIT_CLEANUP_INTERVAL` | `1h` | How often to run the cleanup job |
+
+Example configuration:
+
+```bash
+# Keep audit events for 30 days
+export AUDIT_RETENTION_DAYS=30
+
+# Run cleanup every 6 hours
+export AUDIT_CLEANUP_INTERVAL=6h
+```
+
+The cleanup job logs its activity:
+
+```
+level=INFO msg="Audit cleanup started" retention_days=7 cutoff=2024-12-05T10:30:00Z
+level=INFO msg="Audit cleanup completed" deleted=142 duration=45ms
+```
 
 ### Database Schema
 

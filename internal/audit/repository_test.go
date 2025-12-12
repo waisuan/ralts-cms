@@ -424,6 +424,90 @@ func (suite *AuditRepositoryTestSuite) TestCount() {
 	})
 }
 
+func (suite *AuditRepositoryTestSuite) TestDeleteOlderThan() {
+	ctx := context.Background()
+
+	suite.Run("should delete events older than cutoff", func() {
+		// Create old events (10 days ago)
+		for i := 0; i < 3; i++ {
+			event := createTestEvent(audit.ActionCreated, audit.ResourceMachine, "SN-OLD")
+			event.CreatedAt = time.Now().AddDate(0, 0, -10)
+			err := suite.repo.Create(ctx, event)
+			suite.Require().NoError(err)
+		}
+
+		// Create recent events (1 day ago)
+		for i := 0; i < 2; i++ {
+			event := createTestEvent(audit.ActionCreated, audit.ResourceMachine, "SN-NEW")
+			event.CreatedAt = time.Now().AddDate(0, 0, -1)
+			err := suite.repo.Create(ctx, event)
+			suite.Require().NoError(err)
+		}
+
+		// Delete events older than 7 days
+		cutoff := time.Now().AddDate(0, 0, -7)
+		deleted, err := suite.repo.DeleteOlderThan(ctx, cutoff)
+		suite.Require().NoError(err)
+		suite.Assert().Equal(int64(3), deleted)
+
+		// Verify only new events remain
+		events, err := suite.repo.List(ctx, &audit.ListOptions{Limit: 10, Offset: 0})
+		suite.Require().NoError(err)
+		suite.Assert().Len(events, 2)
+		for _, e := range events {
+			suite.Assert().Equal("SN-NEW", e.ResourceID)
+		}
+	})
+
+	suite.Run("should return zero when no old events", func() {
+		// Create only recent events
+		for i := 0; i < 3; i++ {
+			event := createTestEvent(audit.ActionViewed, audit.ResourceMachine, "SN-NEW")
+			event.CreatedAt = time.Now()
+			err := suite.repo.Create(ctx, event)
+			suite.Require().NoError(err)
+		}
+
+		// Try to delete events older than 7 days (none exist)
+		cutoff := time.Now().AddDate(0, 0, -7)
+		deleted, err := suite.repo.DeleteOlderThan(ctx, cutoff)
+		suite.Require().NoError(err)
+		suite.Assert().Equal(int64(0), deleted)
+
+		// Verify all events still exist
+		count, err := suite.repo.Count(ctx, &audit.ListOptions{Limit: 10, Offset: 0})
+		suite.Require().NoError(err)
+		suite.Assert().Equal(int32(3), count)
+	})
+
+	suite.Run("should delete all events when cutoff is in the future", func() {
+		// Create events
+		for i := 0; i < 3; i++ {
+			event := createTestEvent(audit.ActionDeleted, audit.ResourceMachine, "SN-001")
+			err := suite.repo.Create(ctx, event)
+			suite.Require().NoError(err)
+		}
+
+		// Delete events with future cutoff
+		cutoff := time.Now().Add(1 * time.Hour)
+		deleted, err := suite.repo.DeleteOlderThan(ctx, cutoff)
+		suite.Require().NoError(err)
+		suite.Assert().Equal(int64(3), deleted)
+
+		// Verify no events remain
+		count, err := suite.repo.Count(ctx, &audit.ListOptions{Limit: 10, Offset: 0})
+		suite.Require().NoError(err)
+		suite.Assert().Equal(int32(0), count)
+	})
+
+	suite.Run("should handle empty table", func() {
+		cutoff := time.Now().AddDate(0, 0, -7)
+		deleted, err := suite.repo.DeleteOlderThan(ctx, cutoff)
+		suite.Require().NoError(err)
+		suite.Assert().Equal(int64(0), deleted)
+	})
+}
+
 // createTestUser creates a test user and returns the user ID as string
 func (suite *AuditRepositoryTestSuite) createTestUser(ctx context.Context) string {
 	// Insert a test user directly into the database

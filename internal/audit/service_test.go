@@ -20,8 +20,11 @@ type mockRepository struct {
 	mu          sync.Mutex
 	events      []*audit.Event
 	createCalls int32
+	deleteCalls int32
 	createDelay time.Duration
 	createErr   error
+	deleteErr   error
+	lastCutoff  time.Time
 }
 
 func newMockRepository() *mockRepository {
@@ -58,6 +61,31 @@ func (m *mockRepository) Count(ctx context.Context, options *audit.ListOptions) 
 	return int32(len(m.events)), nil
 }
 
+func (m *mockRepository) DeleteOlderThan(ctx context.Context, cutoff time.Time) (int64, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	atomic.AddInt32(&m.deleteCalls, 1)
+	m.lastCutoff = cutoff
+
+	if m.deleteErr != nil {
+		return 0, m.deleteErr
+	}
+
+	// Count and remove events older than cutoff
+	var deleted int64
+	var remaining []*audit.Event
+	for _, event := range m.events {
+		if event.CreatedAt.Before(cutoff) {
+			deleted++
+		} else {
+			remaining = append(remaining, event)
+		}
+	}
+	m.events = remaining
+	return deleted, nil
+}
+
 func (m *mockRepository) getEvents() []*audit.Event {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -68,6 +96,16 @@ func (m *mockRepository) getEvents() []*audit.Event {
 
 func (m *mockRepository) getCreateCalls() int32 {
 	return atomic.LoadInt32(&m.createCalls)
+}
+
+func (m *mockRepository) getDeleteCalls() int32 {
+	return atomic.LoadInt32(&m.deleteCalls)
+}
+
+func (m *mockRepository) getLastCutoff() time.Time {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.lastCutoff
 }
 
 func testLogger() *slog.Logger {
@@ -134,7 +172,8 @@ func TestService_LogEvent(t *testing.T) {
 		defer service.Stop(context.Background())
 
 		customID := "custom-id-123"
-		customTime := time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC)
+		// Use a recent time within the retention period (default is 7 days)
+		customTime := time.Now().Add(-1 * time.Hour)
 
 		event := audit.Event{
 			ID:           customID,
@@ -153,7 +192,7 @@ func TestService_LogEvent(t *testing.T) {
 		events := repo.getEvents()
 		require.Len(t, events, 1)
 		assert.Equal(t, customID, events[0].ID)
-		assert.Equal(t, customTime, events[0].CreatedAt)
+		assert.WithinDuration(t, customTime, events[0].CreatedAt, time.Second)
 	})
 }
 
@@ -293,5 +332,157 @@ func TestService_ConcurrentLogging(t *testing.T) {
 
 		// All events should be processed
 		assert.Equal(t, int32(numGoroutines*eventsPerGoroutine), repo.getCreateCalls())
+	})
+}
+
+func TestService_Cleanup(t *testing.T) {
+	t.Run("runs cleanup on start", func(t *testing.T) {
+		repo := newMockRepository()
+
+		// Use short cleanup interval for testing
+		config := audit.ServiceConfig{
+			BufferSize:      100,
+			RetentionDays:   7,
+			CleanupInterval: 100 * time.Millisecond,
+		}
+		service := audit.NewServiceWithConfig(repo, testLogger(), config)
+		service.Start()
+
+		// Wait for initial cleanup to run
+		require.Eventually(t, func() bool {
+			return repo.getDeleteCalls() >= 1
+		}, time.Second, 10*time.Millisecond)
+
+		service.Stop(context.Background())
+
+		// Verify cleanup was called at least once
+		assert.GreaterOrEqual(t, repo.getDeleteCalls(), int32(1))
+	})
+
+	t.Run("runs cleanup periodically", func(t *testing.T) {
+		repo := newMockRepository()
+
+		// Use very short cleanup interval for testing
+		config := audit.ServiceConfig{
+			BufferSize:      100,
+			RetentionDays:   7,
+			CleanupInterval: 50 * time.Millisecond,
+		}
+		service := audit.NewServiceWithConfig(repo, testLogger(), config)
+		service.Start()
+
+		// Wait for multiple cleanup runs
+		time.Sleep(200 * time.Millisecond)
+
+		service.Stop(context.Background())
+
+		// Cleanup should have run multiple times (initial + at least 2-3 interval runs)
+		assert.GreaterOrEqual(t, repo.getDeleteCalls(), int32(3))
+	})
+
+	t.Run("uses correct retention cutoff", func(t *testing.T) {
+		repo := newMockRepository()
+
+		retentionDays := 14
+		config := audit.ServiceConfig{
+			BufferSize:      100,
+			RetentionDays:   retentionDays,
+			CleanupInterval: 100 * time.Millisecond,
+		}
+		service := audit.NewServiceWithConfig(repo, testLogger(), config)
+
+		beforeStart := time.Now()
+		service.Start()
+
+		// Wait for cleanup to run
+		require.Eventually(t, func() bool {
+			return repo.getDeleteCalls() >= 1
+		}, time.Second, 10*time.Millisecond)
+
+		service.Stop(context.Background())
+
+		// Verify cutoff is approximately retentionDays ago
+		cutoff := repo.getLastCutoff()
+		expectedCutoff := beforeStart.AddDate(0, 0, -retentionDays)
+
+		// Allow 1 second tolerance for test timing
+		assert.WithinDuration(t, expectedCutoff, cutoff, time.Second)
+	})
+
+	t.Run("deletes old events", func(t *testing.T) {
+		repo := newMockRepository()
+
+		// Add some old events directly to repo
+		oldEvent := &audit.Event{
+			ID:           "old-event",
+			Action:       audit.ActionCreated,
+			ResourceType: audit.ResourceMachine,
+			ResourceID:   "SN-OLD",
+			CreatedAt:    time.Now().AddDate(0, 0, -30), // 30 days ago
+		}
+		newEvent := &audit.Event{
+			ID:           "new-event",
+			Action:       audit.ActionCreated,
+			ResourceType: audit.ResourceMachine,
+			ResourceID:   "SN-NEW",
+			CreatedAt:    time.Now(), // Now
+		}
+		repo.events = append(repo.events, oldEvent, newEvent)
+
+		config := audit.ServiceConfig{
+			BufferSize:      100,
+			RetentionDays:   7, // Keep 7 days
+			CleanupInterval: 50 * time.Millisecond,
+		}
+		service := audit.NewServiceWithConfig(repo, testLogger(), config)
+		service.Start()
+
+		// Wait for cleanup to run
+		require.Eventually(t, func() bool {
+			return repo.getDeleteCalls() >= 1
+		}, time.Second, 10*time.Millisecond)
+
+		service.Stop(context.Background())
+
+		// Old event should be deleted, new event should remain
+		events := repo.getEvents()
+		assert.Len(t, events, 1)
+		assert.Equal(t, "new-event", events[0].ID)
+	})
+}
+
+func TestServiceConfig(t *testing.T) {
+	t.Run("uses defaults for invalid config values", func(t *testing.T) {
+		repo := newMockRepository()
+
+		// Create config with invalid values
+		config := audit.ServiceConfig{
+			BufferSize:      0, // Invalid
+			RetentionDays:   0, // Invalid
+			CleanupInterval: 0, // Invalid
+		}
+		service := audit.NewServiceWithConfig(repo, testLogger(), config)
+		service.Start()
+
+		// Service should still work with defaults
+		service.LogEvent(audit.Event{
+			Action:       audit.ActionCreated,
+			ResourceType: audit.ResourceMachine,
+			ResourceID:   "SN-001",
+		})
+
+		require.Eventually(t, func() bool {
+			return repo.getCreateCalls() >= 1
+		}, time.Second, 10*time.Millisecond)
+
+		service.Stop(context.Background())
+	})
+
+	t.Run("DefaultServiceConfig returns valid defaults", func(t *testing.T) {
+		config := audit.DefaultServiceConfig()
+
+		assert.Equal(t, audit.DefaultBufferSize, config.BufferSize)
+		assert.Equal(t, audit.DefaultRetentionDays, config.RetentionDays)
+		assert.Equal(t, audit.DefaultCleanupInterval, config.CleanupInterval)
 	})
 }
