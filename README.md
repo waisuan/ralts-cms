@@ -6,10 +6,12 @@ A web service built in Go for managing machines and their maintenance records. I
 
 - Machine management (CRUD operations)
 - Maintenance record management (CRUD operations)
+- File attachment support (S3-compatible storage)
 - JWT Token authentication
 - PostgreSQL database support
 - Configurable HTTP timeouts
 - RESTful API design
+- **Audit Logging** - Comprehensive event tracking for all user actions
 
 ## Prerequisites
 
@@ -839,6 +841,73 @@ Both machine and maintenance list endpoints return responses in the following fo
 }
 ```
 
+## Audit Logging
+
+The application includes comprehensive audit logging that tracks all user interactions with the system. Audit events are stored in the database and can be queried for compliance, debugging, and monitoring purposes.
+
+### What Gets Audited
+
+Every API endpoint is audited with the following information:
+- **User ID**: The authenticated user who performed the action
+- **Action**: The type of action (created, updated, deleted, viewed, listed, login, logout, password_changed)
+- **Resource Type**: The type of resource (machine, maintenance, user, session, attachment)
+- **Resource ID**: The identifier of the affected resource
+- **Details**: Additional context-specific information (JSON)
+- **Timestamp**: When the event occurred
+
+### Audit Actions
+
+| Action | Description |
+|--------|-------------|
+| `created` | A new resource was created |
+| `updated` | An existing resource was modified |
+| `deleted` | A resource was removed |
+| `viewed` | A single resource was retrieved |
+| `listed` | Multiple resources were queried/searched |
+| `login` | User successfully authenticated |
+| `logout` | User logged out |
+| `password_changed` | User changed their password |
+
+### Audit Resource Types
+
+| Resource | Description |
+|----------|-------------|
+| `machine` | Machine records |
+| `maintenance` | Maintenance records |
+| `user` | User accounts |
+| `session` | Authentication sessions |
+| `attachment` | File attachments |
+
+### Architecture
+
+Audit logging is implemented asynchronously to avoid impacting API performance:
+
+1. **Non-blocking**: API handlers queue events to a buffered channel and return immediately
+2. **Background Worker**: A goroutine processes events and persists them to PostgreSQL
+3. **Graceful Shutdown**: The service drains remaining events before the application exits
+4. **Buffer Overflow**: If the buffer is full (1000 events), events are dropped with a warning log
+
+### Database Schema
+
+Audit events are stored in the `audit_logs` table:
+
+```sql
+CREATE TABLE audit_logs (
+    id UUID PRIMARY KEY,
+    user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    action VARCHAR(50) NOT NULL,
+    resource_type VARCHAR(50) NOT NULL,
+    resource_id VARCHAR(255) NOT NULL,
+    details JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+```
+
+Indexes are created for efficient querying:
+- `idx_audit_logs_created_at` - For time-based queries
+- `idx_audit_logs_user_id` - For user-specific queries
+- `idx_audit_logs_resource` - For resource-based queries
+
 ## CLI Tools
 
 ### Admin Account Creation
@@ -862,6 +931,71 @@ The admin account will be created with:
 - Role: `ADMIN`
 - Status: `APPROVED` (automatically approved)
 - Full access to the admin panel
+
+### Query Audit Events
+
+The CLI tool can query audit events from the database for debugging and monitoring:
+
+```bash
+# Show events from the last 30 minutes (default)
+./admin-cli -type events
+
+# Show events from the last 60 minutes
+./admin-cli -type events -minutes 60
+
+# Filter by action type
+./admin-cli -type events -action created
+./admin-cli -type events -action login
+
+# Filter by resource type
+./admin-cli -type events -resource machine
+./admin-cli -type events -resource user
+
+# Combine filters
+./admin-cli -type events -minutes 120 -action deleted -resource machine
+
+# Limit results
+./admin-cli -type events -limit 100
+```
+
+#### Event Query Options
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-minutes` | 30 | Show events from the last N minutes |
+| `-action` | (all) | Filter by action type |
+| `-resource` | (all) | Filter by resource type |
+| `-limit` | 50 | Maximum number of events to return |
+
+#### Example Output
+
+```
+📋 Audit Events (last 30 minutes)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Found 5 events:
+
+[1] 2024-01-15 14:32:15
+    Action:   created
+    Resource: machine (SN-001234)
+    User ID:  42
+    Details:  {
+                "customer": "Acme Corp",
+                "model": "X100"
+              }
+
+[2] 2024-01-15 14:30:00
+    Action:   login
+    Resource: session (42)
+    User ID:  42
+    Details:  {
+                "username": "admin"
+              }
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Total: 5 events
+By action: created=3, login=2
+By resource: machine=3, session=2
+```
 
 ### Test Data Generation
 

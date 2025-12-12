@@ -9,22 +9,16 @@ import (
 	"ralts-cms/pkg/auth"
 	"strconv"
 	"strings"
+
+	appctx "ralts-cms/internal/context"
 )
 
-// UserContext represents the user information extracted from JWT token
-type UserContext struct {
-	EntityID string `json:"entity_id"`
-	UserID   int64  `json:"user_id"`
-	Role     string `json:"role"`
-}
+// UserContext is an alias to the shared context.UserContext for backward compatibility
+type UserContext = appctx.UserContext
 
-// contextKey is a custom type for context keys to avoid collisions
-type contextKey string
-
-const (
-	// UserContextKey is the key used to store user context in request context
-	UserContextKey contextKey = "user"
-)
+// UserContextKey is the key used to store user context in request context
+// Re-exported from context package for backward compatibility
+var UserContextKey = appctx.UserContextKey
 
 // AuthenticationMiddleware validates JWT tokens and adds user context to requests
 func AuthenticationMiddleware(jwtSecret string) func(http.Handler) http.Handler {
@@ -79,20 +73,17 @@ func AuthenticationMiddleware(jwtSecret string) func(http.Handler) http.Handler 
 				Role:     role,
 			}
 
-			// Add user context to request
-			ctx := context.WithValue(r.Context(), UserContextKey, userCtx)
+			// Add user context to request using the shared context package
+			ctx := appctx.WithUser(r.Context(), userCtx)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }
 
 // GetUserFromContext extracts user information from request context
+// This is a convenience wrapper around context.GetUserFromContext
 func GetUserFromContext(ctx context.Context) (*UserContext, error) {
-	user, ok := ctx.Value(UserContextKey).(*UserContext)
-	if !ok {
-		return nil, fmt.Errorf("user not found in context")
-	}
-	return user, nil
+	return appctx.GetUserFromContext(ctx)
 }
 
 // ExtractUserIDFromJWT extracts the user ID from a JWT token string

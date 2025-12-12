@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"ralts-cms/internal/audit"
 	"ralts-cms/internal/deps"
 	"ralts-cms/internal/handlers"
 	"ralts-cms/internal/middlewares"
@@ -25,21 +26,28 @@ import (
 type UsersHandlerTestSuite struct {
 	suite.Suite
 
-	handler  *handlers.UsersHandler
-	mockRepo *users.MockRepository
-	ctrl     *gomock.Controller
+	handler          *handlers.UsersHandler
+	mockRepo         *users.MockRepository
+	mockAuditService *audit.MockAuditService
+	ctrl             *gomock.Controller
 }
 
 // SetupTest sets up each test
 func (suite *UsersHandlerTestSuite) SetupTest() {
 	suite.ctrl = gomock.NewController(suite.T())
 	suite.mockRepo = users.NewMockRepository(suite.ctrl)
+	suite.mockAuditService = audit.NewMockAuditService(suite.ctrl)
+
+	// Allow any audit events to be logged
+	suite.mockAuditService.EXPECT().LogEvent(gomock.Any()).AnyTimes()
+
 	deps := &deps.Dependencies{
 		Config: &deps.Config{
 			JWTSecret: "your-jwt-secret-key",
 		},
 		Logger:          slog.New(slog.NewTextHandler(os.Stdout, nil)),
 		UsersRepository: suite.mockRepo,
+		AuditService:    suite.mockAuditService,
 	}
 	suite.handler = handlers.NewUsersHandler(deps)
 }

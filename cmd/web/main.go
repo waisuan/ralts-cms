@@ -56,11 +56,14 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Attempt graceful shutdown
+	// Attempt graceful shutdown of HTTP server
 	if err := server.Shutdown(ctx); err != nil {
 		logger.Error("Server forced to shutdown", "error", err)
 		os.Exit(1)
 	}
+
+	// Shutdown dependencies (audit service, database connections, etc.)
+	deps.Shutdown(ctx)
 
 	logger.Info("Server exited gracefully")
 }

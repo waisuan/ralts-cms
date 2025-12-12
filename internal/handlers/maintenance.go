@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"ralts-cms/internal/audit"
 	"ralts-cms/internal/deps"
 	"ralts-cms/internal/maintenance"
 	"strconv"
@@ -57,6 +58,11 @@ func (h *MaintenanceHandler) GetMaintenance(w http.ResponseWriter, r *http.Reque
 		http.Error(w, fmt.Sprintf("Failed to get maintenance: %v", err), http.StatusInternalServerError)
 		return
 	}
+
+	// Audit: Log maintenance view
+	h.deps.AuditService.LogEvent(audit.NewEvent(r, audit.ActionViewed, audit.ResourceMaintenance, workOrderNumber, map[string]any{
+		"machine_serial_number": machineSerialNumber,
+	}))
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(maintenance)
@@ -178,6 +184,15 @@ func (h *MaintenanceHandler) ListMaintenance(w http.ResponseWriter, r *http.Requ
 		Sort:              string(sort),
 	}
 
+	// Audit: Log maintenance list/search
+	h.deps.AuditService.LogEvent(audit.NewEvent(r, audit.ActionListed, audit.ResourceMaintenance, "", map[string]any{
+		"machine_serial_number": machineSerialNumber,
+		"count":                 count,
+		"limit":                 limit,
+		"offset":                offset,
+		"query":                 query,
+	}))
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -214,6 +229,12 @@ func (h *MaintenanceHandler) CreateMaintenance(w http.ResponseWriter, r *http.Re
 		http.Error(w, fmt.Sprintf("Failed to create maintenance: %v", err), http.StatusInternalServerError)
 		return
 	}
+
+	// Audit: Log maintenance creation
+	h.deps.AuditService.LogEvent(audit.NewEvent(r, audit.ActionCreated, audit.ResourceMaintenance, maintenance.WorkOrderNumber, map[string]any{
+		"machine_serial_number": maintenance.MachineSerialNumber,
+		"work_order_type":       maintenance.WorkOrderType,
+	}))
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -260,6 +281,12 @@ func (h *MaintenanceHandler) UpdateMaintenance(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	// Audit: Log maintenance update
+	h.deps.AuditService.LogEvent(audit.NewEvent(r, audit.ActionUpdated, audit.ResourceMaintenance, maintenance.WorkOrderNumber, map[string]any{
+		"machine_serial_number": maintenance.MachineSerialNumber,
+		"work_order_type":       maintenance.WorkOrderType,
+	}))
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(maintenance)
 }
@@ -290,6 +317,11 @@ func (h *MaintenanceHandler) DeleteMaintenance(w http.ResponseWriter, r *http.Re
 		http.Error(w, fmt.Sprintf("Failed to delete maintenance: %v", err), http.StatusInternalServerError)
 		return
 	}
+
+	// Audit: Log maintenance deletion
+	h.deps.AuditService.LogEvent(audit.NewEvent(r, audit.ActionDeleted, audit.ResourceMaintenance, workOrderNumber, map[string]any{
+		"machine_serial_number": machineSerialNumber,
+	}))
 
 	w.WriteHeader(http.StatusNoContent)
 }

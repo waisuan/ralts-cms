@@ -5,6 +5,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"ralts-cms/internal/audit"
 	"ralts-cms/internal/deps"
 	"strings"
 
@@ -89,6 +90,13 @@ func (h *AttachmentHandler) CreateMachineAttachment(w http.ResponseWriter, r *ht
 		return
 	}
 
+	// Audit: Log attachment creation
+	h.deps.AuditService.LogEvent(audit.NewEvent(r, audit.ActionCreated, audit.ResourceAttachment, header.Filename, map[string]any{
+		"machine_serial_number": machineSerialNumber,
+		"filename":              header.Filename,
+		"size":                  header.Size,
+	}))
+
 	w.WriteHeader(http.StatusCreated)
 }
 
@@ -114,6 +122,11 @@ func (h *AttachmentHandler) GetMachineAttachment(w http.ResponseWriter, r *http.
 		http.Error(w, fmt.Sprintf("Failed to get attachment: %v", err), http.StatusInternalServerError)
 		return
 	}
+
+	// Audit: Log attachment view
+	h.deps.AuditService.LogEvent(audit.NewEvent(r, audit.ActionViewed, audit.ResourceAttachment, attachmentName, map[string]any{
+		"machine_serial_number": machineSerialNumber,
+	}))
 
 	// Set headers for file download
 	w.Header().Set("Content-Type", attachment.ContentType)
@@ -207,6 +220,14 @@ func (h *AttachmentHandler) ReplaceMachineAttachment(w http.ResponseWriter, r *h
 		return
 	}
 
+	// Audit: Log attachment replacement
+	h.deps.AuditService.LogEvent(audit.NewEvent(r, audit.ActionUpdated, audit.ResourceAttachment, header.Filename, map[string]any{
+		"machine_serial_number": machineSerialNumber,
+		"old_filename":          oldAttachmentName,
+		"new_filename":          header.Filename,
+		"size":                  header.Size,
+	}))
+
 	w.WriteHeader(http.StatusCreated)
 }
 
@@ -238,6 +259,11 @@ func (h *AttachmentHandler) DeleteMachineAttachment(w http.ResponseWriter, r *ht
 		http.Error(w, fmt.Sprintf("Failed to delete attachment: %v", err), http.StatusInternalServerError)
 		return
 	}
+
+	// Audit: Log attachment deletion
+	h.deps.AuditService.LogEvent(audit.NewEvent(r, audit.ActionDeleted, audit.ResourceAttachment, attachmentName, map[string]any{
+		"machine_serial_number": machineSerialNumber,
+	}))
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -345,6 +371,14 @@ func (h *AttachmentHandler) CreateMaintenanceAttachment(w http.ResponseWriter, r
 		return
 	}
 
+	// Audit: Log maintenance attachment creation
+	h.deps.AuditService.LogEvent(audit.NewEvent(r, audit.ActionCreated, audit.ResourceAttachment, header.Filename, map[string]any{
+		"machine_serial_number": machineSerialNumber,
+		"work_order_number":     workOrderNumber,
+		"filename":              header.Filename,
+		"size":                  header.Size,
+	}))
+
 	w.WriteHeader(http.StatusCreated)
 }
 
@@ -371,6 +405,12 @@ func (h *AttachmentHandler) GetMaintenanceAttachment(w http.ResponseWriter, r *h
 		http.Error(w, fmt.Sprintf("Failed to get attachment: %v", err), http.StatusInternalServerError)
 		return
 	}
+
+	// Audit: Log maintenance attachment view
+	h.deps.AuditService.LogEvent(audit.NewEvent(r, audit.ActionViewed, audit.ResourceAttachment, attachmentName, map[string]any{
+		"machine_serial_number": machineSerialNumber,
+		"work_order_number":     workOrderNumber,
+	}))
 
 	// Set headers for file download
 	w.Header().Set("Content-Type", attachment.ContentType)
@@ -466,6 +506,15 @@ func (h *AttachmentHandler) ReplaceMaintenanceAttachment(w http.ResponseWriter, 
 		return
 	}
 
+	// Audit: Log maintenance attachment replacement
+	h.deps.AuditService.LogEvent(audit.NewEvent(r, audit.ActionUpdated, audit.ResourceAttachment, header.Filename, map[string]any{
+		"machine_serial_number": machineSerialNumber,
+		"work_order_number":     workOrderNumber,
+		"old_filename":          oldAttachmentName,
+		"new_filename":          header.Filename,
+		"size":                  header.Size,
+	}))
+
 	w.WriteHeader(http.StatusCreated)
 }
 
@@ -498,6 +547,12 @@ func (h *AttachmentHandler) DeleteMaintenanceAttachment(w http.ResponseWriter, r
 		http.Error(w, fmt.Sprintf("Failed to delete attachment: %v", err), http.StatusInternalServerError)
 		return
 	}
+
+	// Audit: Log maintenance attachment deletion
+	h.deps.AuditService.LogEvent(audit.NewEvent(r, audit.ActionDeleted, audit.ResourceAttachment, attachmentName, map[string]any{
+		"machine_serial_number": machineSerialNumber,
+		"work_order_number":     workOrderNumber,
+	}))
 
 	w.WriteHeader(http.StatusNoContent)
 }

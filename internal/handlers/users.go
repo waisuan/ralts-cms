@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"ralts-cms/internal/audit"
 	"ralts-cms/internal/deps"
 	"ralts-cms/internal/middlewares"
 	"ralts-cms/internal/users"
@@ -102,6 +103,13 @@ func (h *UsersHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Audit: Log user creation
+	h.deps.AuditService.LogEvent(audit.NewEvent(r, audit.ActionCreated, audit.ResourceUser, fmt.Sprintf("%d", user.ID), map[string]any{
+		"username": user.Username,
+		"email":    user.Email,
+		"role":     user.Role,
+	}))
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(user)
@@ -158,6 +166,18 @@ func (h *UsersHandler) Login(w http.ResponseWriter, r *http.Request) {
 		"username", user.Username,
 		"email", user.Email)
 
+	// Audit: Log user login
+	userIDStr := fmt.Sprintf("%d", user.ID)
+	h.deps.AuditService.LogEvent(audit.Event{
+		UserID:       &userIDStr,
+		Action:       audit.ActionLogin,
+		ResourceType: audit.ResourceSession,
+		ResourceID:   userIDStr,
+		Details: map[string]any{
+			"username": user.Username,
+		},
+	})
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
@@ -199,6 +219,13 @@ func (h *UsersHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to retrieve users", http.StatusInternalServerError)
 		return
 	}
+
+	// Audit: Log user list
+	h.deps.AuditService.LogEvent(audit.NewEvent(r, audit.ActionListed, audit.ResourceUser, "", map[string]any{
+		"count":  totalCount,
+		"limit":  limit,
+		"offset": offset,
+	}))
 
 	// Create response
 	response := ListUsersResponse{
@@ -247,6 +274,11 @@ func (h *UsersHandler) UpdateUserStatus(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, fmt.Sprintf("Failed to update user status: %v", err), http.StatusInternalServerError)
 		return
 	}
+
+	// Audit: Log user status update
+	h.deps.AuditService.LogEvent(audit.NewEvent(r, audit.ActionUpdated, audit.ResourceUser, fmt.Sprintf("%d", userID), map[string]any{
+		"status": updateRequest.Status,
+	}))
 
 	// Return success response
 	response := map[string]interface{}{
@@ -299,6 +331,13 @@ func (h *UsersHandler) BulkUpdateStatus(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, fmt.Sprintf("Failed to update user statuses: %v", err), http.StatusInternalServerError)
 		return
 	}
+
+	// Audit: Log bulk status update
+	h.deps.AuditService.LogEvent(audit.NewEvent(r, audit.ActionUpdated, audit.ResourceUser, "bulk", map[string]any{
+		"user_ids": bulkRequest.UserIDs,
+		"status":   bulkRequest.Status,
+		"count":    len(bulkRequest.UserIDs),
+	}))
 
 	// Return success response
 	response := map[string]interface{}{
@@ -366,6 +405,9 @@ func (h *UsersHandler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
 	// Log successful password update
 	h.deps.Logger.Info("User password updated successfully",
 		"user_id", userCtx.UserID)
+
+	// Audit: Log password change
+	h.deps.AuditService.LogEvent(audit.NewEvent(r, audit.ActionPasswordChanged, audit.ResourceUser, fmt.Sprintf("%d", userCtx.UserID), nil))
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

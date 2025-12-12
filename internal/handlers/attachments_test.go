@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"ralts-cms/internal/attachments"
+	"ralts-cms/internal/audit"
 	"ralts-cms/internal/deps"
 	"ralts-cms/internal/handlers"
 	"strings"
@@ -24,6 +25,7 @@ type AttachmentHandlerTestSuite struct {
 
 	handler               *handlers.AttachmentHandler
 	mockAttachmentService *attachments.MockAttachmentService
+	mockAuditService      *audit.MockAuditService
 	ctrl                  *gomock.Controller
 }
 
@@ -31,9 +33,14 @@ type AttachmentHandlerTestSuite struct {
 func (suite *AttachmentHandlerTestSuite) SetupTest() {
 	suite.ctrl = gomock.NewController(suite.T())
 	suite.mockAttachmentService = attachments.NewMockAttachmentService(suite.ctrl)
+	suite.mockAuditService = audit.NewMockAuditService(suite.ctrl)
+
+	// Allow any audit events to be logged
+	suite.mockAuditService.EXPECT().LogEvent(gomock.Any()).AnyTimes()
 
 	deps := &deps.Dependencies{
 		AttachmentService: suite.mockAttachmentService,
+		AuditService:      suite.mockAuditService,
 	}
 	suite.handler = handlers.NewAttachmentHandler(deps)
 }

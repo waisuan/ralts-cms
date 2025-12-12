@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"ralts-cms/internal/audit"
 	"ralts-cms/internal/deps"
 	"ralts-cms/internal/handlers"
 	"ralts-cms/internal/maintenance"
@@ -21,9 +22,10 @@ import (
 type MaintenanceHandlerTestSuite struct {
 	suite.Suite
 
-	handler  *handlers.MaintenanceHandler
-	mockRepo *maintenance.MockRepository
-	ctrl     *gomock.Controller
+	handler          *handlers.MaintenanceHandler
+	mockRepo         *maintenance.MockRepository
+	mockAuditService *audit.MockAuditService
+	ctrl             *gomock.Controller
 }
 
 // SetupTest sets up each test
@@ -31,12 +33,18 @@ func (suite *MaintenanceHandlerTestSuite) SetupTest() {
 	suite.ctrl = gomock.NewController(suite.T())
 
 	suite.mockRepo = maintenance.NewMockRepository(suite.ctrl)
+	suite.mockAuditService = audit.NewMockAuditService(suite.ctrl)
+
+	// Allow any audit events to be logged
+	suite.mockAuditService.EXPECT().LogEvent(gomock.Any()).AnyTimes()
+
 	deps := &deps.Dependencies{
 		Config: &deps.Config{
 			DefaultMaintenanceLimit: 50,
 			MaxMaintenanceLimit:     100,
 		},
 		MaintenanceRepository: suite.mockRepo,
+		AuditService:          suite.mockAuditService,
 	}
 	suite.handler = handlers.NewMaintenanceHandler(deps)
 }

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"ralts-cms/internal/audit"
 	"ralts-cms/internal/deps"
 	"ralts-cms/internal/handlers"
 	"ralts-cms/internal/machines"
@@ -26,6 +27,7 @@ type MachinesHandlerTestSuite struct {
 	handler             *handlers.MachinesHandler
 	mockMachinesRepo    *machines.MockRepository
 	mockMaintenanceRepo *maintenance.MockRepository
+	mockAuditService    *audit.MockAuditService
 	ctrl                *gomock.Controller
 }
 
@@ -34,10 +36,15 @@ func (suite *MachinesHandlerTestSuite) SetupTest() {
 	suite.ctrl = gomock.NewController(suite.T())
 	suite.mockMachinesRepo = machines.NewMockRepository(suite.ctrl)
 	suite.mockMaintenanceRepo = maintenance.NewMockRepository(suite.ctrl)
+	suite.mockAuditService = audit.NewMockAuditService(suite.ctrl)
+
+	// Allow any audit events to be logged
+	suite.mockAuditService.EXPECT().LogEvent(gomock.Any()).AnyTimes()
 
 	deps := &deps.Dependencies{
 		MachinesRepository:    suite.mockMachinesRepo,
 		MaintenanceRepository: suite.mockMaintenanceRepo,
+		AuditService:          suite.mockAuditService,
 		Config: &deps.Config{
 			DefaultMachinesLimit: 50,
 			MaxMachinesLimit:     100,

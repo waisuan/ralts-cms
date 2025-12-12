@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"ralts-cms/internal/audit"
 	"ralts-cms/internal/deps"
 	"ralts-cms/internal/machines"
 	"strconv"
@@ -55,6 +56,9 @@ func (h *MachinesHandler) GetMachine(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("Failed to get machine: %v", err), http.StatusInternalServerError)
 		return
 	}
+
+	// Audit: Log machine view
+	h.deps.AuditService.LogEvent(audit.NewEvent(r, audit.ActionViewed, audit.ResourceMachine, serialNumber, nil))
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(machine)
@@ -239,6 +243,14 @@ func (h *MachinesHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 		Sort:           string(sort),
 	}
 
+	// Audit: Log machine list/search
+	h.deps.AuditService.LogEvent(audit.NewEvent(r, audit.ActionListed, audit.ResourceMachine, "", map[string]any{
+		"count":  count,
+		"limit":  limit,
+		"offset": offset,
+		"query":  query,
+	}))
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
 }
@@ -265,6 +277,13 @@ func (h *MachinesHandler) CreateMachine(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, fmt.Sprintf("Failed to create machine: %v", err), http.StatusInternalServerError)
 		return
 	}
+
+	// Audit: Log machine creation
+	h.deps.AuditService.LogEvent(audit.NewEvent(r, audit.ActionCreated, audit.ResourceMachine, machine.SerialNumber, map[string]any{
+		"customer": machine.Customer,
+		"model":    machine.Model,
+		"brand":    machine.Brand,
+	}))
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -308,6 +327,13 @@ func (h *MachinesHandler) UpdateMachine(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Audit: Log machine update
+	h.deps.AuditService.LogEvent(audit.NewEvent(r, audit.ActionUpdated, audit.ResourceMachine, machine.SerialNumber, map[string]any{
+		"customer": machine.Customer,
+		"model":    machine.Model,
+		"brand":    machine.Brand,
+	}))
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(machine)
 }
@@ -337,6 +363,9 @@ func (h *MachinesHandler) DeleteMachine(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, fmt.Sprintf("Failed to delete machine: %v", err), http.StatusInternalServerError)
 		return
 	}
+
+	// Audit: Log machine deletion
+	h.deps.AuditService.LogEvent(audit.NewEvent(r, audit.ActionDeleted, audit.ResourceMachine, serialNumber, nil))
 
 	w.WriteHeader(http.StatusNoContent)
 }

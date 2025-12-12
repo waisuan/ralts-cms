@@ -1,15 +1,18 @@
 // Package main provides a CLI tool for generating test data
 // including machines, users, and maintenance records for the Ralts-CMS application,
-// as well as creating admin accounts.
+// as well as creating admin accounts and querying audit events.
 package main
 
 import (
 	"context"
 	"crypto/rand"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"math/big"
+	"os"
+	"ralts-cms/internal/audit"
 	"ralts-cms/internal/deps"
 	"ralts-cms/internal/machines"
 	"ralts-cms/internal/maintenance"
@@ -18,21 +21,27 @@ import (
 )
 
 // This is a CLI tool that accepts the following arguments:
-// 1. The type of entity: machine, user, admin
+// 1. The type of entity: machine, user, admin, events
 // 2. The number of entities to create (required for machine/user)
 // 3. For admin creation: --username and --password flags
+// 4. For events: --minutes flag to filter by time
 //
 // Each entity should be unique and have a random value for the fields.
 // Each entity should be saved to the database.
 func main() {
-	entityType := flag.String("type", "", "The type of entity to create (machine, user, admin)")
-	entityCount := flag.Int("count", 0, "The number of entities to create (not required for admin)")
+	entityType := flag.String("type", "", "The type of entity to create/query (machine, user, admin, events)")
+	entityCount := flag.Int("count", 0, "The number of entities to create (not required for admin/events)")
 	adminUsername := flag.String("username", "", "Username for admin account (required when type=admin)")
 	adminPassword := flag.String("password", "", "Password for admin account (required when type=admin)")
+	// Event query flags
+	eventMinutes := flag.Int("minutes", 30, "Show events from the last N minutes (default: 30)")
+	eventAction := flag.String("action", "", "Filter by action type (created, updated, deleted, viewed, listed, login, logout, password_changed)")
+	eventResource := flag.String("resource", "", "Filter by resource type (machine, maintenance, user, session, attachment)")
+	eventLimit := flag.Int("limit", 50, "Maximum number of events to return (default: 50)")
 	flag.Parse()
 
 	if *entityType == "" {
-		log.Fatal("Please provide entity type (machine, user, admin)")
+		log.Fatal("Please provide entity type (machine, user, admin, events)")
 	}
 
 	// Validate admin-specific flags
@@ -40,7 +49,7 @@ func main() {
 		if *adminUsername == "" || *adminPassword == "" {
 			log.Fatal("For admin creation, both --username and --password are required")
 		}
-	} else if *entityCount == 0 {
+	} else if *entityType != "events" && *entityCount == 0 {
 		log.Fatal("Please provide both entity type and count")
 	}
 
@@ -56,8 +65,10 @@ func main() {
 		createUsers(deps, *entityCount)
 	case "admin":
 		createAdminAccount(deps, *adminUsername, *adminPassword)
+	case "events":
+		queryEvents(deps, *eventMinutes, *eventAction, *eventResource, *eventLimit)
 	default:
-		log.Fatalf("Invalid entity type: %s. Valid options: machine, user, admin", *entityType)
+		log.Fatalf("Invalid entity type: %s. Valid options: machine, user, admin, events", *entityType)
 	}
 }
 
@@ -330,4 +341,117 @@ func createAdminAccount(deps *deps.Dependencies, username, password string) {
 	fmt.Printf("   Role: ADMIN\n")
 	fmt.Printf("   Status: APPROVED\n")
 	fmt.Println("You can now log in to the admin panel with these credentials.")
+}
+
+// queryEvents retrieves and displays audit events from the database
+func queryEvents(deps *deps.Dependencies, minutes int, action, resource string, limit int) {
+	ctx := context.Background()
+
+	// Build query options
+	options := &audit.ListOptions{
+		Limit:  int32(limit),
+		Offset: 0,
+	}
+
+	if action != "" {
+		options.Action = &action
+	}
+	if resource != "" {
+		options.ResourceType = &resource
+	}
+
+	// Fetch events from repository
+	events, err := deps.AuditRepository.List(ctx, options)
+	if err != nil {
+		log.Fatalf("Failed to fetch events: %v", err)
+	}
+
+	// Filter by time if minutes is specified
+	cutoffTime := time.Now().Add(-time.Duration(minutes) * time.Minute)
+	var filteredEvents []*audit.Event
+	for _, event := range events {
+		if event.CreatedAt.After(cutoffTime) {
+			filteredEvents = append(filteredEvents, event)
+		}
+	}
+
+	// Display results
+	fmt.Printf("\n📋 Audit Events (last %d minutes)\n", minutes)
+	fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+
+	if len(filteredEvents) == 0 {
+		fmt.Println("No events found matching the criteria.")
+		return
+	}
+
+	fmt.Printf("Found %d events:\n\n", len(filteredEvents))
+
+	for i, event := range filteredEvents {
+		userID := "anonymous"
+		if event.UserID != nil {
+			userID = *event.UserID
+		}
+
+		fmt.Printf("[%d] %s\n", i+1, event.CreatedAt.Format("2006-01-02 15:04:05"))
+		fmt.Printf("    Action:   %s\n", event.Action)
+		fmt.Printf("    Resource: %s (%s)\n", event.ResourceType, event.ResourceID)
+		fmt.Printf("    User ID:  %s\n", userID)
+
+		if event.Details != nil && len(event.Details) > 0 {
+			detailsJSON, _ := json.MarshalIndent(event.Details, "              ", "  ")
+			fmt.Printf("    Details:  %s\n", string(detailsJSON))
+		}
+		fmt.Println()
+	}
+
+	// Summary
+	fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+	fmt.Printf("Total: %d events\n", len(filteredEvents))
+
+	// Count by action
+	actionCounts := make(map[string]int)
+	for _, event := range filteredEvents {
+		actionCounts[event.Action]++
+	}
+
+	if len(actionCounts) > 1 {
+		fmt.Printf("By action: ")
+		first := true
+		for action, count := range actionCounts {
+			if !first {
+				fmt.Printf(", ")
+			}
+			fmt.Printf("%s=%d", action, count)
+			first = false
+		}
+		fmt.Println()
+	}
+
+	// Count by resource
+	resourceCounts := make(map[string]int)
+	for _, event := range filteredEvents {
+		resourceCounts[event.ResourceType]++
+	}
+
+	if len(resourceCounts) > 1 {
+		fmt.Printf("By resource: ")
+		first := true
+		for resource, count := range resourceCounts {
+			if !first {
+				fmt.Printf(", ")
+			}
+			fmt.Printf("%s=%d", resource, count)
+			first = false
+		}
+		fmt.Println()
+	}
+}
+
+// exportEventsJSON exports events as JSON to stdout (for piping to other tools)
+func exportEventsJSON(events []*audit.Event) {
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(events); err != nil {
+		log.Fatalf("Failed to encode events as JSON: %v", err)
+	}
 }

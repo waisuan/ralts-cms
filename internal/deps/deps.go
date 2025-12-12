@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"ralts-cms/internal/attachments"
+	"ralts-cms/internal/audit"
 	"ralts-cms/internal/machines"
 	"ralts-cms/internal/maintenance"
 	"ralts-cms/internal/users"
@@ -29,9 +30,11 @@ type Dependencies struct {
 	MachinesRepository    machines.Repository
 	MaintenanceRepository maintenance.Repository
 	UsersRepository       users.Repository
+	AuditRepository       audit.Repository
 
 	// Services
 	AttachmentService attachments.AttachmentService
+	AuditService      audit.AuditService
 }
 
 // Initialise creates and returns a new Dependencies instance with all required
@@ -66,9 +69,12 @@ func Initialise() *Dependencies {
 	machinesRepo := machines.NewRepository(pgClient)
 	maintenanceRepo := maintenance.NewRepository(pgClient)
 	usersRepo := users.NewRepository(pgClient)
+	auditRepo := audit.NewRepository(pgClient)
 
 	// Initialize services
 	attachmentService := attachments.NewService(s3Client, cfg.S3BucketName)
+	auditService := audit.NewService(auditRepo, logger)
+	auditService.Start()
 
 	return &Dependencies{
 		Config:                cfg,
@@ -78,8 +84,27 @@ func Initialise() *Dependencies {
 		MachinesRepository:    machinesRepo,
 		MaintenanceRepository: maintenanceRepo,
 		UsersRepository:       usersRepo,
+		AuditRepository:       auditRepo,
 		AttachmentService:     attachmentService,
+		AuditService:          auditService,
 	}
+}
+
+// Shutdown gracefully shuts down all services and connections
+func (d *Dependencies) Shutdown(ctx context.Context) {
+	d.Logger.Info("Shutting down dependencies...")
+
+	// Stop the audit service first (drains remaining events)
+	if d.AuditService != nil {
+		d.AuditService.Stop(ctx)
+	}
+
+	// Close database connection
+	if d.PostgresClient != nil {
+		d.PostgresClient.Close()
+	}
+
+	d.Logger.Info("Dependencies shutdown complete")
 }
 
 // newLogger creates a structured logger based on the environment
