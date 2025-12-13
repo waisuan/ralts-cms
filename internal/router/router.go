@@ -78,6 +78,10 @@ func NewRouter(deps *deps.Dependencies) http.Handler {
 	adminAPI.HandleFunc("/users/{id:[0-9]+}/status", handlers.NewUsersHandler(deps).UpdateUserStatus).Methods(http.MethodPut)
 	adminAPI.HandleFunc("/users/bulk-status", handlers.NewUsersHandler(deps).BulkUpdateStatus).Methods(http.MethodPut)
 
+	// Admin audit endpoints
+	adminAPI.HandleFunc("/audit/events", handlers.NewAuditHandler(deps).ListAuditEvents).Methods(http.MethodGet)
+	adminAPI.HandleFunc("/audit/events/stream", handlers.NewAuditHandler(deps).StreamAuditEvents).Methods(http.MethodGet)
+
 	// Apply both authentication and admin middleware to admin endpoints
 	adminAPI.Use(middlewares.AuthenticationMiddleware(deps.Config.JWTSecret))
 	adminAPI.Use(middlewares.AdminOnlyMiddleware())

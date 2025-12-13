@@ -32,6 +32,7 @@ const (
 type Event struct {
 	ID           string         `json:"id"`
 	UserID       *string        `json:"user_id,omitempty"`
+	Username     *string        `json:"username,omitempty"`
 	Action       string         `json:"action"`
 	ResourceType string         `json:"resource_type"`
 	ResourceID   string         `json:"resource_id"`

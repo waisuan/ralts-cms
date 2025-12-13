@@ -22,12 +22,14 @@ type Repository interface {
 
 // ListOptions defines parameters for listing audit events
 type ListOptions struct {
-	Limit        int32   `json:"limit"`
-	Offset       int32   `json:"offset"`
-	UserID       *string `json:"user_id,omitempty"`
-	ResourceType *string `json:"resource_type,omitempty"`
-	ResourceID   *string `json:"resource_id,omitempty"`
-	Action       *string `json:"action,omitempty"`
+	Limit        int32      `json:"limit"`
+	Offset       int32      `json:"offset"`
+	UserID       *string    `json:"user_id,omitempty"`
+	ResourceType *string    `json:"resource_type,omitempty"`
+	ResourceID   *string    `json:"resource_id,omitempty"`
+	Action       *string    `json:"action,omitempty"`
+	FromDate     *time.Time `json:"from_date,omitempty"`
+	ToDate       *time.Time `json:"to_date,omitempty"`
 }
 
 type db struct {
@@ -89,8 +91,9 @@ func (r *db) Create(ctx context.Context, event *Event) error {
 // List retrieves audit events based on the provided options
 func (r *db) List(ctx context.Context, options *ListOptions) ([]*Event, error) {
 	query := `
-		SELECT id, user_id, action, resource_type, resource_id, details, created_at
-		FROM audit_logs
+		SELECT a.id, a.user_id, u.username, a.action, a.resource_type, a.resource_id, a.details, a.created_at
+		FROM audit_logs a
+		LEFT JOIN users u ON a.user_id = u.id
 		WHERE 1=1
 	`
 	args := []interface{}{}
@@ -98,31 +101,43 @@ func (r *db) List(ctx context.Context, options *ListOptions) ([]*Event, error) {
 
 	// Apply filters
 	if options.UserID != nil {
-		query += fmt.Sprintf(" AND user_id = $%d", argIndex)
+		query += fmt.Sprintf(" AND a.user_id = $%d", argIndex)
 		args = append(args, *options.UserID)
 		argIndex++
 	}
 
 	if options.ResourceType != nil {
-		query += fmt.Sprintf(" AND resource_type = $%d", argIndex)
+		query += fmt.Sprintf(" AND a.resource_type = $%d", argIndex)
 		args = append(args, *options.ResourceType)
 		argIndex++
 	}
 
 	if options.ResourceID != nil {
-		query += fmt.Sprintf(" AND resource_id = $%d", argIndex)
+		query += fmt.Sprintf(" AND a.resource_id = $%d", argIndex)
 		args = append(args, *options.ResourceID)
 		argIndex++
 	}
 
 	if options.Action != nil {
-		query += fmt.Sprintf(" AND action = $%d", argIndex)
+		query += fmt.Sprintf(" AND a.action = $%d", argIndex)
 		args = append(args, *options.Action)
 		argIndex++
 	}
 
+	if options.FromDate != nil {
+		query += fmt.Sprintf(" AND a.created_at >= $%d", argIndex)
+		args = append(args, *options.FromDate)
+		argIndex++
+	}
+
+	if options.ToDate != nil {
+		query += fmt.Sprintf(" AND a.created_at <= $%d", argIndex)
+		args = append(args, *options.ToDate)
+		argIndex++
+	}
+
 	// Add ordering and pagination
-	query += " ORDER BY created_at DESC"
+	query += " ORDER BY a.created_at DESC"
 	query += fmt.Sprintf(" LIMIT $%d OFFSET $%d", argIndex, argIndex+1)
 	args = append(args, options.Limit, options.Offset)
 
@@ -137,10 +152,12 @@ func (r *db) List(ctx context.Context, options *ListOptions) ([]*Event, error) {
 		var event Event
 		var detailsJSON []byte
 		var userID *int64
+		var username *string
 
 		err := rows.Scan(
 			&event.ID,
 			&userID,
+			&username,
 			&event.Action,
 			&event.ResourceType,
 			&event.ResourceID,
@@ -156,6 +173,9 @@ func (r *db) List(ctx context.Context, options *ListOptions) ([]*Event, error) {
 			userIDStr := strconv.FormatInt(*userID, 10)
 			event.UserID = &userIDStr
 		}
+
+		// Set username if available
+		event.Username = username
 
 		if detailsJSON != nil {
 			if err := json.Unmarshal(detailsJSON, &event.Details); err != nil {
@@ -201,6 +221,18 @@ func (r *db) Count(ctx context.Context, options *ListOptions) (int32, error) {
 	if options.Action != nil {
 		query += fmt.Sprintf(" AND action = $%d", argIndex)
 		args = append(args, *options.Action)
+		argIndex++
+	}
+
+	if options.FromDate != nil {
+		query += fmt.Sprintf(" AND created_at >= $%d", argIndex)
+		args = append(args, *options.FromDate)
+		argIndex++
+	}
+
+	if options.ToDate != nil {
+		query += fmt.Sprintf(" AND created_at <= $%d", argIndex)
+		args = append(args, *options.ToDate)
 	}
 
 	var count int32
