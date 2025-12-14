@@ -128,11 +128,3 @@ func (h *AuditHandler) ListAuditEvents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
-
-// StreamAuditEvents handles GET /api/v1/admin/audit/events/stream for streaming audit events via SSE
-// This is a stub endpoint that will be implemented in a future iteration
-func (h *AuditHandler) StreamAuditEvents(w http.ResponseWriter, r *http.Request) {
-	// SSE streaming will be implemented in a future iteration
-	// For now, return 501 Not Implemented
-	http.Error(w, "Server-Sent Events streaming is not yet implemented", http.StatusNotImplemented)
-}

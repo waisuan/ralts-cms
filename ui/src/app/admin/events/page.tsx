@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -34,6 +34,21 @@ export default function AdminEventsPage() {
   const [resourceType, setResourceType] = useState<string>('');
   const [action, setAction] = useState<string>('');
   const [showFilters, setShowFilters] = useState(false);
+
+  // Polling state
+  const [isLive, setIsLive] = useState(false);
+  const [newEventsCount, setNewEventsCount] = useState(0);
+  const [newEventIds, setNewEventIds] = useState<Set<string>>(new Set());
+  const [pollingError, setPollingError] = useState<string | null>(null);
+  
+  // Refs for polling
+  const lastPollTimeRef = useRef<string | null>(null);
+  const consecutiveFailuresRef = useRef(0);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Polling constants
+  const POLL_INTERVAL_MS = 10000; // 10 seconds
+  const MAX_FAILURES = 3;
 
   // Build filters object
   const buildFilters = useCallback((): AuditFilters => {
@@ -105,6 +120,90 @@ export default function AdminEventsPage() {
   // Check if any filters are active
   const hasActiveFilters = dateRange.from || dateRange.to || resourceType || action;
 
+  // Poll for new events (only when on page 1 with no filters)
+  const pollForNewEvents = useCallback(async () => {
+    if (hasActiveFilters || currentPage !== 1) {
+      return; // Don't poll when filters are active or not on first page
+    }
+
+    try {
+      // Query for events since the last poll
+      const filters: AuditFilters = lastPollTimeRef.current 
+        ? { from_date: lastPollTimeRef.current } 
+        : {};
+      
+      const response = await AuditService.getEvents(50, 0, filters);
+      
+      if (response.data?.events && response.data.events.length > 0) {
+        const newEvents = response.data.events;
+        
+        // Filter out events we already have
+        setEvents(prev => {
+          const existingIds = new Set(prev.map(e => e.id));
+          const trulyNew = newEvents.filter(e => !existingIds.has(e.id));
+          
+          if (trulyNew.length === 0) return prev;
+          
+          // Track new event IDs for highlight animation
+          setNewEventIds(ids => {
+            const next = new Set(ids);
+            trulyNew.forEach(e => next.add(e.id));
+            return next;
+          });
+          
+          // Clear highlight after animation (2 seconds)
+          setTimeout(() => {
+            setNewEventIds(ids => {
+              const next = new Set(ids);
+              trulyNew.forEach(e => next.delete(e.id));
+              return next;
+            });
+          }, 2000);
+          
+          // Prepend new events, limit to pageSize
+          setTotalCount(c => c + trulyNew.length);
+          return [...trulyNew, ...prev].slice(0, pageSize);
+        });
+      }
+      
+      // Success - update state
+      lastPollTimeRef.current = new Date().toISOString();
+      consecutiveFailuresRef.current = 0;
+      setIsLive(true);
+      setPollingError(null);
+      
+    } catch (err) {
+      consecutiveFailuresRef.current++;
+      
+      if (consecutiveFailuresRef.current >= MAX_FAILURES) {
+        setIsLive(false);
+        setPollingError(`Connection lost. Please refresh the page.`);
+      }
+    }
+  }, [hasActiveFilters, currentPage, pageSize]);
+
+  // Start polling when authenticated and page is loaded
+  useEffect(() => {
+    if (!user || user.role !== USER_ROLE.ADMIN || isPageLoading) {
+      return;
+    }
+
+    // Initialize polling state
+    setIsLive(true);
+    lastPollTimeRef.current = new Date().toISOString();
+    consecutiveFailuresRef.current = 0;
+    
+    // Start polling interval
+    pollingIntervalRef.current = setInterval(pollForNewEvents, POLL_INTERVAL_MS);
+
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
+  }, [user, isPageLoading, pollForNewEvents]);
+
   useEffect(() => {
     // Wait for auth to load
     if (authLoading) return;
@@ -128,6 +227,12 @@ export default function AdminEventsPage() {
     loadEvents(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, authLoading, router]);
+
+  // Clear new events counter when loading new page or applying filters
+  const handleRefresh = () => {
+    setNewEventsCount(0);
+    loadEvents(1);
+  };
 
   // Show loading spinner while checking authentication and authorization
   if (authLoading || isPageLoading) {
@@ -209,10 +314,52 @@ export default function AdminEventsPage() {
         {/* Page Title and Description */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Event Log</h1>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold text-gray-900">Event Log</h1>
+              {/* Live indicator */}
+              {isLive ? (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  <span className="w-2 h-2 mr-1.5 bg-green-500 rounded-full animate-pulse"></span>
+                  Live
+                </span>
+              ) : (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                  <span className="w-2 h-2 mr-1.5 bg-gray-400 rounded-full"></span>
+                  Offline
+                </span>
+              )}
+              {/* New events badge */}
+              {newEventsCount > 0 && (
+                <button
+                  onClick={handleRefresh}
+                  className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 hover:bg-blue-200 transition-colors"
+                >
+                  {newEventsCount} new event{newEventsCount > 1 ? 's' : ''} - Click to refresh
+                </button>
+              )}
+            </div>
             <p className="mt-2 text-sm text-gray-600">
               View and search audit events across the system.
             </p>
+            {pollingError && (
+              <div className="mt-2 flex items-center gap-2 text-sm text-red-600">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>{pollingError}</span>
+                <button
+                  onClick={() => {
+                    consecutiveFailuresRef.current = 0;
+                    setPollingError(null);
+                    setIsLive(true);
+                    pollForNewEvents();
+                  }}
+                  className="underline hover:no-underline"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
           </div>
           <div className="flex items-center space-x-2">
             <Link
@@ -434,6 +581,7 @@ export default function AdminEventsPage() {
         onPageChange={handlePageChange}
         isLoading={isLoadingEvents}
         error={error}
+        newEventIds={newEventIds}
       />
     </div>
   );

@@ -219,17 +219,17 @@ export default function ChangePasswordModal({ isOpen, onClose }: ChangePasswordM
                 Current Password <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <input
-                  id="currentPassword"
+              <input
+                id="currentPassword"
                   type={showPasswords.current ? 'text' : 'password'}
-                  value={formData.currentPassword}
-                  onChange={(e) => handleInputChange('currentPassword', e.target.value)}
-                  disabled={isSubmitting || submitSuccess}
+                value={formData.currentPassword}
+                onChange={(e) => handleInputChange('currentPassword', e.target.value)}
+                disabled={isSubmitting || submitSuccess}
                   className={`w-full px-3 py-2 pr-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400 text-gray-900 ${
-                    errors.currentPassword ? 'border-red-500' : 'border-gray-300'
-                  } ${isSubmitting || submitSuccess ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                  placeholder="Enter your current password"
-                />
+                  errors.currentPassword ? 'border-red-500' : 'border-gray-300'
+                } ${isSubmitting || submitSuccess ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                placeholder="Enter your current password"
+              />
                 <PasswordToggleButton
                   show={showPasswords.current}
                   onClick={() => setShowPasswords((prev) => ({ ...prev, current: !prev.current }))}
@@ -249,17 +249,17 @@ export default function ChangePasswordModal({ isOpen, onClose }: ChangePasswordM
                 New Password <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <input
-                  id="newPassword"
+              <input
+                id="newPassword"
                   type={showPasswords.new ? 'text' : 'password'}
-                  value={formData.newPassword}
-                  onChange={(e) => handleInputChange('newPassword', e.target.value)}
-                  disabled={isSubmitting || submitSuccess}
+                value={formData.newPassword}
+                onChange={(e) => handleInputChange('newPassword', e.target.value)}
+                disabled={isSubmitting || submitSuccess}
                   className={`w-full px-3 py-2 pr-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400 text-gray-900 ${
-                    errors.newPassword ? 'border-red-500' : 'border-gray-300'
-                  } ${isSubmitting || submitSuccess ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                  placeholder="Enter your new password"
-                />
+                  errors.newPassword ? 'border-red-500' : 'border-gray-300'
+                } ${isSubmitting || submitSuccess ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                placeholder="Enter your new password"
+              />
                 <PasswordToggleButton
                   show={showPasswords.new}
                   onClick={() => setShowPasswords((prev) => ({ ...prev, new: !prev.new }))}
@@ -280,17 +280,17 @@ export default function ChangePasswordModal({ isOpen, onClose }: ChangePasswordM
                 Confirm New Password <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <input
-                  id="confirmPassword"
+              <input
+                id="confirmPassword"
                   type={showPasswords.confirm ? 'text' : 'password'}
-                  value={formData.confirmPassword}
-                  onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                  disabled={isSubmitting || submitSuccess}
+                value={formData.confirmPassword}
+                onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                disabled={isSubmitting || submitSuccess}
                   className={`w-full px-3 py-2 pr-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400 text-gray-900 ${
-                    errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
-                  } ${isSubmitting || submitSuccess ? 'bg-gray-100 cursor-not-allowed' : ''}`}
-                  placeholder="Confirm your new password"
-                />
+                  errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
+                } ${isSubmitting || submitSuccess ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                placeholder="Confirm your new password"
+              />
                 <PasswordToggleButton
                   show={showPasswords.confirm}
                   onClick={() => setShowPasswords((prev) => ({ ...prev, confirm: !prev.confirm }))}

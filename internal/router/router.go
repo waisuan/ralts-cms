@@ -80,7 +80,6 @@ func NewRouter(deps *deps.Dependencies) http.Handler {
 
 	// Admin audit endpoints
 	adminAPI.HandleFunc("/audit/events", handlers.NewAuditHandler(deps).ListAuditEvents).Methods(http.MethodGet)
-	adminAPI.HandleFunc("/audit/events/stream", handlers.NewAuditHandler(deps).StreamAuditEvents).Methods(http.MethodGet)
 
 	// Apply both authentication and admin middleware to admin endpoints
 	adminAPI.Use(middlewares.AuthenticationMiddleware(deps.Config.JWTSecret))

@@ -11,20 +11,22 @@ interface EventListProps {
   onPageChange: (page: number) => void;
   isLoading: boolean;
   error: string | null;
+  newEventIds?: Set<string>;
 }
 
 interface EventRowProps {
   event: AuditEvent;
   isExpanded: boolean;
   onToggleExpand: () => void;
+  isNew?: boolean;
 }
 
-function EventRow({ event, isExpanded, onToggleExpand }: EventRowProps) {
+function EventRow({ event, isExpanded, onToggleExpand, isNew }: EventRowProps) {
   const hasDetails = event.details && Object.keys(event.details).length > 0;
 
   return (
     <>
-      <tr className="hover:bg-gray-50">
+      <tr className={`hover:bg-gray-50 transition-colors duration-500 ${isNew ? 'bg-green-100' : ''}`}>
         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
           <div className="flex flex-col">
             <span className="font-medium text-gray-900">
@@ -99,7 +101,8 @@ export default function EventList({
   pageSize,
   onPageChange,
   isLoading,
-  error
+  error,
+  newEventIds = new Set(),
 }: EventListProps) {
   const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
 
@@ -188,6 +191,7 @@ export default function EventList({
                     event={event}
                     isExpanded={expandedEventId === event.id}
                     onToggleExpand={() => handleToggleExpand(event.id)}
+                    isNew={newEventIds.has(event.id)}
                   />
                 ))
               )}

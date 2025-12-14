@@ -218,18 +218,6 @@ func (suite *AuditHandlerTestSuite) TestListAuditEvents() {
 	})
 }
 
-func (suite *AuditHandlerTestSuite) TestStreamAuditEvents() {
-	suite.Run("should return 501 Not Implemented", func() {
-		req := httptest.NewRequest("GET", "/api/v1/admin/audit/events/stream", nil)
-		req = suite.addUserContext(req)
-		w := httptest.NewRecorder()
-
-		suite.handler.StreamAuditEvents(w, req)
-
-		suite.Assert().Equal(http.StatusNotImplemented, w.Code)
-	})
-}
-
 func TestAuditHandlerTestSuite(t *testing.T) {
 	suite.Run(t, new(AuditHandlerTestSuite))
 }
