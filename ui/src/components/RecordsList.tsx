@@ -446,58 +446,42 @@ export default function RecordsList({
       
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <div className="flex-1">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-            <div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-xl font-semibold text-gray-900">All Machines</h2>
-              <p className="text-sm text-gray-500 mt-1">
-                {searchOptions.query.trim() ? (
-                  <>
-                    Showing {machines.length} of {total} machine
-                    {total !== 1 ? 's' : ''}
-                    {getFilterStatusText()}
-                  </>
-                ) : (
-                  <>
-                    Showing {machines.length} of {total} machine
-                    {total !== 1 ? 's' : ''}
-                    {getFilterStatusText()}
-                  </>
-                )}
-                {loading && ' (updating...)'}
-              </p>
+              {overdueCount > 0 && (
+                <span className="bg-red-100 text-red-800 px-2.5 py-0.5 rounded-full text-xs font-medium inline-flex items-center gap-1">
+                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
+                    />
+                  </svg>
+                  {overdueCount} Overdue
+                </span>
+              )}
+              {dueCount > 0 && (
+                <span className="bg-orange-100 text-orange-800 px-2.5 py-0.5 rounded-full text-xs font-medium inline-flex items-center gap-1">
+                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  {dueCount} Due Today
+                </span>
+              )}
             </div>
-
-            {/* Overdue Statistics Badge */}
-            {overdueCount > 0 && (
-              <div className="flex items-center gap-2">
-                {overdueCount > 0 && (
-                  <div className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1">
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
-                      />
-                    </svg>
-                    {overdueCount} Overdue
-                  </div>
-                )}
-                {dueCount > 0 && (
-                  <div className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm font-medium flex items-center gap-1">
-                    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                    {dueCount} Due Today
-                  </div>
-                )}
-              </div>
-            )}
+            <p className="text-sm text-gray-500 mt-1">
+              Showing {machines.length} of {total} machine
+              {total !== 1 ? 's' : ''}
+              {getFilterStatusText()}
+              {loading && ' (updating...)'}
+            </p>
           </div>
         </div>
 

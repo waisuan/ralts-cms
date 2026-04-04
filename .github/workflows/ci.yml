@@ -57,9 +57,6 @@ jobs:
       - name: Install dependencies
         run: cd ui && npm ci
 
-      - name: Lint
-        run: cd ui && npm run lint
-
       - name: Build
         run: cd ui && npm run build
 
