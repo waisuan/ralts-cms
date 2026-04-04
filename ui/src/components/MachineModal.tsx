@@ -477,8 +477,8 @@ export default function MachineModal({
       />
 
       {/* Modal */}
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative w-full max-w-4xl bg-white rounded-lg shadow-xl">
+      <div className="flex min-h-full items-center justify-center p-0 sm:p-4">
+        <div className="relative w-full max-w-4xl bg-white sm:rounded-lg shadow-xl min-h-screen sm:min-h-0">
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <h2 className="text-xl font-semibold text-gray-900">{modalConfig.title}</h2>

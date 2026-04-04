@@ -145,4 +145,65 @@ export class MachineService {
   static async getMachineStats(): Promise<ApiResponse<unknown>> {
     return apiClient.get<unknown>(`${this.BASE_PATH}/stats`);
   }
+
+  /**
+   * Download machines as CSV
+   */
+  static async exportMachinesCSV(filters?: MachineFilters): Promise<void> {
+    const params = new URLSearchParams();
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          params.set(key, String(value));
+        }
+      });
+    }
+    const qs = params.toString();
+    const url = `${this.BASE_PATH}/export/csv${qs ? `?${qs}` : ''}`;
+    await downloadCSV(url, 'machines.csv');
+  }
+
+  /**
+   * Download maintenance records for a machine as CSV
+   */
+  static async exportMaintenanceCSV(serialNumber: string, query?: string): Promise<void> {
+    const encoded = encodeURIComponent(serialNumber);
+    const params = new URLSearchParams();
+    if (query) params.set('q', query);
+    const qs = params.toString();
+    const url = `${this.BASE_PATH}/${encoded}/maintenance/export/csv${qs ? `?${qs}` : ''}`;
+    await downloadCSV(url, `maintenance_${serialNumber}.csv`);
+  }
+}
+
+async function downloadCSV(path: string, fallbackFilename: string): Promise<void> {
+  const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
+  const token = typeof window !== 'undefined' ? localStorage.getItem('ralts_token') : null;
+
+  const resp = await fetch(`${baseURL}${path}`, {
+    headers: {
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+  });
+
+  if (!resp.ok) {
+    throw new Error(`CSV export failed: ${resp.status}`);
+  }
+
+  const blob = await resp.blob();
+  const disposition = resp.headers.get('Content-Disposition');
+  let filename = fallbackFilename;
+  if (disposition) {
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    if (match) filename = match[1];
+  }
+
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
 } 

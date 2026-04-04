@@ -1,14 +1,16 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Machine } from '../types/machine';
-import { MachineFilters } from '../services/machineService';
+import { MachineFilters, MachineService } from '../services/machineService';
 import { useMachines } from '../hooks/useMachines';
 import { useMachine } from '../hooks/useMachine';
 import { SearchOptions } from './SearchBar';
 import { isDateProperty } from '../utils/constants';
+import { useIsMobile } from '../hooks/useMediaQuery';
 import RecordCard from './RecordCard';
+import RecordsTable from './RecordsTable';
 import MachineModal from './MachineModal';
 import FullPageLoader from './FullPageLoader';
 import LoadingOverlay from './LoadingOverlay';
@@ -27,7 +29,37 @@ interface RecordsListProps {
   onSearchLoadingChange?: (loading: boolean) => void;
 }
 
-const ITEMS_PER_PAGE = 12; // Show 12 machines per page
+type ViewMode = 'table' | 'cards';
+const VIEW_MODE_STORAGE_KEY = 'ralts-view-mode';
+const ITEMS_PER_PAGE_CARDS = 12;
+const ITEMS_PER_PAGE_TABLE = 20;
+
+function loadViewMode(): ViewMode {
+  if (typeof window === 'undefined') return 'table';
+  try {
+    const stored = localStorage.getItem(VIEW_MODE_STORAGE_KEY);
+    if (stored === 'table' || stored === 'cards') return stored;
+  } catch { /* use default */ }
+  return 'table';
+}
+
+const SORT_TYPE_TO_API: Record<SortType, string> = {
+  newest: 'updated_at_desc',
+  oldest: 'updated_at_asc',
+  ppm_date_asc: 'ppm_date_asc',
+  ppm_date_desc: 'ppm_date_desc',
+  tnc_date_asc: 'tnc_date_asc',
+  tnc_date_desc: 'tnc_date_desc',
+};
+
+const API_TO_SORT_TYPE: Record<string, SortType> = {
+  updated_at_desc: 'newest',
+  updated_at_asc: 'oldest',
+  ppm_date_asc: 'ppm_date_asc',
+  ppm_date_desc: 'ppm_date_desc',
+  tnc_date_asc: 'tnc_date_asc',
+  tnc_date_desc: 'tnc_date_desc',
+};
 
 export default function RecordsList({
   searchOptions,
@@ -39,6 +71,9 @@ export default function RecordsList({
   onSearchLoadingChange,
 }: RecordsListProps) {
   const router = useRouter();
+  const isMobile = useIsMobile();
+  const [viewMode, setViewMode] = useState<ViewMode>(loadViewMode);
+  const effectiveViewMode = isMobile ? 'cards' : viewMode;
   const [isMachineModalOpen, setIsMachineModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -111,7 +146,8 @@ export default function RecordsList({
     return filters;
   }, [filterType, sortBy, searchOptions, ppmDateRange, tncDateRange]);
 
-  // Use the machines API hook with server-side pagination and debounced search
+  const itemsPerPage = effectiveViewMode === 'table' ? ITEMS_PER_PAGE_TABLE : ITEMS_PER_PAGE_CARDS;
+
   const {
     machines,
     total,
@@ -121,11 +157,13 @@ export default function RecordsList({
     error,
     refetch,
     loadMore,
+    goToPage,
+    setLimit,
     overdueCount,
     dueCount,
   } = useMachines({
     page: 1,
-    limit: ITEMS_PER_PAGE,
+    limit: itemsPerPage,
     filters: apiFilters,
     autoFetch: true,
   });
@@ -278,6 +316,38 @@ export default function RecordsList({
     }
   };
 
+  const [csvExporting, setCsvExporting] = useState(false);
+
+  const handleExportCSV = useCallback(async () => {
+    setCsvExporting(true);
+    try {
+      await MachineService.exportMachinesCSV(apiFilters);
+    } catch (err) {
+      console.error('CSV export failed:', err);
+      alert('Failed to export CSV. Please try again.');
+    } finally {
+      setCsvExporting(false);
+    }
+  }, [apiFilters]);
+
+  const handleViewModeChange = useCallback((mode: ViewMode) => {
+    setViewMode(mode);
+    try { localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode); } catch { /* ignore */ }
+  }, []);
+
+  const handleTableSortChange = useCallback((apiSort: string) => {
+    const mapped = API_TO_SORT_TYPE[apiSort];
+    if (mapped && onSortChange) onSortChange(mapped);
+  }, [onSortChange]);
+
+  const handleTablePageChange = useCallback((page: number) => {
+    goToPage(page);
+  }, [goToPage]);
+
+  const handleTablePageSizeChange = useCallback((size: number) => {
+    setLimit(size);
+  }, [setLimit]);
+
   const getFilterStatusText = () => {
     if (filterType === 'overdue') return ' (overdue only)';
     if (filterType === 'due') return ' (due today only)';
@@ -374,9 +444,9 @@ export default function RecordsList({
         }
       />
       
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <div className="flex-1">
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
             <div>
               <h2 className="text-xl font-semibold text-gray-900">All Machines</h2>
               <p className="text-sm text-gray-500 mt-1">
@@ -431,7 +501,7 @@ export default function RecordsList({
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {/* Date Filters Toggle Button */}
           <button
             onClick={() => setShowDateFilters(!showDateFilters)}
@@ -473,6 +543,55 @@ export default function RecordsList({
                 <option value="tnc_date_asc">TNC Date (Earliest)</option>
                 <option value="tnc_date_desc">TNC Date (Latest)</option>
               </select>
+            </div>
+          )}
+
+          {/* CSV Export Button */}
+          <button
+            onClick={handleExportCSV}
+            disabled={csvExporting || loading}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Export machines to CSV"
+          >
+            {csvExporting ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600" />
+            ) : (
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            )}
+            <span className="hidden sm:inline">CSV</span>
+          </button>
+
+          {/* View Mode Toggle (hidden on mobile) */}
+          {!isMobile && (
+            <div className="hidden md:flex items-center border border-gray-300 rounded-lg overflow-hidden">
+              <button
+                onClick={() => handleViewModeChange('table')}
+                className={`p-2 transition-colors ${
+                  effectiveViewMode === 'table'
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'bg-white text-gray-500 hover:bg-gray-50'
+                }`}
+                title="Table view"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18M3 6h18M3 18h18" />
+                </svg>
+              </button>
+              <button
+                onClick={() => handleViewModeChange('cards')}
+                className={`p-2 transition-colors border-l border-gray-300 ${
+                  effectiveViewMode === 'cards'
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'bg-white text-gray-500 hover:bg-gray-50'
+                }`}
+                title="Card view"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+              </button>
             </div>
           )}
 
@@ -579,44 +698,63 @@ export default function RecordsList({
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredMachines.map((machine) => (
-          <RecordCard
-            key={machine.serial_number}
-            machine={machine}
-            onView={handleView}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-          />
-        ))}
-      </div>
+      {effectiveViewMode === 'table' ? (
+        <RecordsTable
+          machines={filteredMachines}
+          total={total}
+          offset={offset}
+          limit={limit}
+          loading={loading}
+          sortBy={SORT_TYPE_TO_API[sortBy] || 'updated_at_desc'}
+          onSortChange={handleTableSortChange}
+          onPageChange={handleTablePageChange}
+          onPageSizeChange={handleTablePageSizeChange}
+          onView={handleView}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredMachines.map((machine) => (
+              <RecordCard
+                key={machine.serial_number}
+                machine={machine}
+                onView={handleView}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+              />
+            ))}
+          </div>
 
-      {/* Load More Button */}
-      {offset + limit < total && (
-        <div className="flex justify-center pt-4">
-          <button
-            onClick={handleLoadMore}
-            disabled={loading}
-            className="bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-400 text-gray-700 px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
-          >
-            {loading ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
-                Loading...
-              </>
-            ) : (
-              `Load More (${total - (offset + limit)} remaining)`
-            )}
-          </button>
-        </div>
-      )}
+          {/* Load More Button */}
+          {offset + limit < total && (
+            <div className="flex justify-center pt-4">
+              <button
+                onClick={handleLoadMore}
+                disabled={loading}
+                className="bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-400 text-gray-700 px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
+              >
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
+                    Loading...
+                  </>
+                ) : (
+                  `Load More (${total - (offset + limit)} remaining)`
+                )}
+              </button>
+            </div>
+          )}
 
-      {filteredMachines.length === 0 && (
-        <div className="text-center py-12">
-          <div className="text-gray-400 text-6xl mb-4">📄</div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">{emptyState.title}</h3>
-          <p className="text-gray-500">{emptyState.subtitle}</p>
-        </div>
+          {filteredMachines.length === 0 && (
+            <div className="text-center py-12">
+              <div className="text-gray-400 text-6xl mb-4">📄</div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">{emptyState.title}</h3>
+              <p className="text-gray-500">{emptyState.subtitle}</p>
+            </div>
+          )}
+        </>
       )}
 
       {/* Machine Modal (Add/Edit) */}

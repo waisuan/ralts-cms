@@ -26,8 +26,9 @@ export interface UseMachinesReturn {
   refetch: () => Promise<void>;
   setLimit: (limit: number) => void;
   setFilters: (filters: MachineFilters) => void;
-  loadMore: () => Promise<void>; // Load next page and append to existing machines
-  reset: () => void; // Reset to initial state
+  loadMore: () => Promise<void>;
+  goToPage: (page: number) => Promise<void>;
+  reset: () => void;
 }
 
 export function useMachines(options: UseMachinesOptions = {}): UseMachinesReturn {
@@ -165,6 +166,11 @@ export function useMachines(options: UseMachinesOptions = {}): UseMachinesReturn
     }
   }, [fetchMachines, total]);
 
+  const goToPage = useCallback(async (page: number) => {
+    const targetOffset = page * limitRef.current;
+    await fetchMachines(targetOffset, false);
+  }, [fetchMachines]);
+
   const reset = useCallback(() => {
     setMachines([]);
     setTotal(0);
@@ -180,9 +186,10 @@ export function useMachines(options: UseMachinesOptions = {}): UseMachinesReturn
 
   const handleSetLimit = useCallback((newLimit: number) => {
     setLimit(newLimit);
-    setOffset(0); // Reset to first page when changing limit
-    setMachines([]); // Clear machines when changing limit
-  }, []);
+    setOffset(0);
+    limitRef.current = newLimit;
+    fetchMachines(0, false);
+  }, [fetchMachines]);
 
   const handleSetFilters = useCallback((newFilters: MachineFilters) => {
     setFilters(newFilters);
@@ -204,6 +211,7 @@ export function useMachines(options: UseMachinesOptions = {}): UseMachinesReturn
     setLimit: handleSetLimit,
     setFilters: handleSetFilters,
     loadMore,
+    goToPage,
     reset,
   };
 } 

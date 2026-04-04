@@ -2,7 +2,7 @@
 	db-dev-up db-dev-down db-test-up db-test-down db-clean \
 	test-with-db dev-with-db db-status db-logs \
 	migrate-dev migrate-test migrate-up migrate-down lint \
-	server client
+	server client ui-dev
 
 generate:
 	go generate ./...
@@ -28,6 +28,14 @@ server:
 
 client:
 	cd ui/ && npm run dev
+
+# Install UI deps if missing, then start Next dev server
+ui-dev:
+	@if [ ! -d ui/node_modules ]; then \
+		echo "Installing UI dependencies..."; \
+		cd ui && npm install; \
+	fi
+	cd ui && npm run dev
 
 test:
 	APP_ENV=test go test ./...

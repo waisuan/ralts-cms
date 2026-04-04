@@ -57,8 +57,6 @@ export class MaintenanceService {
       offset: calculatedOffset.toString(),
     };
 
-
-
     // Add filters to query parameters
     if (filters) {
       Object.entries(filters).forEach(([key, value]) => {
@@ -76,24 +74,10 @@ export class MaintenanceService {
       });
     }
 
-    console.log('🔧 API: GET /api/v1/machines/:serial_number/maintenance', { 
-      serialNumber: machineSerialNumber, 
-      params 
-    });
     const response = await apiClient.get<MaintenanceListResponse>(
       `${this.BASE_PATH}/${encodedSerialNumber}/maintenance`,
       params
     );
-    console.log('🔧 API: GET /api/v1/machines/:serial_number/maintenance response', { 
-      maintenanceCount: response.data?.maintenance?.length || 0,
-      totalCount: response.data?.count || 0,
-      preventativeCount: response.data?.preventative_count || 0,
-      correctiveCount: response.data?.corrective_count || 0,
-      emergencyCount: response.data?.emergency_count || 0,
-      inspectionCount: response.data?.inspection_count || 0
-    });
-
-
 
     return response;
   }

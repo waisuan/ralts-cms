@@ -17,6 +17,7 @@ const (
 	ActionLogin           = "login"
 	ActionLogout          = "logout"
 	ActionPasswordChanged = "password_changed"
+	ActionExported        = "exported"
 )
 
 // Resource type constants define the types of resources that can be audited

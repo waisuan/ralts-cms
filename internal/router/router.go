@@ -38,12 +38,18 @@ func NewRouter(deps *deps.Dependencies) http.Handler {
 	// Subrouter for protected endpoints
 	api := r.PathPrefix("/api/v1/").Subrouter()
 
+	// CSV export endpoints (protected) — registered before parameterized routes
+	api.HandleFunc("/machines/export/csv", handlers.NewCSVExportHandler(deps).ExportMachinesCSV).Methods(http.MethodGet)
+
 	// Machine endpoints (protected)
 	api.HandleFunc("/machines", handlers.NewMachinesHandler(deps).ListMachines).Methods(http.MethodGet)
 	api.HandleFunc("/machines/{serial_number}", handlers.NewMachinesHandler(deps).GetMachine).Methods(http.MethodGet)
 	api.HandleFunc("/machines", handlers.NewMachinesHandler(deps).CreateMachine).Methods(http.MethodPost)
 	api.HandleFunc("/machines/{serial_number}", handlers.NewMachinesHandler(deps).UpdateMachine).Methods(http.MethodPut)
 	api.HandleFunc("/machines/{serial_number}", handlers.NewMachinesHandler(deps).DeleteMachine).Methods(http.MethodDelete)
+
+	// Maintenance CSV export (protected) — registered before parameterized routes
+	api.HandleFunc("/machines/{serial_number}/maintenance/export/csv", handlers.NewCSVExportHandler(deps).ExportMaintenanceCSV).Methods(http.MethodGet)
 
 	// Maintenance endpoints (protected)
 	api.HandleFunc("/machines/{serial_number}/maintenance", handlers.NewMaintenanceHandler(deps).ListMaintenance).Methods(http.MethodGet)

@@ -20,8 +20,10 @@ make run          # API → http://localhost:8080
 Web UI (separate terminal):
 
 ```bash
-cd ui && npm install && npm run dev
+make ui-dev
 ```
+
+(`make client` runs only `npm run dev` in `ui/` — use that after dependencies are installed.)
 
 The UI calls the API at `http://localhost:8080` by default. Override with `NEXT_PUBLIC_API_BASE_URL` if needed.
 
@@ -43,7 +45,8 @@ make test-with-db
 | Target | What it does |
 |--------|----------------|
 | `make run` / `make server` | Start API (`APP_ENV=development`) |
-| `make client` | `npm run dev` in `ui/` |
+| `make ui-dev` | `npm install` in `ui/` if needed, then `npm run dev` |
+| `make client` | `npm run dev` in `ui/` only |
 | `make dev-with-db` | Wait for dev DB, then `make run` |
 | `make db-dev-up` / `db-dev-down` | Dev Postgres only |
 | `make migrate-up` / `make migrate-down` | Migrations on dev + test DBs |

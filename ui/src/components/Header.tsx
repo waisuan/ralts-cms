@@ -9,7 +9,7 @@ export default function Header() {
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
             <h1 className="text-xl font-semibold text-gray-900">Ralts CMS</h1>
-            <span className="ml-2 text-sm text-gray-500">Content Management System</span>
+            <span className="ml-2 text-sm text-gray-500 hidden sm:inline">Content Management System</span>
           </div>
 
           <div className="flex items-center space-x-4">
