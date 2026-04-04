@@ -490,7 +490,7 @@ export default function MaintenanceTable({
           <tbody className="divide-y divide-gray-200">
             {loading && records.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="px-6 py-12 text-center">
+                <td colSpan={table.getVisibleLeafColumns().length} className="px-6 py-12 text-center">
                   <div className="flex items-center justify-center gap-2">
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600" />
                     <span className="text-gray-600">Loading maintenance records...</span>
@@ -499,7 +499,7 @@ export default function MaintenanceTable({
               </tr>
             ) : records.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="px-6 py-12 text-center text-gray-500">
+                <td colSpan={table.getVisibleLeafColumns().length} className="px-6 py-12 text-center text-gray-500">
                   No maintenance records found.
                 </td>
               </tr>
@@ -511,7 +511,7 @@ export default function MaintenanceTable({
                     onClick={() => row.toggleExpanded()}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-3 py-2.5 text-sm">
+                      <td key={cell.id} className="px-3 py-2.5 text-sm min-w-0">
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>
                     ))}
