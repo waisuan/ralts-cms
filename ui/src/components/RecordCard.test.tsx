@@ -32,7 +32,7 @@ describe('RecordCard', () => {
   beforeEach(() => {
     // Mock the current date for consistent testing
     jest.useFakeTimers();
-    jest.setSystemTime(new Date(MOCK_CURRENT_DATE));
+    jest.setSystemTime(new Date(MOCK_CURRENT_DATE).getTime());
   });
 
   afterEach(() => {
