@@ -1,11 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import RecordCard from './RecordCard';
 import { Machine } from '../types/machine';
-
-// No longer need to mock maintenance data since we're using server-driven counts
-
-// Mock the current date for consistent testing
-const MOCK_CURRENT_DATE = '2024-06-29T12:00:00.000Z';
 
 describe('RecordCard', () => {
   const baseMachine: Machine = {
@@ -23,84 +18,112 @@ describe('RecordCard', () => {
     attachment: 'test_file.pdf',
     ppm_status: 'overdue',
     tnc_date: '2024-07-01',
-    ppm_date: '2024-06-24', // Overdue date for testing
+    ppm_date: '2024-06-24',
     created_at: '2024-01-01',
     updated_at: '2024-06-01',
-    maintenance_count: 2, // Server-driven maintenance count
+    maintenance_count: 2,
   };
 
+  const mockOnView = jest.fn();
+  const mockOnEdit = jest.fn();
+  const mockOnDelete = jest.fn();
+
   beforeEach(() => {
-    // Mock the current date for consistent testing
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date(MOCK_CURRENT_DATE).getTime());
+    jest.clearAllMocks();
   });
 
-  afterEach(() => {
-    jest.useRealTimers();
-  });
-
-  it('renders machine card with all basic information and functionality', () => {
+  it('renders collapsed card with key fields visible', () => {
     render(
-      <RecordCard machine={baseMachine} onView={() => {}} onEdit={() => {}} onDelete={() => {}} />
+      <RecordCard machine={baseMachine} onView={mockOnView} onEdit={mockOnEdit} onDelete={mockOnDelete} />
     );
 
-    // Check that basic machine information is displayed
-    expect(
-      screen.getAllByText((content, element) => {
-        return Boolean(element?.textContent?.includes('TestModel'));
-      }).length
-    ).toBeGreaterThan(0);
     expect(screen.getByText('SN-TEST')).toBeInTheDocument();
-    expect(screen.getByText('TestBrand · TestDistrict, CA')).toBeInTheDocument();
-    expect(screen.getByText('Test Customer')).toBeInTheDocument();
+    expect(screen.getByText('(TestModel)')).toBeInTheDocument();
+    expect(screen.getByText('Overdue')).toBeInTheDocument();
 
-    // Check that account type and status are displayed
-    expect(screen.getByText('Account Type:')).toBeInTheDocument();
-    expect(screen.getByText('Premium')).toBeInTheDocument();
-    expect(screen.getByText('Status:')).toBeInTheDocument();
-    expect(screen.getByText('Active')).toBeInTheDocument();
+    expect(screen.getAllByText((_, el) => Boolean(el?.textContent?.includes('Test Customer'))).length).toBeGreaterThan(0);
+    expect(screen.getAllByText((_, el) => Boolean(el?.textContent?.includes('CA'))).length).toBeGreaterThan(0);
 
-    // Check that reported by information is displayed
-    expect(screen.getByText('Reported By:')).toBeInTheDocument();
-    expect(screen.getByText('Test Reporter')).toBeInTheDocument();
+    expect(screen.getAllByText((_, el) => Boolean(el?.textContent?.includes('TNC:'))).length).toBeGreaterThan(0);
+    expect(screen.getAllByText((_, el) => Boolean(el?.textContent?.includes('PPM:'))).length).toBeGreaterThan(0);
+  });
 
-    // Check that action buttons are present
+  it('hides detail fields and action buttons when collapsed', () => {
+    render(
+      <RecordCard machine={baseMachine} onView={mockOnView} onEdit={mockOnEdit} onDelete={mockOnDelete} />
+    );
+
+    expect(screen.queryByText('View')).not.toBeInTheDocument();
+    expect(screen.queryByText('Edit')).not.toBeInTheDocument();
+    expect(screen.queryByText('Delete')).not.toBeInTheDocument();
+    expect(screen.queryByText('Brand')).not.toBeInTheDocument();
+  });
+
+  it('shows detail fields and action buttons when expanded', () => {
+    render(
+      <RecordCard machine={baseMachine} onView={mockOnView} onEdit={mockOnEdit} onDelete={mockOnDelete} />
+    );
+
+    const toggle = screen.getByRole('button', { expanded: false });
+    fireEvent.click(toggle);
+
     expect(screen.getByText('View')).toBeInTheDocument();
     expect(screen.getByText('Edit')).toBeInTheDocument();
     expect(screen.getByText('Delete')).toBeInTheDocument();
-
-    // Check that status badge is displayed (Overdue in this case)
-    expect(screen.getByText('Overdue')).toBeInTheDocument();
-
-    // Check that maintenance count badge is displayed
-    expect(screen.getByTitle('2 maintenance records available')).toBeInTheDocument();
-    expect(screen.getByText('2')).toBeInTheDocument();
-
-    // Check that attachment and notes icons are present
-    expect(screen.getByTitle('Download attachment')).toBeInTheDocument();
-    expect(screen.getByTitle('View additional notes')).toBeInTheDocument();
+    expect(screen.getByText('TestBrand')).toBeInTheDocument();
+    expect(screen.getByText('TestDistrict')).toBeInTheDocument();
+    expect(screen.getByText('Active')).toBeInTheDocument();
+    expect(screen.getByText('Premium')).toBeInTheDocument();
+    expect(screen.getByText('Test Person')).toBeInTheDocument();
+    expect(screen.getByText('Test Reporter')).toBeInTheDocument();
+    expect(screen.getByText('Test notes for the machine')).toBeInTheDocument();
+    expect(screen.getByText('test_file.pdf')).toBeInTheDocument();
   });
 
-  it('displays maintenance count badge with server-driven value', () => {
+  it('omits model when not present', () => {
+    const machineNoModel = { ...baseMachine, model: '' };
     render(
-      <RecordCard machine={baseMachine} onView={() => {}} onEdit={() => {}} onDelete={() => {}} />
+      <RecordCard machine={machineNoModel} onView={mockOnView} onEdit={mockOnEdit} onDelete={mockOnDelete} />
     );
 
-    // Check that maintenance count badge is displayed with server-driven value
-    expect(screen.getByTitle('2 maintenance records available')).toBeInTheDocument();
-    expect(screen.getByText('2')).toBeInTheDocument();
+    expect(screen.getByText('SN-TEST')).toBeInTheDocument();
+    expect(screen.queryByText('()')).not.toBeInTheDocument();
   });
 
-  it('displays zero maintenance count when maintenance_count is not provided', () => {
-    const machineWithoutMaintenanceCount = { ...baseMachine };
-    delete machineWithoutMaintenanceCount.maintenance_count;
-
+  it('calls action handlers with correct serial number', () => {
     render(
-      <RecordCard machine={machineWithoutMaintenanceCount} onView={() => {}} onEdit={() => {}} onDelete={() => {}} />
+      <RecordCard machine={baseMachine} onView={mockOnView} onEdit={mockOnEdit} onDelete={mockOnDelete} />
     );
 
-    // Check that maintenance count badge shows 0 when not provided
-    expect(screen.getByTitle('0 maintenance records available')).toBeInTheDocument();
-    expect(screen.getByText('0')).toBeInTheDocument();
+    const toggle = screen.getByRole('button', { expanded: false });
+    fireEvent.click(toggle);
+
+    fireEvent.click(screen.getByText('View'));
+    expect(mockOnView).toHaveBeenCalledWith('SN-TEST');
+
+    fireEvent.click(screen.getByText('Edit'));
+    expect(mockOnEdit).toHaveBeenCalledWith('SN-TEST');
+
+    fireEvent.click(screen.getByText('Delete'));
+    expect(mockOnDelete).toHaveBeenCalledWith('SN-TEST');
+  });
+
+  it('displays PPM status badges correctly', () => {
+    const { rerender } = render(
+      <RecordCard machine={{ ...baseMachine, ppm_status: 'due' }} onView={mockOnView} onEdit={mockOnEdit} onDelete={mockOnDelete} />
+    );
+    expect(screen.getByText('Due')).toBeInTheDocument();
+
+    rerender(
+      <RecordCard machine={{ ...baseMachine, ppm_status: 'almost_due' }} onView={mockOnView} onEdit={mockOnEdit} onDelete={mockOnDelete} />
+    );
+    expect(screen.getByText('Upcoming')).toBeInTheDocument();
+
+    rerender(
+      <RecordCard machine={{ ...baseMachine, ppm_status: '' }} onView={mockOnView} onEdit={mockOnEdit} onDelete={mockOnDelete} />
+    );
+    expect(screen.queryByText('Overdue')).not.toBeInTheDocument();
+    expect(screen.queryByText('Due')).not.toBeInTheDocument();
+    expect(screen.queryByText('Upcoming')).not.toBeInTheDocument();
   });
 });

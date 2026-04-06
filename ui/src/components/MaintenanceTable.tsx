@@ -16,6 +16,7 @@ import { Maintenance } from '../types/maintenance';
 import { AttachmentService } from '../services/attachmentService';
 import { isAuthError } from '../utils/auth';
 import { handleApiError } from '../utils/api';
+import { formatDate, formatDateTime, getTypeColor } from '../utils/formatters';
 
 interface MaintenanceTableProps {
   machineSerialNumber: string;
@@ -46,40 +47,6 @@ const REVERSE_SORT_MAP: Record<string, Record<string, string>> = {
   work_order_date: { true: 'work_order_date_desc', false: 'work_order_date_asc' },
 };
 
-function formatDate(dateString: string): string {
-  if (!dateString) return '-';
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
-
-function formatDateTime(dateString: string): string {
-  if (!dateString) return '-';
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
-
-function getTypeColor(type: string): string {
-  switch (type) {
-    case 'Preventive':
-      return 'bg-green-100 text-green-800';
-    case 'Corrective':
-      return 'bg-blue-100 text-blue-800';
-    case 'Emergency':
-      return 'bg-red-100 text-red-800';
-    case 'Inspection':
-      return 'bg-purple-100 text-purple-800';
-    default:
-      return 'bg-gray-100 text-gray-800';
-  }
-}
 
 function MaintenanceAttachmentLink({
   machineSerialNumber,
@@ -546,7 +513,7 @@ export default function MaintenanceTable({
               aria-label="Rows per page"
               className="border border-gray-300 rounded px-2 py-1 text-sm bg-white"
             >
-              {[10, 20, 50, 100].map((size) => (
+              {[50, 100].map((size) => (
                 <option key={size} value={size}>
                   {size} / page
                 </option>

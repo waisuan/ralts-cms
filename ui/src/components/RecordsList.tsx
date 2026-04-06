@@ -31,8 +31,7 @@ interface RecordsListProps {
 
 type ViewMode = 'table' | 'cards';
 const VIEW_MODE_STORAGE_KEY = 'ralts-view-mode';
-const ITEMS_PER_PAGE_CARDS = 12;
-const ITEMS_PER_PAGE_TABLE = 20;
+const ITEMS_PER_PAGE_TABLE = 50;
 
 function loadViewMode(): ViewMode {
   if (typeof window === 'undefined') return 'table';
@@ -61,6 +60,15 @@ const API_TO_SORT_TYPE: Record<string, SortType> = {
   tnc_date_desc: 'tnc_date_desc',
 };
 
+const SORT_OPTIONS: ReadonlyArray<{ value: SortType; label: string }> = [
+  { value: 'newest', label: 'Newest First' },
+  { value: 'oldest', label: 'Oldest First' },
+  { value: 'ppm_date_asc', label: 'PPM Date (Earliest)' },
+  { value: 'ppm_date_desc', label: 'PPM Date (Latest)' },
+  { value: 'tnc_date_asc', label: 'TNC Date (Earliest)' },
+  { value: 'tnc_date_desc', label: 'TNC Date (Latest)' },
+];
+
 export default function RecordsList({
   searchOptions,
   filterType = 'all',
@@ -86,6 +94,7 @@ export default function RecordsList({
   const [ppmDateRange, setPpmDateRange] = useState<DateRangeValue>({ from: undefined, to: undefined });
   const [tncDateRange, setTncDateRange] = useState<DateRangeValue>({ from: undefined, to: undefined });
   const [showDateFilters, setShowDateFilters] = useState(false);
+  const [showMobileSortMenu, setShowMobileSortMenu] = useState(false);
 
   // CRUD operation loading states
   const [isDeletingMachine, setIsDeletingMachine] = useState(false);
@@ -146,8 +155,6 @@ export default function RecordsList({
     return filters;
   }, [filterType, sortBy, searchOptions, ppmDateRange, tncDateRange]);
 
-  const itemsPerPage = effectiveViewMode === 'table' ? ITEMS_PER_PAGE_TABLE : ITEMS_PER_PAGE_CARDS;
-
   const {
     machines,
     total,
@@ -163,7 +170,7 @@ export default function RecordsList({
     dueCount,
   } = useMachines({
     page: 1,
-    limit: itemsPerPage,
+    limit: ITEMS_PER_PAGE_TABLE,
     filters: apiFilters,
     autoFetch: true,
   });
@@ -189,12 +196,7 @@ export default function RecordsList({
     }
   }, [loading, onSearchLoadingChange]);
 
-
-
-  // Use machines directly from API (server-side search is now handled by the backend)
   const filteredMachines = machines;
-
-
 
   const handleLoadMore = async () => {
     await loadMore();
@@ -444,49 +446,108 @@ export default function RecordsList({
         }
       />
       
-      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-        <div className="flex-1">
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="text-xl font-semibold text-gray-900">All Machines</h2>
-              {overdueCount > 0 && (
-                <span className="bg-red-100 text-red-800 px-2.5 py-0.5 rounded-full text-xs font-medium inline-flex items-center gap-1">
-                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
-                    />
+      {/* Mobile header */}
+      <div className="md:hidden">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-gray-900">Machines</h2>
+          <div className="flex items-center gap-2">
+            {/* Show All button when filtering */}
+            {(filterType === 'overdue' || filterType === 'due') && onShowAll && (
+              <button
+                onClick={onShowAll}
+                className="p-2 border border-gray-300 rounded-lg bg-white text-gray-700 hover:bg-gray-50 transition-colors"
+                aria-label="Show all machines"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+            )}
+            {/* Sort */}
+            {onSortChange && (
+              <div className="relative">
+                <button
+                  onClick={() => setShowMobileSortMenu((prev) => !prev)}
+                  className={`p-2 border rounded-lg transition-colors ${
+                    showMobileSortMenu ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                  }`}
+                  aria-label="Sort machines"
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
                   </svg>
-                  {overdueCount} Overdue
-                </span>
-              )}
-              {dueCount > 0 && (
-                <span className="bg-orange-100 text-orange-800 px-2.5 py-0.5 rounded-full text-xs font-medium inline-flex items-center gap-1">
-                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  {dueCount} Due Today
-                </span>
-              )}
-            </div>
-            <p className="text-sm text-gray-500 mt-1">
-              Showing {machines.length} of {total} machine
-              {total !== 1 ? 's' : ''}
-              {getFilterStatusText()}
-              {loading && ' (updating...)'}
-            </p>
+                </button>
+                {showMobileSortMenu && (
+                  <>
+                    <div className="fixed inset-0 z-10" onClick={() => setShowMobileSortMenu(false)} />
+                    <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-300 rounded-lg shadow-lg z-20">
+                      {SORT_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.value}
+                          onClick={() => { onSortChange(opt.value); setShowMobileSortMenu(false); }}
+                          className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                            sortBy === opt.value ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            {/* Add */}
+            <button
+              onClick={handleOpenAddModal}
+              className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg transition-colors"
+              aria-label="Add New Machine"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            </button>
           </div>
         </div>
+        <p className="text-xs text-gray-500 mt-1">
+          {machines.length}/{total}
+          {overdueCount > 0 && <span className="text-red-600"> · {overdueCount} overdue</span>}
+          {dueCount > 0 && <span className="text-orange-600"> · {dueCount} due</span>}
+          {getFilterStatusText()}
+          {loading && ' · updating...'}
+        </p>
+      </div>
 
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          {/* Date Filters Toggle Button */}
+      {/* Desktop header */}
+      <div className="hidden md:flex md:justify-between md:items-center gap-4">
+        <div className="flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2 className="text-xl font-semibold text-gray-900">Machines</h2>
+            {overdueCount > 0 && (
+              <span className="bg-red-100 text-red-800 px-2.5 py-0.5 rounded-full text-xs font-medium inline-flex items-center gap-1">
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                {overdueCount} Overdue
+              </span>
+            )}
+            {dueCount > 0 && (
+              <span className="bg-orange-100 text-orange-800 px-2.5 py-0.5 rounded-full text-xs font-medium inline-flex items-center gap-1">
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {dueCount} Due Today
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-gray-500 mt-1">
+            Showing {machines.length} of {total} machine{total !== 1 ? 's' : ''}
+            {getFilterStatusText()}
+            {loading && ' (updating...)'}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => setShowDateFilters(!showDateFilters)}
             className={`flex items-center gap-2 px-3 py-2 rounded-lg font-medium transition-colors text-sm border ${
@@ -496,12 +557,7 @@ export default function RecordsList({
             }`}
           >
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
-              />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
             </svg>
             Date Filters
             {(ppmDateRange.from || tncDateRange.from) && (
@@ -511,7 +567,6 @@ export default function RecordsList({
             )}
           </button>
 
-          {/* Sort By Dropdown */}
           {onSortChange && (
             <div className="flex items-center gap-2">
               <label className="text-sm font-medium text-gray-700">Sort By:</label>
@@ -520,20 +575,16 @@ export default function RecordsList({
                 onChange={(e) => onSortChange(e.target.value as SortType)}
                 className="border border-gray-300 rounded-lg px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
               >
-                <option value="newest">Newest First</option>
-                <option value="oldest">Oldest First</option>
-                <option value="ppm_date_asc">PPM Date (Earliest)</option>
-                <option value="ppm_date_desc">PPM Date (Latest)</option>
-                <option value="tnc_date_asc">TNC Date (Earliest)</option>
-                <option value="tnc_date_desc">TNC Date (Latest)</option>
+                {SORT_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
               </select>
             </div>
           )}
 
-          {/* CSV Export Button */}
           <button
             onClick={handleExportCSV}
-            disabled={csvExporting || loading}
+            disabled={csvExporting || loading || total === 0}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="Export machines to CSV"
           >
@@ -544,54 +595,41 @@ export default function RecordsList({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             )}
-            <span className="hidden sm:inline">CSV</span>
+            CSV
           </button>
 
-          {/* View Mode Toggle (hidden on mobile) */}
-          {!isMobile && (
-            <div className="hidden md:flex items-center border border-gray-300 rounded-lg overflow-hidden">
-              <button
-                onClick={() => handleViewModeChange('table')}
-                className={`p-2 transition-colors ${
-                  effectiveViewMode === 'table'
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'bg-white text-gray-500 hover:bg-gray-50'
-                }`}
-                title="Table view"
-              >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18M3 6h18M3 18h18" />
-                </svg>
-              </button>
-              <button
-                onClick={() => handleViewModeChange('cards')}
-                className={`p-2 transition-colors border-l border-gray-300 ${
-                  effectiveViewMode === 'cards'
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'bg-white text-gray-500 hover:bg-gray-50'
-                }`}
-                title="Card view"
-              >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                </svg>
-              </button>
-            </div>
-          )}
+          <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
+            <button
+              onClick={() => handleViewModeChange('table')}
+              className={`p-2 transition-colors ${
+                effectiveViewMode === 'table' ? 'bg-blue-50 text-blue-700' : 'bg-white text-gray-500 hover:bg-gray-50'
+              }`}
+              title="Table view"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18M3 6h18M3 18h18" />
+              </svg>
+            </button>
+            <button
+              onClick={() => handleViewModeChange('cards')}
+              className={`p-2 transition-colors border-l border-gray-300 ${
+                effectiveViewMode === 'cards' ? 'bg-blue-50 text-blue-700' : 'bg-white text-gray-500 hover:bg-gray-50'
+              }`}
+              title="Card view"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+              </svg>
+            </button>
+          </div>
 
-          {/* Show All button when filtering */}
           {(filterType === 'overdue' || filterType === 'due') && onShowAll && (
             <button
               onClick={onShowAll}
               className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
               Show All
             </button>
@@ -600,14 +638,10 @@ export default function RecordsList({
           <button
             onClick={handleOpenAddModal}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+            aria-label="Add New Machine"
           >
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
             Add New Machine
           </button>

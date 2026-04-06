@@ -41,7 +41,7 @@ export interface UseMaintenanceReturn {
   refetch: () => void;
 }
 
-const DEFAULT_LIMIT = 10;
+const DEFAULT_LIMIT = 50;
 
 export function useMaintenance(options: UseMaintenanceOptions): UseMaintenanceReturn {
   const { serialNumber, limit: initialLimit = DEFAULT_LIMIT, autoFetch = true } = options;

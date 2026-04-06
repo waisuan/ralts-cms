@@ -47,7 +47,7 @@ export class MaintenanceService {
   static async getMaintenanceList(
     machineSerialNumber: string,
     page: number = 1,
-    limit: number = 10,
+    limit: number = 50,
     filters?: MaintenanceFilters
   ): Promise<ApiResponse<MaintenanceListResponse>> {
     const encodedSerialNumber = encodeURIComponent(machineSerialNumber);

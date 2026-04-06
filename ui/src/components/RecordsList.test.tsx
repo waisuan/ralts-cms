@@ -144,7 +144,7 @@ jest.mock('../hooks/useMachines', () => ({
     ],
     total: 3,
     offset: 0,
-    limit: 10,
+    limit: 50,
     totalPages: 1,
     loading: false,
     error: null,
@@ -213,22 +213,19 @@ describe('RecordsList', () => {
     render(<RecordsList searchOptions={defaultSearchOptions} />);
 
     // Check that the component renders with basic elements
-    expect(screen.getByText('All Machines')).toBeInTheDocument();
-    expect(screen.getByText('Add New Machine')).toBeInTheDocument();
-    expect(findTextAcrossElements('Showing 3 of 3 machines')).toBeInTheDocument();
+    // Title is "Machines" (was "All Machines"); desktop header also shows "Add New Machine" text
+    expect(screen.getAllByText('Machines').length).toBeGreaterThan(0);
+    // Mobile header uses icon-only add button; desktop header has text label
+    expect(screen.getAllByLabelText('Add New Machine').length).toBeGreaterThan(0);
 
     // Check that machine cards are displayed
     expect(screen.getByText('SN-001')).toBeInTheDocument();
     expect(screen.getByText('SN-002')).toBeInTheDocument();
     expect(screen.getByText('SN-003')).toBeInTheDocument();
 
-    // Check that action buttons are present
-    expect(screen.getAllByText('View').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Edit').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Delete').length).toBeGreaterThan(0);
-
-    // Check that status badges are displayed
+    // Cards start collapsed — View/Edit/Delete are hidden until expanded
+    // Verify the status badges are displayed in the header
     expect(findTextAcrossElements('Overdue')).toBeInTheDocument();
-    expect(findTextAcrossElements('Due Today')).toBeInTheDocument();
+    expect(findTextAcrossElements('due')).toBeInTheDocument();
   });
 });

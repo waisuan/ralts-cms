@@ -55,7 +55,7 @@ export class MachineService {
    */
   static async getMachines(
     page: number = 1,
-    limit: number = 10,
+    limit: number = 50,
     filters?: MachineFilters
   ): Promise<ApiResponse<MachineListResponse>> {
     const calculatedOffset = (page - 1) * limit;

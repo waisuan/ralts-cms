@@ -674,7 +674,7 @@ export default function RecordsTable({
                 aria-label="Rows per page"
                 className="border border-gray-300 rounded px-2 py-1 text-sm bg-white"
               >
-                {[10, 20, 50, 100].map((size) => (
+                {[50, 100].map((size) => (
                   <option key={size} value={size}>
                     {size} / page
                   </option>

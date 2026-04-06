@@ -33,7 +33,7 @@ export interface UseMachinesReturn {
 
 export function useMachines(options: UseMachinesOptions = {}): UseMachinesReturn {
   const {
-    limit: initialLimit = 10,
+    limit: initialLimit = 50,
     filters: initialFilters = {},
     autoFetch = true,
   } = options;

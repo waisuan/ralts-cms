@@ -15,7 +15,7 @@ export const API_CONFIG = {
   TIMEOUT: 10000,
   
   // Default pagination settings
-  DEFAULT_PAGE_SIZE: 10,
+  DEFAULT_PAGE_SIZE: 50,
   MAX_PAGE_SIZE: 100,
 } as const;
 
