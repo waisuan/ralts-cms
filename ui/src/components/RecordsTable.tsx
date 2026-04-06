@@ -24,6 +24,7 @@ interface RecordsTableProps {
   limit: number;
   loading: boolean;
   sortBy: string;
+  searchQuery?: string;
   onSortChange: (sortBy: string) => void;
   onPageChange: (page: number) => void;
   onPageSizeChange: (size: number) => void;
@@ -311,6 +312,7 @@ export default function RecordsTable({
   limit,
   loading,
   sortBy,
+  searchQuery,
   onSortChange,
   onPageChange,
   onPageSizeChange,
@@ -631,7 +633,9 @@ export default function RecordsTable({
               ) : machines.length === 0 ? (
                 <tr>
                   <td colSpan={table.getVisibleLeafColumns().length} className="px-6 py-12 text-center text-gray-500">
-                    No machines found.
+                    {searchQuery
+                      ? `No machines match "${searchQuery}". Try a different search term.`
+                      : 'No machines found.'}
                   </td>
                 </tr>
               ) : (

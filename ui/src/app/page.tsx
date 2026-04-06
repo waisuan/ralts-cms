@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import RecordsList, { SortType } from '@/components/RecordsList';
 import SearchBar, { SearchOptions } from '@/components/SearchBar';
 import OverdueAlert from '@/components/OverdueAlert';
@@ -20,28 +20,44 @@ export default function Home() {
   const [overdueCount, setOverdueCount] = useState(0);
   const [dueCount, setDueCount] = useState(0);
   const [isSearching, setIsSearching] = useState(false);
+  const [totalResults, setTotalResults] = useState(0);
 
   const handleShowOverdue = () => {
-    // Clear any existing search and show only overdue machines
     setSearchOptions({
-      query: '',
-      property: DEFAULT_SEARCH_PROPERTY,
+      query: 'overdue',
+      property: 'ppm_status',
     });
     setFilterType('overdue');
   };
 
   const handleShowDue = () => {
-    // Clear any existing search and show only due machines
     setSearchOptions({
-      query: '',
-      property: DEFAULT_SEARCH_PROPERTY,
+      query: 'due',
+      property: 'ppm_status',
     });
     setFilterType('due');
   };
 
   const handleShowAll = () => {
     setFilterType('all');
+    setSearchOptions({
+      query: '',
+      property: DEFAULT_SEARCH_PROPERTY,
+    });
   };
+
+  /** Leaving banner lock (different property/status/clear) switches to unfiltered "all" list semantics. */
+  const handleSearchOptions = useCallback((opts: SearchOptions) => {
+    setFilterType((prev) => {
+      if (prev !== 'overdue' && prev !== 'due') return prev;
+      const lockedQuery = prev === 'overdue' ? 'overdue' : 'due';
+      const leavingBannerLock =
+        opts.property !== 'ppm_status' ||
+        (opts.property === 'ppm_status' && opts.query !== lockedQuery);
+      return leavingBannerLock ? 'all' : prev;
+    });
+    setSearchOptions(opts);
+  }, []);
 
   const handleSortChange = (newSortBy: SortType) => {
     setSortBy(newSortBy);
@@ -80,10 +96,11 @@ export default function Home() {
         />
 
         {/* Enhanced Search Bar with Dropdown */}
-        <SearchBar 
-          searchOptions={searchOptions} 
-          onSearch={setSearchOptions} 
+        <SearchBar
+          searchOptions={searchOptions}
+          onSearch={handleSearchOptions}
           isSearching={isSearching}
+          resultCount={searchOptions.query ? totalResults : undefined}
         />
       </div>
 
@@ -95,6 +112,7 @@ export default function Home() {
         onSortChange={handleSortChange}
         onCountsUpdate={handleCountsUpdate}
         onSearchLoadingChange={handleSearchLoadingChange}
+        onTotalChange={setTotalResults}
       />
     </div>
   );

@@ -168,7 +168,8 @@ type Repository interface {
 	Create(ctx context.Context, machine *Machine) error
 	Update(ctx context.Context, machine *Machine) error
 	Delete(ctx context.Context, serialNumber string) error
-	Count(ctx context.Context) (int, error)
+	// Count returns the number of machines matching the same filters as List (omit limit/offset).
+	Count(ctx context.Context, options *ListOptions) (int, error)
 	CountByStatus(ctx context.Context) (int32, int32, int32, error)
 	Search(ctx context.Context, query string, options *ListOptions) ([]*Machine, error)
 	CountSearch(ctx context.Context, query string, options *ListOptions) (int, error)
@@ -354,11 +355,21 @@ func (r *db) Delete(ctx context.Context, serialNumber string) error {
 	return nil
 }
 
-func (r *db) Count(ctx context.Context) (int, error) {
-	query := `SELECT COUNT(*) FROM machines`
+func (r *db) Count(ctx context.Context, options *ListOptions) (int, error) {
+	if options == nil {
+		options = DefaultListOptions()
+	}
+
+	filter := buildFilterConditions(options, 1)
+	var whereClause string
+	if len(filter.conditions) > 0 {
+		whereClause = "WHERE " + strings.Join(filter.conditions, " AND ")
+	}
+
+	query := fmt.Sprintf(`SELECT COUNT(*) FROM machines %s`, whereClause)
 
 	var count int
-	err := r.client.QueryRow(ctx, query).Scan(&count)
+	err := r.client.QueryRow(ctx, query, filter.args...).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("failed to count machines: %w", err)
 	}

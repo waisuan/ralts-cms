@@ -35,18 +35,18 @@ func (m *MockRepository) EXPECT() *MockRepositoryMockRecorder {
 }
 
 // Count mocks base method.
-func (m *MockRepository) Count(ctx context.Context) (int, error) {
+func (m *MockRepository) Count(ctx context.Context, options *ListOptions) (int, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Count", ctx)
+	ret := m.ctrl.Call(m, "Count", ctx, options)
 	ret0, _ := ret[0].(int)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Count indicates an expected call of Count.
-func (mr *MockRepositoryMockRecorder) Count(ctx interface{}) *gomock.Call {
+func (mr *MockRepositoryMockRecorder) Count(ctx, options interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Count", reflect.TypeOf((*MockRepository)(nil).Count), ctx)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Count", reflect.TypeOf((*MockRepository)(nil).Count), ctx, options)
 }
 
 // CountByStatus mocks base method.

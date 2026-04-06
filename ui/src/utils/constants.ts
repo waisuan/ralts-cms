@@ -7,9 +7,6 @@ export const SEARCH_PROPERTIES = [
   { value: 'ppm_status', label: 'PPM Status' },
 ] as const;
 
-// Properties that should use date picker instead of text input
-export const DATE_PROPERTIES = [] as const;
-
 // Properties that should use dropdown selection instead of text input
 export const PPM_STATUS_PROPERTY = 'ppm_status' as const;
 
@@ -35,13 +32,7 @@ export const SEARCHABLE_PPM_STATUSES = [
 
 // Type for search property values
 export type SearchPropertyValue = (typeof SEARCH_PROPERTIES)[number]['value'];
-export type DateProperty = (typeof DATE_PROPERTIES)[number];
 export type PPMStatus = (typeof PPM_STATUSES)[keyof typeof PPM_STATUSES];
-
-// Type guard to check if a property is a date property
-export function isDateProperty(property: string): property is DateProperty {
-  return (DATE_PROPERTIES as readonly string[]).includes(property);
-}
 
 // Type guard to check if a property is the PPM status property
 export function isPPMStatusProperty(property: string): property is typeof PPM_STATUS_PROPERTY {

@@ -4,7 +4,6 @@ import { useState } from 'react';
 import {
   SEARCH_PROPERTIES,
   SEARCHABLE_PPM_STATUSES,
-  isDateProperty,
   isPPMStatusProperty,
 } from '@/utils/constants';
 
@@ -17,6 +16,7 @@ interface SearchBarProps {
   onSearch: (options: SearchOptions) => void;
   searchOptions: SearchOptions;
   isSearching?: boolean;
+  resultCount?: number;
 }
 
 // Helper function to convert internal PPM status to consumer-facing text
@@ -25,7 +25,12 @@ function getPPMStatusDisplayText(internalValue: string): string {
   return statusOption ? statusOption.label : internalValue;
 }
 
-export default function SearchBar({ onSearch, searchOptions, isSearching = false }: SearchBarProps) {
+export default function SearchBar({
+  onSearch,
+  searchOptions,
+  isSearching = false,
+  resultCount,
+}: SearchBarProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const handleQueryChange = (query: string) => {
@@ -39,7 +44,6 @@ export default function SearchBar({ onSearch, searchOptions, isSearching = false
   };
 
   const currentProperty = SEARCH_PROPERTIES.find((prop) => prop.value === searchOptions.property);
-  const isDatePropertyValue = isDateProperty(searchOptions.property);
   const isPPMStatusPropertyValue = isPPMStatusProperty(searchOptions.property);
 
   return (
@@ -99,15 +103,7 @@ export default function SearchBar({ onSearch, searchOptions, isSearching = false
 
           {/* Search Input */}
           <div className="flex-1 relative">
-            {isDatePropertyValue ? (
-              /* Date Picker Input */
-              <input
-                type="date"
-                value={searchOptions.query}
-                onChange={(e) => handleQueryChange(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border-0 rounded-r-lg focus:outline-none text-gray-900"
-              />
-            ) : isPPMStatusPropertyValue ? (
+            {isPPMStatusPropertyValue ? (
               /* PPM Status Dropdown */
               <select
                 value={searchOptions.query}
@@ -145,21 +141,6 @@ export default function SearchBar({ onSearch, searchOptions, isSearching = false
                     strokeLinejoin="round"
                     strokeWidth={2}
                     d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                  />
-                </svg>
-              ) : isDatePropertyValue ? (
-                /* Calendar Icon for Date Properties */
-                <svg
-                  className="h-5 w-5 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
                   />
                 </svg>
               ) : isPPMStatusPropertyValue ? (
@@ -226,12 +207,7 @@ export default function SearchBar({ onSearch, searchOptions, isSearching = false
         {/* Search Info */}
         {searchOptions.query && (
           <div className="mt-2 text-sm text-gray-500 text-center">
-            {isDatePropertyValue ? (
-              <>
-                Filtering by <span className="font-medium">{currentProperty?.label}</span> on{' '}
-                <span className="font-medium">{searchOptions.query}</span>
-              </>
-            ) : isPPMStatusPropertyValue ? (
+            {isPPMStatusPropertyValue ? (
               <>
                 Filtering by <span className="font-medium">{currentProperty?.label}</span>:{' '}
                 <span className="font-medium">{getPPMStatusDisplayText(searchOptions.query)}</span>
@@ -241,6 +217,9 @@ export default function SearchBar({ onSearch, searchOptions, isSearching = false
                 Searching for &ldquo;{searchOptions.query}&rdquo; in{' '}
                 <span className="font-medium">{currentProperty?.label}</span>
               </>
+            )}
+            {resultCount !== undefined && !isSearching && (
+              <> · {resultCount} result{resultCount !== 1 ? 's' : ''} found</>
             )}
           </div>
         )}

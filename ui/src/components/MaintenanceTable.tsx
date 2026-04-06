@@ -16,7 +16,13 @@ import { Maintenance } from '../types/maintenance';
 import { AttachmentService } from '../services/attachmentService';
 import { isAuthError } from '../utils/auth';
 import { handleApiError } from '../utils/api';
-import { formatDate, formatDateTime, getTypeColor } from '../utils/formatters';
+import {
+  formatDate,
+  formatDateTime,
+  getTypeColor,
+  isCustomWorkOrderType,
+  workOrderTypePillLabel,
+} from '../utils/formatters';
 
 interface MaintenanceTableProps {
   machineSerialNumber: string;
@@ -26,6 +32,7 @@ interface MaintenanceTableProps {
   limit: number;
   loading: boolean;
   sortBy: string;
+  searchQuery?: string;
   onSortChange: (sort: string) => void;
   onPageChange: (page: number) => void;
   onPageSizeChange: (size: number) => void;
@@ -201,6 +208,12 @@ function MaintenanceExpandedRow({
           <p className="text-gray-900">{formatDateTime(record.updated_at)}</p>
         </div>
       </div>
+      {isCustomWorkOrderType(record) && (
+        <div className="mt-3 pt-3 border-t border-gray-200">
+          <span className="font-medium text-gray-500">Maintenance type</span>
+          <p className="text-gray-900 mt-1">{record.work_order_type}</p>
+        </div>
+      )}
       {record.action_taken && (
         <div className="mt-3 pt-3 border-t border-gray-200">
           <span className="font-medium text-gray-500">Action Summary</span>
@@ -219,6 +232,7 @@ export default function MaintenanceTable({
   limit,
   loading,
   sortBy,
+  searchQuery,
   onSortChange,
   onPageChange,
   onPageSizeChange,
@@ -314,13 +328,17 @@ export default function MaintenanceTable({
       }),
       columnHelper.accessor('work_order_type', {
         header: 'Type',
-        cell: (info) => (
-          <span
-            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeColor(info.getValue())}`}
-          >
-            {info.getValue()}
-          </span>
-        ),
+        cell: (info) => {
+          const record = info.row.original;
+          const label = workOrderTypePillLabel(record);
+          return (
+            <span
+              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTypeColor(label)}`}
+            >
+              {label}
+            </span>
+          );
+        },
         enableSorting: false,
       }),
       columnHelper.accessor('action_taken', {
@@ -467,7 +485,9 @@ export default function MaintenanceTable({
             ) : records.length === 0 ? (
               <tr>
                 <td colSpan={table.getVisibleLeafColumns().length} className="px-6 py-12 text-center text-gray-500">
-                  No maintenance records found.
+                  {searchQuery
+                    ? `No records match "${searchQuery}". Try a different search term.`
+                    : 'No maintenance records found.'}
                 </td>
               </tr>
             ) : (

@@ -6,11 +6,10 @@ import MaintenanceCard from './MaintenanceCard';
 interface MaintenanceCardListProps {
   records: Maintenance[];
   total: number;
-  currentPage: number;
-  limit: number;
   loading: boolean;
   machineSerialNumber: string;
-  onPageChange: (page: number) => void;
+  searchQuery?: string;
+  onLoadMore: () => void;
   onEdit: (record: Maintenance) => void;
   onDelete: (record: Maintenance) => void;
 }
@@ -18,29 +17,39 @@ interface MaintenanceCardListProps {
 export default function MaintenanceCardList({
   records,
   total,
-  currentPage,
-  limit,
   loading,
   machineSerialNumber,
-  onPageChange,
+  searchQuery,
+  onLoadMore,
   onEdit,
   onDelete,
 }: MaintenanceCardListProps) {
-  const totalPages = Math.ceil(total / limit);
+  const remaining = total - records.length;
 
   if (records.length === 0 && !loading) {
     return (
       <div className="text-center py-12">
-        <div className="text-gray-400 text-5xl mb-4">📋</div>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">No Maintenance Records</h3>
-        <p className="text-gray-500">No records found. Add a new maintenance record to get started.</p>
+        <div className="text-gray-400 text-6xl mb-4">📋</div>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">
+          {searchQuery ? 'No records found' : 'No Maintenance Records'}
+        </h3>
+        <p className="text-gray-500">
+          {searchQuery
+            ? `No records match "${searchQuery}". Try a different search term.`
+            : 'Add a new maintenance record to get started.'}
+        </p>
       </div>
     );
   }
 
   return (
     <div>
-      {loading && (
+      <p className="text-xs text-gray-500 mb-3">
+        Showing {records.length} of {total} record{total !== 1 ? 's' : ''}
+        {loading && ' · updating...'}
+      </p>
+
+      {loading && records.length === 0 && (
         <div className="flex justify-center py-4">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
         </div>
@@ -58,31 +67,21 @@ export default function MaintenanceCardList({
         ))}
       </div>
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+      {remaining > 0 && (
+        <div className="flex justify-center pt-4">
           <button
-            onClick={() => onPageChange(currentPage - 1)}
-            disabled={currentPage <= 1 || loading}
-            className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={onLoadMore}
+            disabled={loading}
+            className="bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-400 text-gray-700 px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
           >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            Prev
-          </button>
-          <span className="text-sm text-gray-600">
-            Page {currentPage} of {totalPages}
-          </span>
-          <button
-            onClick={() => onPageChange(currentPage + 1)}
-            disabled={currentPage >= totalPages || loading}
-            className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Next
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
+            {loading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
+                Loading...
+              </>
+            ) : (
+              `Load More (${remaining} remaining)`
+            )}
           </button>
         </div>
       )}

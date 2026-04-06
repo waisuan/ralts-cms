@@ -209,7 +209,7 @@ func (h *MachinesHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		count, err = h.deps.MachinesRepository.Count(r.Context())
+		count, err = h.deps.MachinesRepository.Count(r.Context(), options)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to count machines: %v", err), http.StatusInternalServerError)
 			return

@@ -3,7 +3,13 @@
 import { useState } from 'react';
 import { Maintenance } from '../types/maintenance';
 import { AttachmentService } from '../services/attachmentService';
-import { formatDate, formatDateTime, getTypeColor } from '../utils/formatters';
+import {
+  formatDate,
+  formatDateTime,
+  getTypeColor,
+  isCustomWorkOrderType,
+  workOrderTypePillLabel,
+} from '../utils/formatters';
 
 interface MaintenanceCardProps {
   record: Maintenance;
@@ -68,8 +74,10 @@ export default function MaintenanceCard({
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-semibold text-gray-900 text-sm truncate">{record.work_order_number}</span>
-              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getTypeColor(record.work_order_type)}`}>
-                {record.work_order_type}
+              <span
+                className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getTypeColor(workOrderTypePillLabel(record))}`}
+              >
+                {workOrderTypePillLabel(record)}
               </span>
             </div>
             <p className="text-xs text-gray-500 mt-1">{formatDate(record.work_order_date)}</p>
@@ -94,6 +102,12 @@ export default function MaintenanceCard({
       {/* Expanded details */}
       {isExpanded && (
         <div className="px-4 pb-4 border-t border-gray-100 pt-3 space-y-3">
+          {isCustomWorkOrderType(record) && (
+            <div>
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Maintenance type</span>
+              <p className="text-sm text-gray-900 mt-1">{record.work_order_type}</p>
+            </div>
+          )}
           <div>
             <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Action Taken</span>
             <p className="text-sm text-gray-700 mt-1 whitespace-pre-wrap">{record.action_taken}</p>

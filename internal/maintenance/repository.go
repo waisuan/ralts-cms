@@ -239,17 +239,9 @@ func (r *db) CountByMachine(ctx context.Context, machineSerialNumber string) (in
 }
 
 func (r *db) CountByWorkOrderType(ctx context.Context, machineSerialNumber string) (int, int, int, int, int, error) {
-	query := `
-		SELECT 
-			COUNT(CASE WHEN "workOrderType" = 'Preventive' THEN 1 END) as preventative_count,
-			COUNT(CASE WHEN "workOrderType" = 'Corrective' THEN 1 END) as corrective_count,
-			COUNT(CASE WHEN "workOrderType" = 'Emergency' THEN 1 END) as emergency_count,
-			COUNT(CASE WHEN "workOrderType" = 'Inspection' THEN 1 END) as inspection_count,
-			COUNT(CASE WHEN "workOrderType" NOT IN ('Preventive', 'Corrective', 'Emergency', 'Inspection') THEN 1 END) as other_count
-		FROM maintenance 
-		WHERE "serialNumber" = $1
-	`
+	query := CountByWorkOrderTypeSQL()
 
+	// SELECT columns follow StandardWorkOrderTypes order (one COUNT per type), then NOT IN → other.
 	var preventativeCount, correctiveCount, emergencyCount, inspectionCount, otherCount int
 	err := r.client.QueryRow(ctx, query, machineSerialNumber).Scan(
 		&preventativeCount, &correctiveCount, &emergencyCount, &inspectionCount, &otherCount,

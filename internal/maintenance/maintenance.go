@@ -13,6 +13,8 @@ type Maintenance struct {
 	ActionTaken         string    `json:"action_taken" db:"actionTaken"`
 	ReportedBy          string    `json:"reported_by" db:"reportedBy"`
 	WorkOrderType       string    `json:"work_order_type" db:"workOrderType"`
+	// WorkOrderTypeIsStandard is set on API responses only (not stored in DB); matches analytics bucketing.
+	WorkOrderTypeIsStandard bool `json:"work_order_type_is_standard"`
 	Attachment          *string   `json:"attachment" db:"attachment"`
 	CreatedAt           time.Time `json:"created_at" db:"createdAt"`
 	UpdatedAt           time.Time `json:"updated_at" db:"updatedAt"`

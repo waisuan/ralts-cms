@@ -7,7 +7,6 @@ import { MachineFilters, MachineService } from '../services/machineService';
 import { useMachines } from '../hooks/useMachines';
 import { useMachine } from '../hooks/useMachine';
 import { SearchOptions } from './SearchBar';
-import { isDateProperty } from '../utils/constants';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import RecordCard from './RecordCard';
 import RecordsTable from './RecordsTable';
@@ -27,6 +26,7 @@ interface RecordsListProps {
   onSortChange?: (sortBy: SortType) => void;
   onCountsUpdate?: (overdue: number, due: number) => void;
   onSearchLoadingChange?: (loading: boolean) => void;
+  onTotalChange?: (total: number) => void;
 }
 
 type ViewMode = 'table' | 'cards';
@@ -77,6 +77,7 @@ export default function RecordsList({
   onSortChange,
   onCountsUpdate,
   onSearchLoadingChange,
+  onTotalChange,
 }: RecordsListProps) {
   const router = useRouter();
   const isMobile = useIsMobile();
@@ -122,17 +123,14 @@ export default function RecordsList({
       filters.sort = sortBy;
     }
     
-    // Handle search query - only send to API for 'any' property or specific supported properties
-    if (searchOptions.query.trim()) {
-      if (searchOptions.property === 'any') {
-        // For 'any' search, send the query to backend
-        filters.q = searchOptions.query.trim();
-      } else if (searchOptions.property === 'ppm_status') {
-        // For PPM status, use the existing ppm_status_filter
-        filters.ppm_status_filter = searchOptions.query;
-      } else if (isDateProperty(searchOptions.property)) {
-        // For date properties, we'll handle client-side for now
-        // Could be enhanced to use backend date filtering in the future
+    // Search text / PPM status (only when not using notice-banner filters — those take precedence)
+    if (filterType === 'all') {
+      if (searchOptions.query.trim()) {
+        if (searchOptions.property === 'any') {
+          filters.q = searchOptions.query.trim();
+        } else if (searchOptions.property === 'ppm_status') {
+          filters.ppm_status_filter = searchOptions.query;
+        }
       }
     }
     
@@ -195,6 +193,12 @@ export default function RecordsList({
       onSearchLoadingChange(loading);
     }
   }, [loading, onSearchLoadingChange]);
+
+  useEffect(() => {
+    if (onTotalChange) {
+      onTotalChange(total);
+    }
+  }, [total, onTotalChange]);
 
   const filteredMachines = machines;
 
@@ -353,9 +357,6 @@ export default function RecordsList({
   const getFilterStatusText = () => {
     if (filterType === 'overdue') return ' (overdue only)';
     if (filterType === 'due') return ' (due today only)';
-    if (searchOptions.query.trim() && filteredMachines.length !== machines.length) {
-      return ` (filtered from ${machines.length} loaded)`;
-    }
     return '';
   };
 
@@ -540,11 +541,13 @@ export default function RecordsList({
               </span>
             )}
           </div>
-          <p className="text-sm text-gray-500 mt-1">
-            Showing {machines.length} of {total} machine{total !== 1 ? 's' : ''}
-            {getFilterStatusText()}
-            {loading && ' (updating...)'}
-          </p>
+          {effectiveViewMode === 'cards' && (
+            <p className="text-sm text-gray-500 mt-1">
+              Showing {machines.length} of {total} machine{total !== 1 ? 's' : ''}
+              {getFilterStatusText()}
+              {loading && ' (updating...)'}
+            </p>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -724,6 +727,7 @@ export default function RecordsList({
           limit={limit}
           loading={loading}
           sortBy={SORT_TYPE_TO_API[sortBy] || 'updated_at_desc'}
+          searchQuery={searchOptions.query.trim() || undefined}
           onSortChange={handleTableSortChange}
           onPageChange={handleTablePageChange}
           onPageSizeChange={handleTablePageSizeChange}

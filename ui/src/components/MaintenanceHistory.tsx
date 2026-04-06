@@ -21,6 +21,13 @@ interface MaintenanceHistoryProps {
   onDelete?: () => void;
 }
 
+const MAINTENANCE_SORT_OPTIONS = [
+  { value: 'updated_at_desc', label: 'Newest First' },
+  { value: 'updated_at_asc', label: 'Oldest First' },
+  { value: 'work_order_date_desc', label: 'Work Order Date (Latest)' },
+  { value: 'work_order_date_asc', label: 'Work Order Date (Earliest)' },
+] as const;
+
 export default function MaintenanceHistory({
   machine,
   onBack,
@@ -32,6 +39,7 @@ export default function MaintenanceHistory({
 
   // CSV export
   const [csvExporting, setCsvExporting] = useState(false);
+  const [showMobileSortMenu, setShowMobileSortMenu] = useState(false);
 
   // Modal coordination
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -139,7 +147,7 @@ export default function MaintenanceHistory({
           </div>
 
           <div className="hidden md:block">
-            <MachineInfoCard machine={machine} />
+            <MachineInfoCard machine={machine} onEdit={onEdit} onDelete={onDelete} />
           </div>
 
           {/* Summary Statistics (hidden on mobile) */}
@@ -170,88 +178,115 @@ export default function MaintenanceHistory({
             </div>
           </div>
 
-          {/* Title + Machine Actions */}
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold text-gray-900">Maintenance History</h2>
-            <div className="flex items-center gap-3 flex-wrap">
-              {onEdit && (
+          {/* Mobile: Title + Sort + Add */}
+          <div className="md:hidden mb-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-gray-900">Maintenance</h2>
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <button
+                    onClick={() => setShowMobileSortMenu((prev) => !prev)}
+                    className={`p-2 border rounded-lg transition-colors ${
+                      showMobileSortMenu ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                    }`}
+                    aria-label="Sort records"
+                  >
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+                    </svg>
+                  </button>
+                  {showMobileSortMenu && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setShowMobileSortMenu(false)} />
+                      <div className="absolute right-0 top-full mt-1 w-56 bg-white border border-gray-300 rounded-lg shadow-lg z-20">
+                        {MAINTENANCE_SORT_OPTIONS.map((opt) => (
+                          <button
+                            key={opt.value}
+                            onClick={() => { maint.setSort(opt.value); setShowMobileSortMenu(false); }}
+                            className={`w-full text-left px-4 py-2 text-sm transition-colors ${
+                              maint.sort === opt.value ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700 hover:bg-gray-50'
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
                 <button
-                  onClick={onEdit}
-                  className="hidden md:flex bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg font-medium transition-colors items-center gap-2"
+                  onClick={() => setIsAddModalOpen(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg transition-colors"
+                  aria-label="Add New Record"
                 >
                   <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
-                  Edit Machine
                 </button>
-              )}
-              {onDelete && (
-                <button
-                  onClick={onDelete}
-                  className="hidden md:flex bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors items-center gap-2"
-                >
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                  Delete Machine
-                </button>
-              )}
-              <button
-                onClick={() => setIsAddModalOpen(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
-                aria-label="Add New Record"
-              >
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                <span className="hidden sm:inline">Add New Record</span>
-              </button>
+              </div>
             </div>
+          </div>
+
+          {/* Desktop: Section Title */}
+          <div className="hidden md:block mb-6">
+            <h2 className="text-xl font-semibold text-gray-900">Maintenance History</h2>
           </div>
         </div>
 
-        {/* Search Bar */}
-        <div className="mb-4">
-          <div className="flex items-center gap-4">
-            <div className="flex-1 relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+        {/* Search Bar — centered like machines page */}
+        <div className="flex justify-center mb-6">
+          <div className="w-full max-w-2xl relative">
+            <div className="flex items-center bg-white border border-gray-300 rounded-lg shadow-sm focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent">
+              <div className="flex-1 relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  {maint.isSearchLoading ? (
+                    <svg className="h-5 w-5 text-gray-400 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                  ) : (
+                    <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  )}
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search maintenance records..."
+                  value={maint.searchQuery}
+                  onChange={(e) => maint.setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border-0 rounded-lg focus:outline-none placeholder-gray-400 text-gray-900"
+                />
+                {maint.hasActiveSearch && !maint.isSearchLoading && (
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                    <button
+                      type="button"
+                      onClick={maint.clearSearch}
+                      className="text-gray-400 hover:text-gray-600 focus:outline-none focus:text-gray-600 transition-colors"
+                      title="Clear search"
+                    >
+                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
               </div>
-              <input
-                type="text"
-                placeholder="Search maintenance records..."
-                value={maint.searchQuery}
-                onChange={(e) => maint.setSearchQuery(e.target.value)}
-                className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white"
-              />
-              {maint.hasActiveSearch && (
-                <button
-                  onClick={maint.clearSearch}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                  title="Clear search"
-                >
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
             </div>
             {maint.hasActiveSearch && (
-              <div className="text-sm text-gray-500 whitespace-nowrap">
-                {maint.total} result{maint.total !== 1 ? 's' : ''} found
+              <div className="mt-2 text-sm text-gray-500 text-center">
+                Searching for &ldquo;{maint.searchQuery}&rdquo;
+                {' · '}{maint.total} result{maint.total !== 1 ? 's' : ''} found
               </div>
             )}
           </div>
         </div>
 
-        {/* CSV Export */}
-        <div className="flex justify-end mb-3">
+        {/* Desktop toolbar: CSV + Add Record (sorting via table column headers) */}
+        <div className="hidden md:flex justify-end items-center gap-3 mb-3">
           <button
             onClick={handleExportMaintenanceCSV}
             disabled={csvExporting || maint.records.length === 0}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 rounded-lg bg-white hover:bg-gray-50 text-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="Export maintenance to CSV"
           >
             {csvExporting ? (
@@ -261,7 +296,17 @@ export default function MaintenanceHistory({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             )}
-            <span className="hidden sm:inline">Export CSV</span>
+            CSV
+          </button>
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+            aria-label="Add New Record"
+          >
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Add New Record
           </button>
         </div>
 
@@ -283,11 +328,10 @@ export default function MaintenanceHistory({
           <MaintenanceCardList
             records={maint.records}
             total={maint.total}
-            currentPage={maint.currentPage}
-            limit={maint.limit}
             loading={maint.isInitialLoading || maint.isSearchLoading || maint.isPaginationLoading}
             machineSerialNumber={machine.serial_number}
-            onPageChange={maint.goToPage}
+            searchQuery={maint.debouncedSearchQuery}
+            onLoadMore={maint.loadMore}
             onEdit={handleOpenEdit}
             onDelete={handleOpenDelete}
           />
@@ -300,6 +344,7 @@ export default function MaintenanceHistory({
             limit={maint.limit}
             loading={maint.isInitialLoading || maint.isSearchLoading || maint.isPaginationLoading}
             sortBy={maint.sort}
+            searchQuery={maint.debouncedSearchQuery}
             onSortChange={maint.setSort}
             onPageChange={maint.goToPage}
             onPageSizeChange={maint.setLimit}

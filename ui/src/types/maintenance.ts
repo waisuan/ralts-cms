@@ -5,6 +5,8 @@ export interface Maintenance {
   action_taken: string;
   reported_by: string;
   work_order_type: string;
+  /** When present, from API: true if type is one of Preventive/Corrective/Emergency/Inspection. */
+  work_order_type_is_standard?: boolean;
   attachment: string | null;
   created_at: string; // ISO 8601 format
   updated_at: string; // ISO 8601 format

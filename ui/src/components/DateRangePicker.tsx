@@ -90,10 +90,17 @@ export default function DateRangePicker({
   const hasValue = value.from || value.to;
   const displayText = getDisplayText();
 
-  // Clear the selection
-  const handleClear = (e: React.MouseEvent) => {
+  const handleClear = (e: React.MouseEvent | React.KeyboardEvent) => {
     e.stopPropagation();
     onChange({ from: undefined, to: undefined });
+  };
+
+  const handleClearKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      e.stopPropagation();
+      onChange({ from: undefined, to: undefined });
+    }
   };
 
   return (
@@ -129,17 +136,21 @@ export default function DateRangePicker({
         </div>
         <div className="flex items-center gap-1">
           {hasValue && (
-            <button
-              type="button"
+            <span
+              role="button"
+              tabIndex={0}
               onClick={handleClear}
-              className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+              onKeyDown={handleClearKeyDown}
+              className="p-1 hover:bg-gray-100 rounded-full transition-colors cursor-pointer inline-flex"
               title="Clear selection"
+              aria-label="Clear selection"
             >
               <svg
                 className="h-4 w-4 text-gray-400 hover:text-gray-600"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
+                aria-hidden
               >
                 <path
                   strokeLinecap="round"
@@ -148,7 +159,7 @@ export default function DateRangePicker({
                   d="M6 18L18 6M6 6l12 12"
                 />
               </svg>
-            </button>
+            </span>
           )}
           <svg
             className={`h-4 w-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}

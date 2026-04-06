@@ -59,6 +59,8 @@ func (h *MaintenanceHandler) GetMaintenance(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	maintenance.SetWorkOrderTypeStandardFlag()
+
 	// Audit: Log maintenance view
 	h.deps.AuditService.LogEvent(audit.NewEvent(r, audit.ActionViewed, audit.ResourceMaintenance, workOrderNumber, map[string]any{
 		"machine_serial_number": machineSerialNumber,
@@ -170,6 +172,10 @@ func (h *MaintenanceHandler) ListMaintenance(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	for _, m := range maintenanceList {
+		m.SetWorkOrderTypeStandardFlag()
+	}
+
 	// Build response
 	response := ListMaintenanceResponse{
 		Maintenance:       maintenanceList,
@@ -212,6 +218,8 @@ func (h *MaintenanceHandler) CreateMaintenance(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	maintenance.WorkOrderTypeIsStandard = false
+
 	// Set the machine serial number from the URL
 	maintenance.MachineSerialNumber = machineSerialNumber
 
@@ -236,6 +244,8 @@ func (h *MaintenanceHandler) CreateMaintenance(w http.ResponseWriter, r *http.Re
 		"work_order_type":       maintenance.WorkOrderType,
 	}))
 
+	maintenance.SetWorkOrderTypeStandardFlag()
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(maintenance)
@@ -255,6 +265,8 @@ func (h *MaintenanceHandler) UpdateMaintenance(w http.ResponseWriter, r *http.Re
 		http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
 		return
 	}
+
+	maintenance.WorkOrderTypeIsStandard = false
 
 	// Set the machine serial number from the URL
 	maintenance.MachineSerialNumber = machineSerialNumber
@@ -286,6 +298,8 @@ func (h *MaintenanceHandler) UpdateMaintenance(w http.ResponseWriter, r *http.Re
 		"machine_serial_number": maintenance.MachineSerialNumber,
 		"work_order_type":       maintenance.WorkOrderType,
 	}))
+
+	maintenance.SetWorkOrderTypeStandardFlag()
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(maintenance)

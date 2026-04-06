@@ -115,17 +115,8 @@ export function useMachines(options: UseMachinesOptions = {}): UseMachinesReturn
         setMachines(data.machines);
       }
       
-      // Determine which count to use based on the current filter
-      let totalCount = data.count;
-      if (currentFilters?.ppm_status_filter === 'overdue') {
-        totalCount = data.overdue_count || 0;
-      } else if (currentFilters?.ppm_status_filter === 'due') {
-        totalCount = data.due_count || 0;
-      } else if (currentFilters?.ppm_status_filter === 'almost_due') {
-        totalCount = data.almost_due_count || 0;
-      }
-      
-      setTotal(totalCount);
+      // API count matches the filtered list (including date ranges combined with PPM status).
+      setTotal(data.count ?? 0);
       setOffset(data.offset);
       setLimit(data.limit);
       setOverdueCount(data.overdue_count || 0);

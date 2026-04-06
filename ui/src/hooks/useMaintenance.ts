@@ -38,6 +38,7 @@ export interface UseMaintenanceReturn {
   setSort: (sort: string) => void;
   goToPage: (page: number) => void;
   setLimit: (limit: number) => void;
+  loadMore: () => Promise<void>;
   refetch: () => void;
 }
 
@@ -265,6 +266,37 @@ export function useMaintenance(options: UseMaintenanceOptions): UseMaintenanceRe
     setCurrentPage(Math.max(1, Math.min(page, Math.ceil(total / limitRef.current) || 1)));
   }, [total]);
 
+  const loadMore = useCallback(async () => {
+    const loadedPages = Math.ceil(records.length / limitRef.current);
+    if (records.length >= total) return;
+
+    const myRequestId = ++requestIdRef.current;
+    setIsPaginationLoading(true);
+    setError(null);
+    try {
+      const response = await MaintenanceService.getMaintenanceList(
+        serialNumber, loadedPages + 1, limitRef.current, buildFilters()
+      );
+      if (myRequestId !== requestIdRef.current) return;
+      if (response.data) {
+        setRecords((prev) => [...prev, ...(response.data?.maintenance || [])]);
+        setTotal(response.data.count || 0);
+        setPreventativeCount(response.data.preventative_count || 0);
+        setCorrectiveCount(response.data.corrective_count || 0);
+        setEmergencyCount(response.data.emergency_count || 0);
+        setInspectionCount(response.data.inspection_count || 0);
+        setOtherCount(response.data.other_count || 0);
+      }
+    } catch (err) {
+      if (myRequestId !== requestIdRef.current) return;
+      handleFetchError(err);
+    } finally {
+      if (myRequestId === requestIdRef.current) {
+        setIsPaginationLoading(false);
+      }
+    }
+  }, [serialNumber, records.length, total, buildFilters, handleFetchError]);
+
   const handleSetLimit = useCallback((newLimit: number) => {
     setLimitState(newLimit);
     limitRef.current = newLimit;
@@ -311,6 +343,7 @@ export function useMaintenance(options: UseMaintenanceOptions): UseMaintenanceRe
     setSort,
     goToPage,
     setLimit: handleSetLimit,
+    loadMore,
     refetch,
   };
 }

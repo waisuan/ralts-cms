@@ -856,15 +856,44 @@ func (suite *MachineRepositoryTestSuite) TestCount() {
 		suite.repo.Create(ctx, testutils.CreateMachine("COUNT002"))
 		suite.repo.Create(ctx, testutils.CreateMachine("COUNT003"))
 
-		count, err := suite.repo.Count(ctx)
+		count, err := suite.repo.Count(ctx, nil)
 		suite.Require().NoError(err)
 		suite.Assert().Equal(3, count)
 	})
 
 	suite.Run("should return 0 when no machines exist", func() {
-		count, err := suite.repo.Count(ctx)
+		count, err := suite.repo.Count(ctx, nil)
 		suite.Require().NoError(err)
 		suite.Assert().Equal(0, count)
+	})
+
+	suite.Run("should match List when PPM date range is set", func() {
+		inRange := testutils.CreateMachine("DATECOUNT1")
+		inRange.PpmDate = time.Date(2026, 4, 5, 0, 0, 0, 0, time.UTC)
+		suite.Require().NoError(suite.repo.Create(ctx, inRange))
+
+		outOfRange := testutils.CreateMachine("DATECOUNT2")
+		outOfRange.PpmDate = time.Date(2025, 9, 12, 0, 0, 0, 0, time.UTC)
+		suite.Require().NoError(suite.repo.Create(ctx, outOfRange))
+
+		from := time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC)
+		to := time.Date(2026, 4, 30, 0, 0, 0, 0, time.UTC)
+		opts := &machines.ListOptions{
+			Limit:       50,
+			Offset:      0,
+			Sort:        machines.SortOrderUpdatedAtDesc,
+			PpmDateFrom: &from,
+			PpmDateTo:   &to,
+		}
+
+		count, err := suite.repo.Count(ctx, opts)
+		suite.Require().NoError(err)
+		suite.Assert().Equal(1, count)
+
+		list, err := suite.repo.List(ctx, opts)
+		suite.Require().NoError(err)
+		suite.Assert().Len(list, 1)
+		suite.Assert().Equal("DATECOUNT1", list[0].SerialNumber)
 	})
 }
 
