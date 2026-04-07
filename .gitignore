@@ -21,6 +21,11 @@ ui/.DS_Store
 ui/Thumbs.db
 ui/.idea/
 ui/.vscode/
+ui/playwright-report/
+ui/test-results/
+ui/blob-report/
+# Local register route writes users.txt under ui/ when cwd is the app root
+ui/users.txt
 
 bin/
 

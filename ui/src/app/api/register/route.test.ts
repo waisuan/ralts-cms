@@ -1,83 +1,115 @@
+/** @jest-environment node */
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
+import { tmpdir } from 'os';
+import { NextRequest } from 'next/server';
 
-// Mock path
-jest.mock('path');
-const mockJoin = join as jest.MockedFunction<typeof join>;
+function jsonRequest(body: unknown) {
+  return new NextRequest('http://localhost/api/register', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
 
-// Test the default avatar function logic
-const getDefaultAvatar = (name: string): string => {
-  const initials = name
-    .split(' ')
-    .map((word) => word.charAt(0))
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
+describe('POST /api/register (route handler)', () => {
+  let tmp: string;
+  let cwdSpy: jest.SpiedFunction<typeof process.cwd>;
+  let nowSpy: jest.SpiedFunction<typeof Date.now>;
 
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=random&color=fff&size=150`;
-};
-
-describe('Registration Logic', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    mockJoin.mockReturnValue('/test/users.txt');
+    tmp = mkdtempSync(join(tmpdir(), 'ralts-api-register-'));
+    cwdSpy = jest.spyOn(process, 'cwd').mockReturnValue(tmp);
+    nowSpy = jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+    jest.resetModules();
   });
 
-  it('should generate default avatar correctly', () => {
-    const avatar1 = getDefaultAvatar('John Doe');
-    expect(avatar1).toContain('ui-avatars.com');
-    expect(avatar1).toContain('name=JD');
-
-    const avatar2 = getDefaultAvatar('Jane Smith');
-    expect(avatar2).toContain('ui-avatars.com');
-    expect(avatar2).toContain('name=JS');
-
-    const avatar3 = getDefaultAvatar('Alice');
-    expect(avatar3).toContain('ui-avatars.com');
-    expect(avatar3).toContain('name=A');
+  afterEach(() => {
+    cwdSpy.mockRestore();
+    nowSpy.mockRestore();
+    jest.resetModules();
+    rmSync(tmp, { recursive: true, force: true });
   });
 
-  it('should validate email format correctly', () => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-    // Valid emails
-    expect(emailRegex.test('user@example.com')).toBe(true);
-    expect(emailRegex.test('test.email@domain.co.uk')).toBe(true);
-
-    // Invalid emails
-    expect(emailRegex.test('invalid-email')).toBe(false);
-    expect(emailRegex.test('user@')).toBe(false);
-    expect(emailRegex.test('@domain.com')).toBe(false);
+  it('returns 400 when fields are missing', async () => {
+    const { POST } = await import('./route');
+    const res = await POST(jsonRequest({ name: '', email: 'a@b.com', password: 'longenough' }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/required/i);
   });
 
-  it('should sanitize user input correctly', () => {
-    const sanitizeInput = (input: string) => input?.trim();
-    const sanitizeEmail = (email: string) => email?.trim().toLowerCase();
-
-    expect(sanitizeInput('  John Doe  ')).toBe('John Doe');
-    expect(sanitizeEmail('  USER@EXAMPLE.COM  ')).toBe('user@example.com');
+  it('returns 400 for invalid email', async () => {
+    const { POST } = await import('./route');
+    const res = await POST(jsonRequest({ name: 'Bob', email: 'not-an-email', password: 'longenough' }));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ error: expect.stringMatching(/valid email/i) });
   });
 
-  it('should create user object with correct structure', () => {
-    const createUser = (name: string, email: string, password: string) => ({
-      id: Date.now().toString(),
-      name: name.trim(),
-      email: email.trim().toLowerCase(),
-      password: password.trim(),
-      role: 'user' as const,
-      avatar: getDefaultAvatar(name.trim()),
-      created_at: new Date().toISOString(),
-    });
+  it('returns 400 when password is too short', async () => {
+    const { POST } = await import('./route');
+    const res = await POST(jsonRequest({ name: 'Bob', email: 'bob@example.com', password: '12345' }));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ error: expect.stringMatching(/6 characters/i) });
+  });
 
-    const user = createUser('John Doe', 'john@example.com', 'password123');
-
-    expect(user).toMatchObject({
-      name: 'John Doe',
-      email: 'john@example.com',
+  it('returns 201, writes users.txt, omits password in response', async () => {
+    const { POST } = await import('./route');
+    const res = await POST(
+      jsonRequest({ name: '  Bob Smith  ', email: '  BOB@EXAMPLE.COM  ', password: '  secret12  ' })
+    );
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.message).toMatch(/success/i);
+    expect(body.user).toMatchObject({
+      id: '1700000000000',
+      name: 'Bob Smith',
+      email: 'bob@example.com',
       role: 'user',
     });
-    expect(user.id).toBeDefined();
-    expect(user.created_at).toBeDefined();
-    expect(user.avatar).toContain('ui-avatars.com');
-    expect(user.password).toBe('password123');
+    expect(body.user).not.toHaveProperty('password');
+    expect(body.user.avatar).toContain('ui-avatars.com');
+
+    const stored = JSON.parse(readFileSync(join(tmp, 'users.txt'), 'utf-8')) as Array<{ password?: string }>;
+    expect(stored).toHaveLength(1);
+    expect(stored[0].password).toBe('secret12');
+  });
+
+  it('returns 409 when email already exists', async () => {
+    const existing = [
+      {
+        id: 'x',
+        name: 'Other',
+        email: 'bob@example.com',
+        password: 'p',
+        role: 'user' as const,
+        created_at: '2024-01-01T00:00:00.000Z',
+      },
+    ];
+    writeFileSync(join(tmp, 'users.txt'), JSON.stringify(existing));
+
+    const { POST } = await import('./route');
+    const res = await POST(jsonRequest({ name: 'Bob', email: 'bob@example.com', password: 'longenough' }));
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ error: expect.stringMatching(/email/i) });
+  });
+
+  it('returns 409 when name already exists', async () => {
+    const existing = [
+      {
+        id: 'x',
+        name: 'Bob',
+        email: 'other@example.com',
+        password: 'p',
+        role: 'user' as const,
+        created_at: '2024-01-01T00:00:00.000Z',
+      },
+    ];
+    writeFileSync(join(tmp, 'users.txt'), JSON.stringify(existing));
+
+    const { POST } = await import('./route');
+    const res = await POST(jsonRequest({ name: 'bob', email: 'new@example.com', password: 'longenough' }));
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ error: expect.stringMatching(/name/i) });
   });
 });

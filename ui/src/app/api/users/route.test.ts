@@ -1,138 +1,67 @@
+/** @jest-environment node */
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
+import { tmpdir } from 'os';
 
-// Mock path
-jest.mock('path');
-const mockJoin = join as jest.MockedFunction<typeof join>;
+describe('GET /api/users (route handler)', () => {
+  let tmp: string;
+  let cwdSpy: jest.SpiedFunction<typeof process.cwd>;
 
-interface UserData {
-  id: string;
-  name: string;
-  email: string;
-  password: string;
-  role: 'admin' | 'user';
-  avatar?: string;
-  created_at: string;
-}
-
-describe('Users Logic', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    mockJoin.mockReturnValue('/test/users.txt');
+    tmp = mkdtempSync(join(tmpdir(), 'ralts-api-users-'));
+    mkdirSync(join(tmp, 'src', 'data'), { recursive: true });
+    cwdSpy = jest.spyOn(process, 'cwd').mockReturnValue(tmp);
+    jest.resetModules();
   });
 
-  it('should parse user data correctly', () => {
-    const userData: UserData[] = [
+  afterEach(() => {
+    cwdSpy.mockRestore();
+    jest.resetModules();
+    rmSync(tmp, { recursive: true, force: true });
+  });
+
+  it('returns empty users when file is missing', async () => {
+    const { GET } = await import('./route');
+    const res = await GET();
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toEqual({ users: [] });
+  });
+
+  it('returns empty users when file is blank', async () => {
+    writeFileSync(join(tmp, 'src', 'data', 'users.txt'), '   \n  ');
+    const { GET } = await import('./route');
+    const res = await GET();
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ users: [] });
+  });
+
+  it('returns users from JSON file (passwords included as in handler)', async () => {
+    const users = [
       {
         id: '1',
-        name: 'John Doe',
-        email: 'john@example.com',
-        password: 'password123',
-        role: 'admin',
-        avatar: 'https://example.com/avatar1.jpg',
-        created_at: '2024-01-01T00:00:00.000Z',
-      },
-      {
-        id: '2',
-        name: 'Jane Smith',
-        email: 'jane@example.com',
-        password: 'password456',
-        role: 'user',
-        avatar: 'https://example.com/avatar2.jpg',
-        created_at: '2024-01-02T00:00:00.000Z',
-      },
-    ];
-
-    const parseUsers = (data: UserData[]) => {
-      return data.map((user) => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { password, ...userWithoutPassword } = user;
-        return userWithoutPassword;
-      });
-    };
-
-    const result = parseUsers(userData);
-
-    expect(result).toHaveLength(2);
-    expect(result[0]).toMatchObject({
-      id: '1',
-      name: 'John Doe',
-      email: 'john@example.com',
-      role: 'admin',
-      avatar: 'https://example.com/avatar1.jpg',
-      created_at: '2024-01-01T00:00:00.000Z',
-    });
-    expect(result[0]).not.toHaveProperty('password');
-    expect(result[1]).not.toHaveProperty('password');
-  });
-
-  it('should handle empty user data', () => {
-    const parseUsers = (data: UserData[]) => {
-      return data.map((user) => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { password, ...userWithoutPassword } = user;
-        return userWithoutPassword;
-      });
-    };
-
-    const result = parseUsers([]);
-    expect(result).toEqual([]);
-  });
-
-  it('should handle users without avatars', () => {
-    const userData: UserData[] = [
-      {
-        id: '1',
-        name: 'John Doe',
-        email: 'john@example.com',
-        password: 'password123',
-        role: 'admin',
+        name: 'Alice',
+        email: 'a@example.com',
+        password: 'secret',
+        role: 'user' as const,
         created_at: '2024-01-01T00:00:00.000Z',
       },
     ];
-
-    const parseUsers = (data: UserData[]) => {
-      return data.map((user) => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { password, ...userWithoutPassword } = user;
-        return userWithoutPassword;
-      });
-    };
-
-    const result = parseUsers(userData);
-
-    expect(result).toHaveLength(1);
-    expect(result[0]).toMatchObject({
-      id: '1',
-      name: 'John Doe',
-      email: 'john@example.com',
-      role: 'admin',
-      created_at: '2024-01-01T00:00:00.000Z',
-    });
-    expect(result[0].avatar).toBeUndefined();
-    expect(result[0]).not.toHaveProperty('password');
+    writeFileSync(join(tmp, 'src', 'data', 'users.txt'), JSON.stringify(users));
+    const { GET } = await import('./route');
+    const res = await GET();
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.users).toEqual(users);
   });
 
-  it('should validate user data structure', () => {
-    const validateUser = (user: Record<string, unknown>) => {
-      const requiredFields = ['id', 'name', 'email', 'role', 'created_at'];
-      return requiredFields.every((field) => user.hasOwnProperty(field));
-    };
-
-    const validUser = {
-      id: '1',
-      name: 'John Doe',
-      email: 'john@example.com',
-      role: 'admin',
-      created_at: '2024-01-01T00:00:00.000Z',
-    };
-
-    const invalidUser = {
-      id: '1',
-      name: 'John Doe',
-      // missing email, role, created_at
-    };
-
-    expect(validateUser(validUser)).toBe(true);
-    expect(validateUser(invalidUser)).toBe(false);
+  it('returns 500 when file contains invalid JSON', async () => {
+    const err = jest.spyOn(console, 'error').mockImplementation(() => {});
+    writeFileSync(join(tmp, 'src', 'data', 'users.txt'), 'not-json');
+    const { GET } = await import('./route');
+    const res = await GET();
+    expect(res.status).toBe(500);
+    expect(await res.json()).toEqual({ error: 'Failed to read users' });
+    err.mockRestore();
   });
 });

@@ -5,8 +5,8 @@ import RecordsList, { SortType } from '@/components/RecordsList';
 import SearchBar, { SearchOptions } from '@/components/SearchBar';
 import OverdueAlert from '@/components/OverdueAlert';
 import { DEFAULT_SEARCH_PROPERTY } from '@/utils/constants';
-
-type FilterType = 'all' | 'overdue' | 'due';
+import { nextFilterTypeAfterSearchChange } from '@/utils/bannerSearchLock';
+import type { MachineListFilterType as FilterType } from '@/utils/machineListFilters';
 
 export default function Home() {
   const [searchOptions, setSearchOptions] = useState<SearchOptions>({
@@ -48,14 +48,7 @@ export default function Home() {
 
   /** Leaving banner lock (different property/status/clear) switches to unfiltered "all" list semantics. */
   const handleSearchOptions = useCallback((opts: SearchOptions) => {
-    setFilterType((prev) => {
-      if (prev !== 'overdue' && prev !== 'due') return prev;
-      const lockedQuery = prev === 'overdue' ? 'overdue' : 'due';
-      const leavingBannerLock =
-        opts.property !== 'ppm_status' ||
-        (opts.property === 'ppm_status' && opts.query !== lockedQuery);
-      return leavingBannerLock ? 'all' : prev;
-    });
+    setFilterType((prev) => nextFilterTypeAfterSearchChange(prev, opts));
     setSearchOptions(opts);
   }, []);
 

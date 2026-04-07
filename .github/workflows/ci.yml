@@ -65,3 +65,9 @@ jobs:
 
       - name: Test
         run: cd ui && npm test
+
+      - name: Install Playwright browsers
+        run: cd ui && npx playwright install --with-deps chromium
+
+      - name: E2E tests
+        run: cd ui && npm run test:e2e
