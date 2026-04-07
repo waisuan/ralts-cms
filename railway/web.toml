@@ -1,12 +1,17 @@
 # Web API service – Go HTTP API, always on.
 # In Railway: connect this service to the repo, set Config File Path to /railway/web.toml.
 # Root Directory: / (default)
+#
+# Migrations: preDeployCommand runs golang-migrate after build, before the new release starts.
+# Set DATABASE_URL on this service (Railway Postgres provides it when linked). See:
+# https://docs.railway.com/deployments/pre-deploy-command
 
 [build]
-buildCommand = "go build -o bin/ralts-cms ./cmd/web"
-watchPatterns = ["cmd/**", "internal/**", "pkg/**", "db/**", "go.mod", "go.sum", "railway/web.toml"]
+buildCommand = "sh railway/build-web.sh"
+watchPatterns = ["cmd/**", "internal/**", "pkg/**", "db/**", "go.mod", "go.sum", "railway/**"]
 
 [deploy]
+preDeployCommand = ["sh", "-c", "./migrate -path ./db/migrations -database \"$DATABASE_URL\" up"]
 startCommand = "bin/ralts-cms"
 restartPolicyType = "ON_FAILURE"
 healthcheckPath = "/health"
