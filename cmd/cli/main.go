@@ -54,6 +54,11 @@ func main() {
 	}
 
 	deps := deps.Initialise()
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		deps.Shutdown(ctx)
+	}()
 
 	switch *entityType {
 	case "machine":

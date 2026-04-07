@@ -32,10 +32,9 @@ type DatabaseConfig struct {
 	Image        string
 }
 
-// SetupTestDatabase creates a new PostgreSQL testcontainer, runs migrations,
-// and returns a TestDatabase instance ready for testing
-func SetupTestDatabase(t *testing.T) *TestDatabase {
-	ctx := context.Background()
+// NewTestDatabase starts PostgreSQL in a container, runs migrations, and opens a pool.
+// The caller must call Close when finished (typically once per suite).
+func NewTestDatabase(ctx context.Context) (*TestDatabase, error) {
 	config := DatabaseConfig{
 		DatabaseName: "test_db",
 		Username:     "test_user",
@@ -43,65 +42,67 @@ func SetupTestDatabase(t *testing.T) *TestDatabase {
 		Image:        "postgres:16-alpine",
 	}
 
-	// Start PostgreSQL container with specified configuration
 	container, err := postgres.Run(
 		ctx,
 		config.Image,
 		postgres.WithDatabase(config.DatabaseName),
 		postgres.WithUsername(config.Username),
 		postgres.WithPassword(config.Password),
-		postgres.WithSQLDriver("pgx"), // Use pgx driver for better performance
+		postgres.WithSQLDriver("pgx"),
 		testcontainers.WithWaitStrategy(
 			wait.ForAll(
-				// First, wait for the container to log readiness twice
-				// This is because PostgreSQL restarts itself after the first startup
 				wait.ForLog("database system is ready to accept connections").
 					WithOccurrence(2).
 					WithStartupTimeout(60*time.Second),
-				// Then, wait for docker to actually serve the port on localhost
-				// This is important for non-Linux OSes like Mac and Windows
 				wait.ForListeningPort("5432/tcp"),
 			),
 		),
 	)
 	if err != nil {
-		t.Fatalf("failed to start postgres container: %v", err)
+		return nil, fmt.Errorf("start postgres container: %w", err)
 	}
 
-	// Get connection string
 	connStr, err := container.ConnectionString(ctx, "sslmode=disable")
 	if err != nil {
-		t.Fatalf("failed to get connection string: %v", err)
+		_ = testcontainers.TerminateContainer(container)
+		return nil, fmt.Errorf("connection string: %w", err)
 	}
 
-	// Run database migrations
 	if err := runMigrations(connStr); err != nil {
-		t.Fatalf("failed to run migrations: %v", err)
+		_ = testcontainers.TerminateContainer(container)
+		return nil, fmt.Errorf("run migrations: %w", err)
 	}
 
-	// Create connection pool
 	pool, err := pgxpool.New(ctx, connStr)
 	if err != nil {
-		t.Fatalf("failed to create connection pool: %v", err)
+		_ = testcontainers.TerminateContainer(container)
+		return nil, fmt.Errorf("create pool: %w", err)
 	}
 
-	// Test the connection
 	if err := pool.Ping(ctx); err != nil {
 		pool.Close()
-		t.Fatalf("failed to ping database: %v", err)
+		_ = testcontainers.TerminateContainer(container)
+		return nil, fmt.Errorf("ping database: %w", err)
 	}
 
-	testDB := &TestDatabase{
+	return &TestDatabase{
 		Container:      container,
 		PostgresClient: pool,
 		ConnStr:        connStr,
-	}
+	}, nil
+}
 
-	// Setup cleanup - this will run when the test finishes
+// SetupTestDatabase creates a new PostgreSQL testcontainer, runs migrations,
+// and returns a TestDatabase instance ready for testing
+func SetupTestDatabase(t *testing.T) *TestDatabase {
+	ctx := context.Background()
+	testDB, err := NewTestDatabase(ctx)
+	if err != nil {
+		t.Fatalf("failed to set up test database: %v", err)
+	}
 	t.Cleanup(func() {
 		testDB.Close()
 	})
-
 	return testDB
 }
 

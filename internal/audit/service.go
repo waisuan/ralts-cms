@@ -20,9 +20,10 @@ const (
 	DefaultCleanupInterval = 1 * time.Hour
 )
 
-// AuditService defines the interface for audit logging operations
+// AuditService defines the interface for audit logging operations.
 //
 //go:generate mockgen -destination=mock_audit_service.go -package=audit -source=service.go AuditService
+//revive:disable-next-line:exported // Name retained for stable mockgen output and call sites.
 type AuditService interface {
 	LogEvent(event Event)
 	Start()
@@ -47,15 +48,18 @@ func DefaultServiceConfig() ServiceConfig {
 
 // Service handles asynchronous audit logging
 type Service struct {
-	repo          Repository
-	logger        *slog.Logger
-	config        ServiceConfig
-	eventChan     chan Event
-	wg            sync.WaitGroup
-	stopChan      chan struct{}
-	started       bool
-	mu            sync.Mutex
-	cleanupTicker *time.Ticker
+	repo      Repository
+	logger    *slog.Logger
+	config    ServiceConfig
+	eventChan chan Event
+	wg        sync.WaitGroup
+	stopChan  chan struct{}
+	started   bool
+	// terminalShutdown is set when Stop closes stopChan; Start becomes a no-op afterward.
+	terminalShutdown bool
+	mu               sync.Mutex
+	stopOnce         sync.Once
+	cleanupTicker    *time.Ticker
 }
 
 // NewService creates a new audit service with the given repository and logger
@@ -116,10 +120,16 @@ func (s *Service) LogEvent(event Event) {
 }
 
 // Start begins the background worker goroutine that processes events.
-// This method is idempotent - calling it multiple times has no effect.
+// It is idempotent while running. After a successful Stop that shut down workers,
+// Start does nothing (the service is terminal; use a new Service if needed).
 func (s *Service) Start() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	if s.terminalShutdown {
+		s.logger.Warn("audit service: Start ignored after shutdown")
+		return
+	}
 
 	if s.started {
 		return
@@ -144,34 +154,37 @@ func (s *Service) Start() {
 
 // Stop gracefully shuts down the audit service, draining remaining events.
 // It blocks until all events are processed or the context is cancelled.
+// Stop is idempotent: multiple calls after the first complete without panicking.
 func (s *Service) Stop(ctx context.Context) {
-	s.mu.Lock()
-	if !s.started {
+	s.stopOnce.Do(func() {
+		s.mu.Lock()
+		if !s.started {
+			s.mu.Unlock()
+			return
+		}
+		s.started = false
+		s.terminalShutdown = true
 		s.mu.Unlock()
-		return
-	}
-	s.mu.Unlock()
 
-	// Stop the cleanup ticker
-	if s.cleanupTicker != nil {
-		s.cleanupTicker.Stop()
-	}
+		if s.cleanupTicker != nil {
+			s.cleanupTicker.Stop()
+		}
 
-	close(s.stopChan)
+		close(s.stopChan)
 
-	// Wait for workers to finish or context timeout
-	done := make(chan struct{})
-	go func() {
-		s.wg.Wait()
-		close(done)
-	}()
+		done := make(chan struct{})
+		go func() {
+			s.wg.Wait()
+			close(done)
+		}()
 
-	select {
-	case <-done:
-		s.logger.Info("Audit service stopped gracefully")
-	case <-ctx.Done():
-		s.logger.Warn("Audit service shutdown timed out, some events may be lost")
-	}
+		select {
+		case <-done:
+			s.logger.Info("Audit service stopped gracefully")
+		case <-ctx.Done():
+			s.logger.Warn("Audit service shutdown timed out, some events may be lost")
+		}
+	})
 }
 
 // worker processes events from the channel and persists them to the database

@@ -2,29 +2,30 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"ralts-cms/internal/audit"
 	"ralts-cms/internal/deps"
-	"ralts-cms/internal/maintenance"
+	maint "ralts-cms/internal/maintenance"
+	"ralts-cms/pkg/pgxutil"
 	"strconv"
-	"strings"
 
 	"github.com/gorilla/mux"
 )
 
 // ListMaintenanceResponse represents the response structure for maintenance listing endpoints
 type ListMaintenanceResponse struct {
-	Maintenance       []*maintenance.Maintenance `json:"maintenance"`
-	PreventativeCount int32                      `json:"preventative_count"`
-	CorrectiveCount   int32                      `json:"corrective_count"`
-	EmergencyCount    int32                      `json:"emergency_count"`
-	InspectionCount   int32                      `json:"inspection_count"`
-	OtherCount        int32                      `json:"other_count"`
-	Count             int32                      `json:"count"`
-	Limit             int32                      `json:"limit"`
-	Offset            int32                      `json:"offset"`
-	Sort              string                     `json:"sort"`
+	Maintenance       []*maint.Maintenance `json:"maintenance"`
+	PreventativeCount int32                `json:"preventative_count"`
+	CorrectiveCount   int32                `json:"corrective_count"`
+	EmergencyCount    int32                `json:"emergency_count"`
+	InspectionCount   int32                `json:"inspection_count"`
+	OtherCount        int32                `json:"other_count"`
+	Count             int32                `json:"count"`
+	Limit             int32                `json:"limit"`
+	Offset            int32                `json:"offset"`
+	Sort              string               `json:"sort"`
 }
 
 // MaintenanceHandler handles HTTP requests for maintenance-related operations
@@ -49,9 +50,9 @@ func (h *MaintenanceHandler) GetMaintenance(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	maintenance, err := h.deps.MaintenanceRepository.GetByWorkOrder(r.Context(), machineSerialNumber, workOrderNumber)
+	record, err := h.deps.MaintenanceRepository.GetByWorkOrder(r.Context(), machineSerialNumber, workOrderNumber)
 	if err != nil {
-		if err.Error() == "maintenance not found" {
+		if errors.Is(err, maint.ErrNotFound) {
 			http.Error(w, "Maintenance not found", http.StatusNotFound)
 			return
 		}
@@ -59,7 +60,7 @@ func (h *MaintenanceHandler) GetMaintenance(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	maintenance.SetWorkOrderTypeStandardFlag()
+	record.SetWorkOrderTypeStandardFlag()
 
 	// Audit: Log maintenance view
 	h.deps.AuditService.LogEvent(audit.NewEvent(r, audit.ActionViewed, audit.ResourceMaintenance, workOrderNumber, map[string]any{
@@ -67,7 +68,7 @@ func (h *MaintenanceHandler) GetMaintenance(w http.ResponseWriter, r *http.Reque
 	}))
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(maintenance)
+	json.NewEncoder(w).Encode(record)
 }
 
 // ListMaintenance handles GET /machines/{serial_number}/maintenance
@@ -108,17 +109,17 @@ func (h *MaintenanceHandler) ListMaintenance(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Parse sort parameter
-	sort := maintenance.SortOrderUpdatedAtDesc // Default to most recently updated first
+	sort := maint.SortOrderUpdatedAtDesc // Default to most recently updated first
 	if sortStr != "" {
 		switch sortStr {
 		case "work_order_date_desc":
-			sort = maintenance.SortOrderWorkOrderDateDesc
+			sort = maint.SortOrderWorkOrderDateDesc
 		case "work_order_date_asc":
-			sort = maintenance.SortOrderWorkOrderDateAsc
+			sort = maint.SortOrderWorkOrderDateAsc
 		case "updated_at_desc":
-			sort = maintenance.SortOrderUpdatedAtDesc
+			sort = maint.SortOrderUpdatedAtDesc
 		case "updated_at_asc":
-			sort = maintenance.SortOrderUpdatedAtAsc
+			sort = maint.SortOrderUpdatedAtAsc
 		default:
 			http.Error(w, "Invalid sort parameter. Must be 'work_order_date_desc', 'work_order_date_asc', 'updated_at_desc', or 'updated_at_asc'", http.StatusBadRequest)
 			return
@@ -126,14 +127,14 @@ func (h *MaintenanceHandler) ListMaintenance(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Create list options
-	options := &maintenance.ListOptions{
+	options := &maint.ListOptions{
 		Limit:  limit,
 		Offset: offset,
 		Sort:   sort,
 	}
 
 	// Get maintenance records from repository
-	var maintenanceList []*maintenance.Maintenance
+	var maintenanceList []*maint.Maintenance
 	var count int
 	var err error
 
@@ -212,25 +213,25 @@ func (h *MaintenanceHandler) CreateMaintenance(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	var maintenance maintenance.Maintenance
-	if err := json.NewDecoder(r.Body).Decode(&maintenance); err != nil {
+	var body maint.Maintenance
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
 		return
 	}
 
-	maintenance.WorkOrderTypeIsStandard = false
+	body.WorkOrderTypeIsStandard = false
 
 	// Set the machine serial number from the URL
-	maintenance.MachineSerialNumber = machineSerialNumber
+	body.MachineSerialNumber = machineSerialNumber
 
-	if maintenance.WorkOrderNumber == "" {
+	if body.WorkOrderNumber == "" {
 		http.Error(w, "Work order number is required", http.StatusBadRequest)
 		return
 	}
 
-	err := h.deps.MaintenanceRepository.Create(r.Context(), &maintenance)
+	err := h.deps.MaintenanceRepository.Create(r.Context(), &body)
 	if err != nil {
-		if strings.Contains(err.Error(), "ConditionalCheckFailedException") {
+		if pgxutil.IsUniqueViolation(err) {
 			http.Error(w, "Maintenance already exists", http.StatusConflict)
 			return
 		}
@@ -239,16 +240,16 @@ func (h *MaintenanceHandler) CreateMaintenance(w http.ResponseWriter, r *http.Re
 	}
 
 	// Audit: Log maintenance creation
-	h.deps.AuditService.LogEvent(audit.NewEvent(r, audit.ActionCreated, audit.ResourceMaintenance, maintenance.WorkOrderNumber, map[string]any{
-		"machine_serial_number": maintenance.MachineSerialNumber,
-		"work_order_type":       maintenance.WorkOrderType,
+	h.deps.AuditService.LogEvent(audit.NewEvent(r, audit.ActionCreated, audit.ResourceMaintenance, body.WorkOrderNumber, map[string]any{
+		"machine_serial_number": body.MachineSerialNumber,
+		"work_order_type":       body.WorkOrderType,
 	}))
 
-	maintenance.SetWorkOrderTypeStandardFlag()
+	body.SetWorkOrderTypeStandardFlag()
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(maintenance)
+	json.NewEncoder(w).Encode(body)
 }
 
 // UpdateMaintenance handles PUT /machines/{serial_number}/maintenance
@@ -260,26 +261,26 @@ func (h *MaintenanceHandler) UpdateMaintenance(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	var maintenance maintenance.Maintenance
-	if err := json.NewDecoder(r.Body).Decode(&maintenance); err != nil {
+	var body maint.Maintenance
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
 		return
 	}
 
-	maintenance.WorkOrderTypeIsStandard = false
+	body.WorkOrderTypeIsStandard = false
 
 	// Set the machine serial number from the URL
-	maintenance.MachineSerialNumber = machineSerialNumber
+	body.MachineSerialNumber = machineSerialNumber
 
-	if maintenance.WorkOrderNumber == "" {
+	if body.WorkOrderNumber == "" {
 		http.Error(w, "Work order number is required", http.StatusBadRequest)
 		return
 	}
 
 	// Check if maintenance exists
-	_, err := h.deps.MaintenanceRepository.GetByWorkOrder(r.Context(), machineSerialNumber, maintenance.WorkOrderNumber)
+	_, err := h.deps.MaintenanceRepository.GetByWorkOrder(r.Context(), machineSerialNumber, body.WorkOrderNumber)
 	if err != nil {
-		if err.Error() == "maintenance not found" {
+		if errors.Is(err, maint.ErrNotFound) {
 			http.Error(w, "Maintenance not found", http.StatusNotFound)
 			return
 		}
@@ -287,22 +288,22 @@ func (h *MaintenanceHandler) UpdateMaintenance(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	err = h.deps.MaintenanceRepository.Update(r.Context(), &maintenance)
+	err = h.deps.MaintenanceRepository.Update(r.Context(), &body)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to update maintenance: %v", err), http.StatusInternalServerError)
 		return
 	}
 
 	// Audit: Log maintenance update
-	h.deps.AuditService.LogEvent(audit.NewEvent(r, audit.ActionUpdated, audit.ResourceMaintenance, maintenance.WorkOrderNumber, map[string]any{
-		"machine_serial_number": maintenance.MachineSerialNumber,
-		"work_order_type":       maintenance.WorkOrderType,
+	h.deps.AuditService.LogEvent(audit.NewEvent(r, audit.ActionUpdated, audit.ResourceMaintenance, body.WorkOrderNumber, map[string]any{
+		"machine_serial_number": body.MachineSerialNumber,
+		"work_order_type":       body.WorkOrderType,
 	}))
 
-	maintenance.SetWorkOrderTypeStandardFlag()
+	body.SetWorkOrderTypeStandardFlag()
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(maintenance)
+	json.NewEncoder(w).Encode(body)
 }
 
 // DeleteMaintenance handles DELETE /machines/{serial_number}/maintenance/{work_order_number}
@@ -318,7 +319,7 @@ func (h *MaintenanceHandler) DeleteMaintenance(w http.ResponseWriter, r *http.Re
 	// Check if maintenance exists
 	_, err := h.deps.MaintenanceRepository.GetByWorkOrder(r.Context(), machineSerialNumber, workOrderNumber)
 	if err != nil {
-		if err.Error() == "maintenance not found" {
+		if errors.Is(err, maint.ErrNotFound) {
 			http.Error(w, "Maintenance not found", http.StatusNotFound)
 			return
 		}

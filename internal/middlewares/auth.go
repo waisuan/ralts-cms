@@ -34,35 +34,35 @@ func AuthenticationMiddleware(jwtSecret string) func(http.Handler) http.Handler 
 			// Extract token from Authorization header
 			tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 			if tokenString == "" {
-				http.Error(w, "Invalid token: missing token", http.StatusUnauthorized)
+				http.Error(w, "Invalid token", http.StatusUnauthorized)
 				return
 			}
 
 			// Validate JWT token
 			claims, err := auth.ValidateJWTToken(tokenString, jwtSecret)
 			if err != nil {
-				http.Error(w, fmt.Sprintf("Invalid token: %v", err), http.StatusUnauthorized)
+				http.Error(w, "Invalid token", http.StatusUnauthorized)
 				return
 			}
 
 			// Extract user information from claims
 			entityID, ok := claims["entity_id"].(string)
 			if !ok {
-				http.Error(w, "Invalid token: missing entity_id", http.StatusUnauthorized)
+				http.Error(w, "Invalid token", http.StatusUnauthorized)
 				return
 			}
 
 			// Extract role from claims
 			role, ok := claims["role"].(string)
 			if !ok {
-				http.Error(w, "Invalid token: missing role", http.StatusUnauthorized)
+				http.Error(w, "Invalid token", http.StatusUnauthorized)
 				return
 			}
 
 			// Convert entity_id to int64
 			userID, err := strconv.ParseInt(entityID, 10, 64)
 			if err != nil {
-				http.Error(w, "Invalid token: invalid entity_id format", http.StatusUnauthorized)
+				http.Error(w, "Invalid token", http.StatusUnauthorized)
 				return
 			}
 

@@ -19,6 +19,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/gorilla/mux"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -144,9 +145,9 @@ func (suite *UsersHandlerTestSuite) TestCreateUser() {
 			Password: "mypassword123",
 		}
 
-		// Mock repository to return a duplicate key error
+		// Mock repository to return a PostgreSQL unique_violation (23505)
 		suite.mockRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(
-			fmt.Errorf("duplicate key value violates unique constraint"))
+			&pgconn.PgError{Code: "23505"})
 
 		body, _ := json.Marshal(userData)
 		req := httptest.NewRequest("POST", "/users", bytes.NewBuffer(body))

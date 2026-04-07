@@ -33,7 +33,7 @@ func newMockRepository() *mockRepository {
 	}
 }
 
-func (m *mockRepository) Create(ctx context.Context, event *audit.Event) error {
+func (m *mockRepository) Create(_ context.Context, event *audit.Event) error {
 	if m.createDelay > 0 {
 		time.Sleep(m.createDelay)
 	}
@@ -49,19 +49,19 @@ func (m *mockRepository) Create(ctx context.Context, event *audit.Event) error {
 	return nil
 }
 
-func (m *mockRepository) List(ctx context.Context, options *audit.ListOptions) ([]*audit.Event, error) {
+func (m *mockRepository) List(_ context.Context, _ *audit.ListOptions) ([]*audit.Event, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.events, nil
 }
 
-func (m *mockRepository) Count(ctx context.Context, options *audit.ListOptions) (int32, error) {
+func (m *mockRepository) Count(_ context.Context, _ *audit.ListOptions) (int32, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return int32(len(m.events)), nil
 }
 
-func (m *mockRepository) DeleteOlderThan(ctx context.Context, cutoff time.Time) (int64, error) {
+func (m *mockRepository) DeleteOlderThan(_ context.Context, cutoff time.Time) (int64, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -269,6 +269,26 @@ func TestService_StartStop(t *testing.T) {
 		service.Stop(context.Background())
 		assert.False(t, service.IsStarted())
 	})
+
+	t.Run("Stop after Start is idempotent", func(_ *testing.T) {
+		repo := newMockRepository()
+		service := audit.NewService(repo, testLogger())
+		service.Start()
+		service.Stop(context.Background())
+		// Second Stop must not panic (e.g. double-close on stopChan)
+		service.Stop(context.Background())
+	})
+
+	t.Run("Start ignored after terminal shutdown", func(t *testing.T) {
+		repo := newMockRepository()
+		service := audit.NewService(repo, testLogger())
+		service.Start()
+		service.Stop(context.Background())
+		assert.False(t, service.IsStarted())
+
+		service.Start()
+		assert.False(t, service.IsStarted(), "Start must not resurrect service after Stop closed workers")
+	})
 }
 
 func TestService_BufferLength(t *testing.T) {
@@ -309,9 +329,9 @@ func TestService_ConcurrentLogging(t *testing.T) {
 		numGoroutines := 10
 		eventsPerGoroutine := 100
 
-		for i := 0; i < numGoroutines; i++ {
+		for range numGoroutines {
 			wg.Add(1)
-			go func(id int) {
+			go func() {
 				defer wg.Done()
 				for j := 0; j < eventsPerGoroutine; j++ {
 					service.LogEvent(audit.Event{
@@ -320,7 +340,7 @@ func TestService_ConcurrentLogging(t *testing.T) {
 						ResourceID:   "SN-001",
 					})
 				}
-			}(i)
+			}()
 		}
 
 		wg.Wait()

@@ -1,3 +1,4 @@
+// Package audit defines audit event types and helpers for building events from HTTP requests.
 package audit
 
 import (

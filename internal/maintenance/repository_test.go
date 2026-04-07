@@ -715,6 +715,29 @@ func (suite *MaintenanceRepositoryTestSuite) TestCountByMachine() {
 	})
 }
 
+func (suite *MaintenanceRepositoryTestSuite) TestCountByMachineSerials() {
+	ctx := context.Background()
+
+	suite.Run("should return empty map for empty input", func() {
+		got, err := suite.repo.CountByMachineSerials(ctx, nil)
+		suite.Require().NoError(err)
+		suite.Assert().Empty(got)
+	})
+
+	suite.Run("should return counts keyed by serial", func() {
+		suite.Require().NoError(suite.repo.Create(ctx, testutils.CreateMaintenance(TestMachineOne, "WO-A")))
+		suite.Require().NoError(suite.repo.Create(ctx, testutils.CreateMaintenance(TestMachineOne, "WO-B")))
+		suite.Require().NoError(suite.repo.Create(ctx, testutils.CreateMaintenance(TestMachineTwo, "WO-C")))
+
+		got, err := suite.repo.CountByMachineSerials(ctx, []string{TestMachineOne, TestMachineTwo, "NO_SUCH_MACHINE"})
+		suite.Require().NoError(err)
+		suite.Assert().Equal(2, got[TestMachineOne])
+		suite.Assert().Equal(1, got[TestMachineTwo])
+		_, ok := got["NO_SUCH_MACHINE"]
+		suite.Assert().False(ok)
+	})
+}
+
 func (suite *MaintenanceRepositoryTestSuite) TestCountByWorkOrderType() {
 	ctx := context.Background()
 

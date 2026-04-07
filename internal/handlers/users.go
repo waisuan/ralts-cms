@@ -9,8 +9,8 @@ import (
 	"ralts-cms/internal/middlewares"
 	"ralts-cms/internal/users"
 	"ralts-cms/pkg/auth"
+	"ralts-cms/pkg/pgxutil"
 	"strconv"
-	"strings"
 
 	"github.com/gorilla/mux"
 )
@@ -22,9 +22,9 @@ type UsersHandler struct {
 
 // CreateUserRequest represents the request structure for user creation
 type CreateUserRequest struct {
-	Username string  `json:"username" validate:"required"`
-	Email    string  `json:"email" validate:"required,email"`
-	Password string  `json:"password" validate:"required,min=6"`
+	Username string  `json:"username"`
+	Email    string  `json:"email"`
+	Password string  `json:"password"`
 	Role     string  `json:"role,omitempty"`
 	Approved bool    `json:"approved,omitempty"`
 	Status   string  `json:"status,omitempty"`
@@ -39,19 +39,19 @@ type LoginRequest struct {
 
 // UpdateUserStatusRequest represents the request structure for updating user status
 type UpdateUserStatusRequest struct {
-	Status string `json:"status" validate:"required"`
+	Status string `json:"status"`
 }
 
 // BulkUpdateStatusRequest represents the request structure for bulk status updates
 type BulkUpdateStatusRequest struct {
-	UserIDs []int64 `json:"user_ids" validate:"required,min=1"`
-	Status  string  `json:"status" validate:"required"`
+	UserIDs []int64 `json:"user_ids"`
+	Status  string  `json:"status"`
 }
 
 // UpdatePasswordRequest represents the request structure for password updates
 type UpdatePasswordRequest struct {
-	CurrentPassword string `json:"current_password" validate:"required"`
-	NewPassword     string `json:"new_password" validate:"required,min=6"`
+	CurrentPassword string `json:"current_password"`
+	NewPassword     string `json:"new_password"`
 }
 
 // ListUsersResponse represents the response structure for user listing
@@ -94,8 +94,7 @@ func (h *UsersHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.deps.UsersRepository.Create(r.Context(), user); err != nil {
-		// Check for duplicate key constraint violations
-		if strings.Contains(err.Error(), "duplicate key") || strings.Contains(err.Error(), "UNIQUE constraint failed") {
+		if pgxutil.IsUniqueViolation(err) {
 			http.Error(w, "A user with this username or email already exists. Please try different credentials.", http.StatusConflict)
 			return
 		}

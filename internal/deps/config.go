@@ -15,6 +15,9 @@ import (
 
 const (
 	appEnvDevelopment = "development"
+	appEnvTest        = "test"
+	// jwtSecretDevDefault is the placeholder allowed only in development and automated test runs.
+	jwtSecretDevDefault = "your-jwt-secret-key"
 )
 
 // Config holds all configuration settings for the Ralts-CMS application
@@ -77,7 +80,21 @@ func LoadConfig() (*Config, error) {
 		return nil, fmt.Errorf("error loading app config: %w", err)
 	}
 
+	if err := validateConfig(&cfg); err != nil {
+		return nil, err
+	}
+
 	return &cfg, nil
+}
+
+func validateConfig(cfg *Config) error {
+	if cfg.Env == appEnvDevelopment || cfg.Env == appEnvTest {
+		return nil
+	}
+	if cfg.JWTSecret == "" || cfg.JWTSecret == jwtSecretDevDefault {
+		return fmt.Errorf("JWT_SECRET must be set to a strong secret when APP_ENV is not %q or %q (do not use the default placeholder)", appEnvDevelopment, appEnvTest)
+	}
+	return nil
 }
 
 // dir returns the absolute path of the given environment file (envFile) in the Go module's

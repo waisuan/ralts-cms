@@ -17,6 +17,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/gorilla/mux"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -87,7 +88,7 @@ func (suite *MachinesHandlerTestSuite) TestGetMachine() {
 	})
 
 	suite.Run("should return 404 when machine not found", func() {
-		suite.mockMachinesRepo.EXPECT().GetBySerialNumber(gomock.Any(), "NOTFOUND").Return(nil, fmt.Errorf("machine not found"))
+		suite.mockMachinesRepo.EXPECT().GetBySerialNumber(gomock.Any(), "NOTFOUND").Return(nil, fmt.Errorf("%w", machines.ErrNotFound))
 
 		req := httptest.NewRequest("GET", "/machines/NOTFOUND", nil)
 		w := httptest.NewRecorder()
@@ -190,7 +191,7 @@ func (suite *MachinesHandlerTestSuite) TestCreateMachine() {
 			Customer:     "Duplicate Customer",
 		}
 
-		suite.mockMachinesRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(fmt.Errorf("ConditionalCheckFailedException"))
+		suite.mockMachinesRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(&pgconn.PgError{Code: "23505"})
 
 		body, _ := json.Marshal(machineData)
 		req := httptest.NewRequest("POST", "/machines", bytes.NewBuffer(body))
@@ -303,7 +304,7 @@ func (suite *MachinesHandlerTestSuite) TestUpdateMachine() {
 			Customer:     "Not Found Customer",
 		}
 
-		suite.mockMachinesRepo.EXPECT().GetBySerialNumber(gomock.Any(), "NOTFOUND123").Return(nil, fmt.Errorf("machine not found"))
+		suite.mockMachinesRepo.EXPECT().GetBySerialNumber(gomock.Any(), "NOTFOUND123").Return(nil, fmt.Errorf("%w", machines.ErrNotFound))
 
 		body, _ := json.Marshal(machineData)
 		req := httptest.NewRequest("PUT", "/machines/NOTFOUND123", bytes.NewBuffer(body))
@@ -395,7 +396,7 @@ func (suite *MachinesHandlerTestSuite) TestDeleteMachine() {
 	})
 
 	suite.Run("should return 404 when machine not found", func() {
-		suite.mockMachinesRepo.EXPECT().GetBySerialNumber(gomock.Any(), "NOTFOUND").Return(nil, fmt.Errorf("machine not found"))
+		suite.mockMachinesRepo.EXPECT().GetBySerialNumber(gomock.Any(), "NOTFOUND").Return(nil, fmt.Errorf("%w", machines.ErrNotFound))
 
 		req := httptest.NewRequest("DELETE", "/machines/NOTFOUND", nil)
 		w := httptest.NewRecorder()
@@ -441,8 +442,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.mockMachinesRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
 		suite.mockMachinesRepo.EXPECT().Count(gomock.Any(), gomock.Any()).Return(2, nil)
 		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(1), int32(2), int32(3), nil)
-		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "MACHINE001").Return(1, nil)
-		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "MACHINE002").Return(2, nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachineSerials(gomock.Any(), []string{"MACHINE001", "MACHINE002"}).Return(map[string]int{"MACHINE001": 1, "MACHINE002": 2}, nil)
 
 		req := httptest.NewRequest("GET", "/machines", nil)
 		w := httptest.NewRecorder()
@@ -484,7 +484,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.mockMachinesRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
 		suite.mockMachinesRepo.EXPECT().Count(gomock.Any(), gomock.Any()).Return(1, nil)
 		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
-		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "MACHINE001").Return(1, nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachineSerials(gomock.Any(), []string{"MACHINE001"}).Return(map[string]int{"MACHINE001": 1}, nil)
 
 		req := httptest.NewRequest("GET", "/machines?limit=25", nil)
 		w := httptest.NewRecorder()
@@ -519,7 +519,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.mockMachinesRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
 		suite.mockMachinesRepo.EXPECT().Count(gomock.Any(), gomock.Any()).Return(1, nil)
 		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
-		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "MACHINE003").Return(1, nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachineSerials(gomock.Any(), []string{"MACHINE003"}).Return(map[string]int{"MACHINE003": 1}, nil)
 
 		req := httptest.NewRequest("GET", "/machines?offset=10", nil)
 		w := httptest.NewRecorder()
@@ -554,7 +554,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.mockMachinesRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
 		suite.mockMachinesRepo.EXPECT().Count(gomock.Any(), gomock.Any()).Return(1, nil)
 		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
-		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "MACHINE005").Return(1, nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachineSerials(gomock.Any(), []string{"MACHINE005"}).Return(map[string]int{"MACHINE005": 1}, nil)
 
 		req := httptest.NewRequest("GET", "/machines?limit=10&offset=20&sort=updated_at_desc", nil)
 		w := httptest.NewRecorder()
@@ -590,7 +590,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.mockMachinesRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
 		suite.mockMachinesRepo.EXPECT().Count(gomock.Any(), gomock.Any()).Return(1, nil)
 		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
-		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "MACHINE001").Return(1, nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachineSerials(gomock.Any(), []string{"MACHINE001"}).Return(map[string]int{"MACHINE001": 1}, nil)
 
 		req := httptest.NewRequest("GET", "/machines?sort=updated_at_desc", nil)
 		w := httptest.NewRecorder()
@@ -624,7 +624,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.mockMachinesRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
 		suite.mockMachinesRepo.EXPECT().Count(gomock.Any(), gomock.Any()).Return(1, nil)
 		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
-		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "MACHINE001").Return(1, nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachineSerials(gomock.Any(), []string{"MACHINE001"}).Return(map[string]int{"MACHINE001": 1}, nil)
 
 		req := httptest.NewRequest("GET", "/machines?sort=updated_at_asc", nil)
 		w := httptest.NewRecorder()
@@ -658,7 +658,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.mockMachinesRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
 		suite.mockMachinesRepo.EXPECT().Count(gomock.Any(), gomock.Any()).Return(1, nil)
 		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
-		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "MACHINE001").Return(1, nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachineSerials(gomock.Any(), []string{"MACHINE001"}).Return(map[string]int{"MACHINE001": 1}, nil)
 
 		req := httptest.NewRequest("GET", "/machines?sort=ppm_date_asc", nil)
 		w := httptest.NewRecorder()
@@ -689,7 +689,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.mockMachinesRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
 		suite.mockMachinesRepo.EXPECT().Count(gomock.Any(), gomock.Any()).Return(1, nil)
 		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
-		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "MACHINE001").Return(1, nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachineSerials(gomock.Any(), []string{"MACHINE001"}).Return(map[string]int{"MACHINE001": 1}, nil)
 
 		req := httptest.NewRequest("GET", "/machines?sort=ppm_date_desc", nil)
 		w := httptest.NewRecorder()
@@ -720,7 +720,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.mockMachinesRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
 		suite.mockMachinesRepo.EXPECT().Count(gomock.Any(), gomock.Any()).Return(1, nil)
 		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
-		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "MACHINE001").Return(1, nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachineSerials(gomock.Any(), []string{"MACHINE001"}).Return(map[string]int{"MACHINE001": 1}, nil)
 
 		req := httptest.NewRequest("GET", "/machines?sort=tnc_date_asc", nil)
 		w := httptest.NewRecorder()
@@ -751,7 +751,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.mockMachinesRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
 		suite.mockMachinesRepo.EXPECT().Count(gomock.Any(), gomock.Any()).Return(1, nil)
 		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
-		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "MACHINE001").Return(1, nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachineSerials(gomock.Any(), []string{"MACHINE001"}).Return(map[string]int{"MACHINE001": 1}, nil)
 
 		req := httptest.NewRequest("GET", "/machines?sort=tnc_date_desc", nil)
 		w := httptest.NewRecorder()
@@ -784,7 +784,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.mockMachinesRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
 		suite.mockMachinesRepo.EXPECT().Count(gomock.Any(), gomock.Any()).Return(1, nil)
 		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
-		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "MACHINE001").Return(1, nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachineSerials(gomock.Any(), []string{"MACHINE001"}).Return(map[string]int{"MACHINE001": 1}, nil)
 
 		req := httptest.NewRequest("GET", "/machines?ppm_date_from=2025-01-15", nil)
 		w := httptest.NewRecorder()
@@ -813,7 +813,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.mockMachinesRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
 		suite.mockMachinesRepo.EXPECT().Count(gomock.Any(), gomock.Any()).Return(1, nil)
 		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
-		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "MACHINE001").Return(1, nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachineSerials(gomock.Any(), []string{"MACHINE001"}).Return(map[string]int{"MACHINE001": 1}, nil)
 
 		req := httptest.NewRequest("GET", "/machines?ppm_date_from=2025-01-01&ppm_date_to=2025-01-31", nil)
 		w := httptest.NewRecorder()
@@ -842,7 +842,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.mockMachinesRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
 		suite.mockMachinesRepo.EXPECT().Count(gomock.Any(), gomock.Any()).Return(1, nil)
 		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
-		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "MACHINE001").Return(1, nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachineSerials(gomock.Any(), []string{"MACHINE001"}).Return(map[string]int{"MACHINE001": 1}, nil)
 
 		req := httptest.NewRequest("GET", "/machines?tnc_date_from=2025-02-01&tnc_date_to=2025-02-28", nil)
 		w := httptest.NewRecorder()
@@ -907,7 +907,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.mockMachinesRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
 		suite.mockMachinesRepo.EXPECT().Count(gomock.Any(), gomock.Any()).Return(1, nil)
 		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(5), int32(3), int32(2), nil)
-		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "MACHINE001").Return(1, nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachineSerials(gomock.Any(), []string{"MACHINE001"}).Return(map[string]int{"MACHINE001": 1}, nil)
 
 		req := httptest.NewRequest("GET", "/machines", nil)
 		w := httptest.NewRecorder()
@@ -1016,7 +1016,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.mockMachinesRepo.EXPECT().List(gomock.Any(), expectedOptions).Return([]*machines.Machine{}, nil)
 		suite.mockMachinesRepo.EXPECT().Count(gomock.Any(), gomock.Any()).Return(0, nil)
 		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
-		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "MACHINE001").Return(1, nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachineSerials(gomock.Any(), []string{"MACHINE001"}).Return(map[string]int{"MACHINE001": 1}, nil)
 
 		req := httptest.NewRequest("GET", "/machines", nil)
 		w := httptest.NewRecorder()
@@ -1083,8 +1083,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.mockMachinesRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
 		suite.mockMachinesRepo.EXPECT().Count(gomock.Any(), gomock.Any()).Return(2, nil)
 		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(2), int32(0), int32(0), nil)
-		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "OVERDUE001").Return(1, nil)
-		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "OVERDUE002").Return(2, nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachineSerials(gomock.Any(), []string{"OVERDUE001", "OVERDUE002"}).Return(map[string]int{"OVERDUE001": 1, "OVERDUE002": 2}, nil)
 
 		req := httptest.NewRequest("GET", "/machines?ppm_status_filter=overdue", nil)
 		w := httptest.NewRecorder()
@@ -1119,8 +1118,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.mockMachinesRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
 		suite.mockMachinesRepo.EXPECT().Count(gomock.Any(), gomock.Any()).Return(2, nil)
 		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(2), int32(0), nil)
-		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "DUE001").Return(1, nil)
-		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "DUE002").Return(2, nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachineSerials(gomock.Any(), []string{"DUE001", "DUE002"}).Return(map[string]int{"DUE001": 1, "DUE002": 2}, nil)
 
 		req := httptest.NewRequest("GET", "/machines?ppm_status_filter=due", nil)
 		w := httptest.NewRecorder()
@@ -1155,8 +1153,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.mockMachinesRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
 		suite.mockMachinesRepo.EXPECT().Count(gomock.Any(), gomock.Any()).Return(2, nil)
 		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(2), nil)
-		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "ALMOSTDUE001").Return(1, nil)
-		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "ALMOSTDUE002").Return(2, nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachineSerials(gomock.Any(), []string{"ALMOSTDUE001", "ALMOSTDUE002"}).Return(map[string]int{"ALMOSTDUE001": 1, "ALMOSTDUE002": 2}, nil)
 
 		req := httptest.NewRequest("GET", "/machines?ppm_status_filter=almost_due", nil)
 		w := httptest.NewRecorder()
@@ -1190,7 +1187,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.mockMachinesRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
 		suite.mockMachinesRepo.EXPECT().Count(gomock.Any(), gomock.Any()).Return(1, nil)
 		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(1), int32(0), nil)
-		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "FILTERED001").Return(1, nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachineSerials(gomock.Any(), []string{"FILTERED001"}).Return(map[string]int{"FILTERED001": 1}, nil)
 
 		req := httptest.NewRequest("GET", "/machines?limit=10&offset=5&sort=updated_at_asc&ppm_status_filter=due", nil)
 		w := httptest.NewRecorder()
@@ -1273,8 +1270,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		// Expect CountSearch to be called for search results
 		suite.mockMachinesRepo.EXPECT().CountSearch(gomock.Any(), "HP", expectedOptions).Return(2, nil)
 		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
-		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "SEARCH001").Return(1, nil)
-		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "SEARCH002").Return(2, nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachineSerials(gomock.Any(), []string{"SEARCH001", "SEARCH002"}).Return(map[string]int{"SEARCH001": 1, "SEARCH002": 2}, nil)
 
 		req := httptest.NewRequest("GET", "/machines?q=HP", nil)
 		w := httptest.NewRecorder()
@@ -1309,7 +1305,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		suite.mockMachinesRepo.EXPECT().List(gomock.Any(), expectedOptions).Return(expectedMachines, nil)
 		suite.mockMachinesRepo.EXPECT().Count(gomock.Any(), gomock.Any()).Return(1, nil)
 		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(0), int32(0), int32(0), nil)
-		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "LIST001").Return(1, nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachineSerials(gomock.Any(), []string{"LIST001"}).Return(map[string]int{"LIST001": 1}, nil)
 
 		req := httptest.NewRequest("GET", "/machines?q=", nil)
 		w := httptest.NewRecorder()
@@ -1343,7 +1339,7 @@ func (suite *MachinesHandlerTestSuite) TestListMachines() {
 		// Expect CountSearch to be called for search results
 		suite.mockMachinesRepo.EXPECT().CountSearch(gomock.Any(), "printer", expectedOptions).Return(1, nil)
 		suite.mockMachinesRepo.EXPECT().CountByStatus(gomock.Any()).Return(int32(1), int32(0), int32(0), nil)
-		suite.mockMaintenanceRepo.EXPECT().CountByMachine(gomock.Any(), "COMBINED001").Return(1, nil)
+		suite.mockMaintenanceRepo.EXPECT().CountByMachineSerials(gomock.Any(), []string{"COMBINED001"}).Return(map[string]int{"COMBINED001": 1}, nil)
 
 		req := httptest.NewRequest("GET", "/machines?q=printer&limit=10&offset=5&sort=updated_at_asc&ppm_status_filter=overdue", nil)
 		w := httptest.NewRecorder()

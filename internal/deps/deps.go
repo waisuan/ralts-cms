@@ -42,7 +42,7 @@ type Dependencies struct {
 func Initialise() *Dependencies {
 	cfg, err := LoadConfig()
 	if err != nil {
-		log.Fatalf("failed to load config: %e", err)
+		log.Fatalf("failed to load config: %v", err)
 	}
 
 	// Initialize structured logger

@@ -64,6 +64,21 @@ func (mr *MockRepositoryMockRecorder) CountByMachine(ctx, machineSerialNumber in
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountByMachine", reflect.TypeOf((*MockRepository)(nil).CountByMachine), ctx, machineSerialNumber)
 }
 
+// CountByMachineSerials mocks base method.
+func (m *MockRepository) CountByMachineSerials(ctx context.Context, serialNumbers []string) (map[string]int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CountByMachineSerials", ctx, serialNumbers)
+	ret0, _ := ret[0].(map[string]int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CountByMachineSerials indicates an expected call of CountByMachineSerials.
+func (mr *MockRepositoryMockRecorder) CountByMachineSerials(ctx, serialNumbers interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CountByMachineSerials", reflect.TypeOf((*MockRepository)(nil).CountByMachineSerials), ctx, serialNumbers)
+}
+
 // CountByWorkOrderType mocks base method.
 func (m *MockRepository) CountByWorkOrderType(ctx context.Context, machineSerialNumber string) (int, int, int, int, int, error) {
 	m.ctrl.T.Helper()

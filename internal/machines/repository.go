@@ -207,7 +207,7 @@ func (r *db) GetBySerialNumber(ctx context.Context, serialNumber string) (*Machi
 	)
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			return nil, fmt.Errorf("machine not found")
+			return nil, fmt.Errorf("%w", ErrNotFound)
 		}
 
 		return nil, fmt.Errorf("failed to get machine: %w", err)
@@ -334,7 +334,7 @@ func (r *db) Update(ctx context.Context, machine *Machine) error {
 	}
 
 	if result.RowsAffected() == 0 {
-		return fmt.Errorf("machine not found")
+		return fmt.Errorf("%w", ErrNotFound)
 	}
 
 	return nil
@@ -349,7 +349,7 @@ func (r *db) Delete(ctx context.Context, serialNumber string) error {
 	}
 
 	if result.RowsAffected() == 0 {
-		return fmt.Errorf("machine not found")
+		return fmt.Errorf("%w", ErrNotFound)
 	}
 
 	return nil

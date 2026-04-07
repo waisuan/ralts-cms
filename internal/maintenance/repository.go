@@ -51,6 +51,9 @@ type Repository interface {
 	Delete(ctx context.Context, machineSerialNumber, workOrderNumber string) error
 	Count(ctx context.Context) (int, error)
 	CountByMachine(ctx context.Context, machineSerialNumber string) (int, error)
+	// CountByMachineSerials returns maintenance row counts keyed by machine serial number.
+	// Serials with no rows are omitted from the map (caller should treat missing keys as zero).
+	CountByMachineSerials(ctx context.Context, serialNumbers []string) (map[string]int, error)
 	CountByWorkOrderType(ctx context.Context, machineSerialNumber string) (int, int, int, int, int, error)
 }
 
@@ -82,7 +85,7 @@ func (r *db) GetByWorkOrder(ctx context.Context, machineSerialNumber, workOrderN
 	)
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			return nil, fmt.Errorf("maintenance not found")
+			return nil, fmt.Errorf("%w", ErrNotFound)
 		}
 		return nil, fmt.Errorf("failed to get maintenance: %w", err)
 	}
@@ -193,7 +196,7 @@ func (r *db) Update(ctx context.Context, maintenance *Maintenance) error {
 	}
 
 	if result.RowsAffected() == 0 {
-		return fmt.Errorf("maintenance not found")
+		return fmt.Errorf("%w", ErrNotFound)
 	}
 
 	return nil
@@ -208,7 +211,7 @@ func (r *db) Delete(ctx context.Context, machineSerialNumber, workOrderNumber st
 	}
 
 	if result.RowsAffected() == 0 {
-		return fmt.Errorf("maintenance not found")
+		return fmt.Errorf("%w", ErrNotFound)
 	}
 
 	return nil
@@ -236,6 +239,40 @@ func (r *db) CountByMachine(ctx context.Context, machineSerialNumber string) (in
 	}
 
 	return count, nil
+}
+
+func (r *db) CountByMachineSerials(ctx context.Context, serialNumbers []string) (map[string]int, error) {
+	if len(serialNumbers) == 0 {
+		return map[string]int{}, nil
+	}
+
+	query := `
+		SELECT "serialNumber", COUNT(*)::int
+		FROM maintenance
+		WHERE "serialNumber" = ANY($1::text[])
+		GROUP BY "serialNumber"
+	`
+
+	rows, err := r.client.Query(ctx, query, serialNumbers)
+	if err != nil {
+		return nil, fmt.Errorf("failed to count maintenance records for machines: %w", err)
+	}
+	defer rows.Close()
+
+	out := make(map[string]int, len(serialNumbers))
+	for rows.Next() {
+		var sn string
+		var n int
+		if err := rows.Scan(&sn, &n); err != nil {
+			return nil, fmt.Errorf("failed to scan maintenance count: %w", err)
+		}
+		out[sn] = n
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating maintenance counts: %w", err)
+	}
+
+	return out, nil
 }
 
 func (r *db) CountByWorkOrderType(ctx context.Context, machineSerialNumber string) (int, int, int, int, int, error) {

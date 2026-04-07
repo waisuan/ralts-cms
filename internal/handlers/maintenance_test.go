@@ -15,6 +15,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/gorilla/mux"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -84,7 +85,7 @@ func (suite *MaintenanceHandlerTestSuite) TestGetMaintenance() {
 	})
 
 	suite.Run("should return 404 when maintenance not found", func() {
-		suite.mockRepo.EXPECT().GetByWorkOrder(gomock.Any(), "MACHINE123", "NOTFOUND").Return(nil, fmt.Errorf("maintenance not found"))
+		suite.mockRepo.EXPECT().GetByWorkOrder(gomock.Any(), "MACHINE123", "NOTFOUND").Return(nil, fmt.Errorf("%w", maintenance.ErrNotFound))
 
 		req := httptest.NewRequest("GET", "/machines/MACHINE123/maintenance/NOTFOUND", nil)
 		w := httptest.NewRecorder()
@@ -710,7 +711,7 @@ func (suite *MaintenanceHandlerTestSuite) TestCreateMaintenance() {
 			ActionTaken:         "Duplicate maintenance",
 		}
 
-		suite.mockRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(fmt.Errorf("ConditionalCheckFailedException"))
+		suite.mockRepo.EXPECT().Create(gomock.Any(), gomock.Any()).Return(&pgconn.PgError{Code: "23505"})
 
 		body, _ := json.Marshal(maintenanceData)
 		req := httptest.NewRequest("POST", "/machines/MACHINE123/maintenance", bytes.NewBuffer(body))
@@ -813,7 +814,7 @@ func (suite *MaintenanceHandlerTestSuite) TestUpdateMaintenance() {
 			ActionTaken:         "Not found maintenance",
 		}
 
-		suite.mockRepo.EXPECT().GetByWorkOrder(gomock.Any(), "MACHINE123", "NOTFOUND").Return(nil, fmt.Errorf("maintenance not found"))
+		suite.mockRepo.EXPECT().GetByWorkOrder(gomock.Any(), "MACHINE123", "NOTFOUND").Return(nil, fmt.Errorf("%w", maintenance.ErrNotFound))
 
 		body, _ := json.Marshal(maintenanceData)
 		req := httptest.NewRequest("PUT", "/machines/MACHINE123/maintenance", bytes.NewBuffer(body))
@@ -872,7 +873,7 @@ func (suite *MaintenanceHandlerTestSuite) TestDeleteMaintenance() {
 	})
 
 	suite.Run("should return 404 when maintenance not found", func() {
-		suite.mockRepo.EXPECT().GetByWorkOrder(gomock.Any(), "MACHINE123", "NOTFOUND").Return(nil, fmt.Errorf("maintenance not found"))
+		suite.mockRepo.EXPECT().GetByWorkOrder(gomock.Any(), "MACHINE123", "NOTFOUND").Return(nil, fmt.Errorf("%w", maintenance.ErrNotFound))
 
 		req := httptest.NewRequest("DELETE", "/machines/MACHINE123/maintenance/NOTFOUND", nil)
 		w := httptest.NewRecorder()

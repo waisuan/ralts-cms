@@ -2,13 +2,14 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"ralts-cms/internal/audit"
 	"ralts-cms/internal/deps"
 	"ralts-cms/internal/machines"
+	"ralts-cms/pkg/pgxutil"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -49,7 +50,7 @@ func (h *MachinesHandler) GetMachine(w http.ResponseWriter, r *http.Request) {
 
 	machine, err := h.deps.MachinesRepository.GetBySerialNumber(r.Context(), serialNumber)
 	if err != nil {
-		if err.Error() == "machine not found" {
+		if errors.Is(err, machines.ErrNotFound) {
 			http.Error(w, "Machine not found", http.StatusNotFound)
 			return
 		}
@@ -222,13 +223,19 @@ func (h *MachinesHandler) ListMachines(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, machine := range machines {
-		maintenanceCount, err := h.deps.MaintenanceRepository.CountByMachine(r.Context(), machine.SerialNumber)
+	if len(machines) > 0 {
+		serials := make([]string, len(machines))
+		for i, m := range machines {
+			serials[i] = m.SerialNumber
+		}
+		counts, err := h.deps.MaintenanceRepository.CountByMachineSerials(r.Context(), serials)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("Failed to count maintenance records for machine %s: %v", machine.SerialNumber, err), http.StatusInternalServerError)
+			http.Error(w, fmt.Sprintf("Failed to count maintenance records for machines: %v", err), http.StatusInternalServerError)
 			return
 		}
-		machine.MaintenanceCount = maintenanceCount
+		for _, machine := range machines {
+			machine.MaintenanceCount = counts[machine.SerialNumber]
+		}
 	}
 
 	// Build response
@@ -270,7 +277,7 @@ func (h *MachinesHandler) CreateMachine(w http.ResponseWriter, r *http.Request) 
 
 	err := h.deps.MachinesRepository.Create(r.Context(), &machine)
 	if err != nil {
-		if strings.Contains(err.Error(), "ConditionalCheckFailedException") {
+		if pgxutil.IsUniqueViolation(err) {
 			http.Error(w, "Machine already exists", http.StatusConflict)
 			return
 		}
@@ -313,7 +320,7 @@ func (h *MachinesHandler) UpdateMachine(w http.ResponseWriter, r *http.Request) 
 	// Check if machine exists
 	_, err := h.deps.MachinesRepository.GetBySerialNumber(r.Context(), serialNumber)
 	if err != nil {
-		if err.Error() == "machine not found" {
+		if errors.Is(err, machines.ErrNotFound) {
 			http.Error(w, "Machine not found", http.StatusNotFound)
 			return
 		}
@@ -350,7 +357,7 @@ func (h *MachinesHandler) DeleteMachine(w http.ResponseWriter, r *http.Request) 
 	// Check if machine exists
 	_, err := h.deps.MachinesRepository.GetBySerialNumber(r.Context(), serialNumber)
 	if err != nil {
-		if err.Error() == "machine not found" {
+		if errors.Is(err, machines.ErrNotFound) {
 			http.Error(w, "Machine not found", http.StatusNotFound)
 			return
 		}

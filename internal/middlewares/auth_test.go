@@ -59,7 +59,7 @@ func TestAuthenticationMiddleware(t *testing.T) {
 			name:           "invalid token format",
 			authHeader:     "Bearer invalid-token",
 			expectedStatus: http.StatusUnauthorized,
-			expectedBody:   "Invalid token: failed to parse token: token is malformed: token contains an invalid number of segments\n",
+			expectedBody:   "Invalid token\n",
 		},
 		{
 			name:           "missing bearer prefix",
@@ -80,7 +80,7 @@ func TestAuthenticationMiddleware(t *testing.T) {
 				return tokenString
 			}(),
 			expectedStatus: http.StatusUnauthorized,
-			expectedBody:   "Invalid token: missing role\n",
+			expectedBody:   "Invalid token\n",
 		},
 		{
 			name: "missing entity_id in token",
@@ -94,7 +94,7 @@ func TestAuthenticationMiddleware(t *testing.T) {
 				return tokenString
 			}(),
 			expectedStatus: http.StatusUnauthorized,
-			expectedBody:   "Invalid token: missing entity_id\n",
+			expectedBody:   "Invalid token\n",
 		},
 		{
 			name: "invalid entity_id format",
@@ -109,7 +109,7 @@ func TestAuthenticationMiddleware(t *testing.T) {
 				return tokenString
 			}(),
 			expectedStatus: http.StatusUnauthorized,
-			expectedBody:   "Invalid token: invalid entity_id format\n",
+			expectedBody:   "Invalid token\n",
 		},
 	}
 
