@@ -172,7 +172,7 @@ export default function AdminEventsPage() {
       setIsLive(true);
       setPollingError(null);
       
-    } catch (err) {
+    } catch {
       consecutiveFailuresRef.current++;
       
       if (consecutiveFailuresRef.current >= MAX_FAILURES) {

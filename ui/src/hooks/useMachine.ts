@@ -4,6 +4,10 @@ import { Machine } from '../types/machine';
 import { ApiError, handleApiError } from '../utils/api';
 import { isAuthError } from '../utils/auth';
 
+function emptyMachineResponseError(): ApiError {
+  return new ApiError('The server returned an empty machine response.', 0);
+}
+
 export interface UseMachineReturn {
   machine: Machine | null;
   loading: boolean;
@@ -27,7 +31,14 @@ export function useMachine(): UseMachineReturn {
 
     try {
       const response = await MachineService.getMachine(serialNumber);
-      setMachine(response.data as Machine);
+      if (response.data == null) {
+        setMachine(null);
+        const apiError = emptyMachineResponseError();
+        setError(apiError);
+        console.error('Failed to fetch machine:', apiError);
+        return;
+      }
+      setMachine(response.data);
     } catch (err) {
       const apiError = handleApiError(err);
       // Don't set error if we're redirecting due to auth error
@@ -46,9 +57,14 @@ export function useMachine(): UseMachineReturn {
 
     try {
       const response = await MachineService.createMachine(data);
-      const newMachine = response.data as Machine;
-      setMachine(newMachine);
-      return newMachine;
+      if (response.data == null) {
+        const apiError = emptyMachineResponseError();
+        setError(apiError);
+        console.error('Failed to create machine:', apiError);
+        return null;
+      }
+      setMachine(response.data);
+      return response.data;
     } catch (err) {
       const apiError = handleApiError(err);
       // Don't set error if we're redirecting due to auth error
@@ -71,9 +87,14 @@ export function useMachine(): UseMachineReturn {
 
     try {
       const response = await MachineService.updateMachine(serialNumber, data);
-      const updatedMachine = response.data as Machine;
-      setMachine(updatedMachine);
-      return updatedMachine;
+      if (response.data == null) {
+        const apiError = emptyMachineResponseError();
+        setError(apiError);
+        console.error('Failed to update machine:', apiError);
+        return null;
+      }
+      setMachine(response.data);
+      return response.data;
     } catch (err) {
       const apiError = handleApiError(err);
       // Don't set error if we're redirecting due to auth error

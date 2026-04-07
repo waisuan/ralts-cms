@@ -1,5 +1,11 @@
 import type { Maintenance } from '@/types/maintenance';
-import { isCustomWorkOrderType, workOrderTypePillLabel } from './formatters';
+import {
+  formatDate,
+  formatDateTime,
+  getTypeColor,
+  isCustomWorkOrderType,
+  workOrderTypePillLabel,
+} from './formatters';
 
 describe('work order type helpers', () => {
   it('treats standard types as non-custom', () => {
@@ -35,5 +41,30 @@ describe('work order type helpers', () => {
     };
     expect(isCustomWorkOrderType(customFlag)).toBe(true);
     expect(workOrderTypePillLabel(customFlag)).toBe('Other');
+  });
+});
+
+describe('formatDate', () => {
+  it('returns dash for empty string', () => {
+    expect(formatDate('')).toBe('-');
+  });
+});
+
+describe('formatDateTime', () => {
+  it('returns dash for empty string', () => {
+    expect(formatDateTime('')).toBe('-');
+  });
+});
+
+describe('getTypeColor', () => {
+  it.each([
+    ['Preventive', 'bg-green-100 text-green-800'],
+    ['Corrective', 'bg-blue-100 text-blue-800'],
+    ['Emergency', 'bg-red-100 text-red-800'],
+    ['Inspection', 'bg-purple-100 text-purple-800'],
+    ['Other', 'bg-gray-100 text-gray-800'],
+    ['Unknown', 'bg-gray-100 text-gray-800'],
+  ])('maps %s to tailwind classes', (type, expected) => {
+    expect(getTypeColor(type)).toBe(expected);
   });
 });
