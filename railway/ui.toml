@@ -1,0 +1,12 @@
+# Next.js UI – browser client for Ralts-CMS.
+# In Railway: connect this service to the repo, set Config File Path to /railway/ui.toml.
+# Root Directory: / (default)
+
+[build]
+buildCommand = "cd ui && npm ci && npm run build"
+watchPatterns = ["ui/**", "railway/ui.toml"]
+
+[deploy]
+startCommand = "cd ui && npm start"
+restartPolicyType = "ON_FAILURE"
+healthcheckPath = "/api/health"
