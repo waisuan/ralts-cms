@@ -70,7 +70,7 @@ func (s *IntegrationSuite) SetupSuite() {
 		Env:                     "test",
 		DatabaseURL:             db.ConnStr,
 		JWTSecret:               s.jwtSecret,
-		S3BucketName:            integrationS3Bucket,
+		AWSS3BucketName:            integrationS3Bucket,
 		AWSAccessKeyID:          "test",
 		AWSSecretAccessKey:      "test",
 		AWSDefaultRegion:        "us-east-1",
@@ -87,7 +87,7 @@ func (s *IntegrationSuite) SetupSuite() {
 	s3Client, err := deps.NewS3Client(ctx, cfg)
 	s.Require().NoError(err)
 
-	_, err = s3Client.CreateBucket(ctx, &awss3.CreateBucketInput{Bucket: aws.String(cfg.S3BucketName)})
+	_, err = s3Client.CreateBucket(ctx, &awss3.CreateBucketInput{Bucket: aws.String(cfg.AWSS3BucketName)})
 	if err != nil && !bucketExistsErr(err) {
 		s.Require().NoError(err)
 	}
@@ -118,7 +118,7 @@ func (s *IntegrationSuite) SetupSuite() {
 		MaintenanceRepository: maintenanceRepo,
 		UsersRepository:       usersRepo,
 		AuditRepository:       auditRepo,
-		AttachmentService:     attachments.NewService(s3Client, cfg.S3BucketName),
+		AttachmentService:     attachments.NewService(s3Client, cfg.AWSS3BucketName),
 		AuditService:          auditSvc,
 	}
 

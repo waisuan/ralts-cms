@@ -39,7 +39,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: "test"
           AWS_DEFAULT_REGION: "us-east-1"
           AWS_ENDPOINT_URL: "http://localhost:4566"
-          S3_BUCKET_NAME: "test-bucket"
+          AWS_S3_BUCKET_NAME: "test-bucket"
         run: go test -v ./...
 
       - name: Integration tests

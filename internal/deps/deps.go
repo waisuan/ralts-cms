@@ -72,7 +72,7 @@ func Initialise() *Dependencies {
 	auditRepo := audit.NewRepository(pgClient)
 
 	// Initialize services
-	attachmentService := attachments.NewService(s3Client, cfg.S3BucketName)
+	attachmentService := attachments.NewService(s3Client, cfg.AWSS3BucketName)
 
 	// Initialize audit service with configured retention and cleanup interval
 	auditConfig := audit.ServiceConfig{
