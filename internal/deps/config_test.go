@@ -23,22 +23,21 @@ func TestValidateConfig_JWTSecret(t *testing.T) {
 			cfg:     Config{Env: appEnvTest, JWTSecret: jwtSecretDevDefault},
 			wantErr: false,
 		},
-		// TODO: re-enable after first successful Railway deploy
-		// {
-		// 	name:    "production rejects default placeholder",
-		// 	cfg:     Config{Env: "production", JWTSecret: jwtSecretDevDefault},
-		// 	wantErr: true,
-		// },
-		// {
-		// 	name:    "staging rejects default placeholder",
-		// 	cfg:     Config{Env: "staging", JWTSecret: jwtSecretDevDefault},
-		// 	wantErr: true,
-		// },
-		// {
-		// 	name:    "production rejects empty secret",
-		// 	cfg:     Config{Env: "production", JWTSecret: ""},
-		// 	wantErr: true,
-		// },
+		{
+			name:    "production rejects default placeholder",
+			cfg:     Config{Env: "production", JWTSecret: jwtSecretDevDefault},
+			wantErr: true,
+		},
+		{
+			name:    "staging rejects default placeholder",
+			cfg:     Config{Env: "staging", JWTSecret: jwtSecretDevDefault},
+			wantErr: true,
+		},
+		{
+			name:    "production rejects empty secret",
+			cfg:     Config{Env: "production", JWTSecret: ""},
+			wantErr: true,
+		},
 		{
 			name:    "production accepts custom secret",
 			cfg:     Config{Env: "production", JWTSecret: "a-strong-enough-secret-for-jwt"},

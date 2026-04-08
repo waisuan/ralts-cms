@@ -4,7 +4,6 @@ package deps
 
 import (
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
@@ -64,13 +63,9 @@ func LoadConfig() (*Config, error) {
 	cfg := Config{}
 
 	if appEnv != "" {
-		slog.Info("Loading configuration", "environment", appEnv)
-		err := godotenv.Load(dir(".env." + appEnv))
-		if err != nil && !os.IsNotExist(err) {
+		envFile := dir(".env." + appEnv)
+		if err := godotenv.Load(envFile); err != nil && !os.IsNotExist(err) {
 			return nil, fmt.Errorf("error loading app config: %w", err)
-		}
-		if err != nil && os.IsNotExist(err) {
-			slog.Warn("Environment file not found, continuing without it", "file", ".env."+appEnv)
 		}
 	}
 
@@ -86,13 +81,12 @@ func LoadConfig() (*Config, error) {
 }
 
 func validateConfig(cfg *Config) error {
-	// TODO: re-enable after first successful Railway deploy
-	// if cfg.Env == appEnvDevelopment || cfg.Env == appEnvTest {
-	// 	return nil
-	// }
-	// if cfg.JWTSecret == "" || cfg.JWTSecret == jwtSecretDevDefault {
-	// 	return fmt.Errorf("JWT_SECRET must be set to a strong secret when APP_ENV is not %q or %q (do not use the default placeholder)", appEnvDevelopment, appEnvTest)
-	// }
+	if cfg.Env == appEnvDevelopment || cfg.Env == appEnvTest {
+		return nil
+	}
+	if cfg.JWTSecret == "" || cfg.JWTSecret == jwtSecretDevDefault {
+		return fmt.Errorf("JWT_SECRET must be set to a strong secret when APP_ENV is not %q or %q (do not use the default placeholder)", appEnvDevelopment, appEnvTest)
+	}
 	return nil
 }
 

@@ -34,6 +34,7 @@ func main() {
 	// Start server in a goroutine
 	go func() {
 		logger.Info("Starting server",
+			"env", deps.Config.Env,
 			"port", deps.Config.ServerPort,
 			"read_timeout", deps.Config.ReadTimeout,
 			"write_timeout", deps.Config.WriteTimeout,
