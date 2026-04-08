@@ -11,7 +11,7 @@ buildCommand = "sh railway/build-web.sh"
 watchPatterns = ["cmd/**", "internal/**", "pkg/**", "db/**", "go.mod", "go.sum", "railway/**"]
 
 [deploy]
-preDeployCommand = ["sh", "-c", "./migrate -path ./db/migrations -database \"$DATABASE_URL\" up"]
+preDeployCommand = "./migrate -path ./db/migrations -database \"$DATABASE_URL\" up"
 startCommand = "bin/ralts-cms"
 restartPolicyType = "ON_FAILURE"
 healthcheckPath = "/health"
