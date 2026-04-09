@@ -10,7 +10,6 @@ interface UserListProps {
   currentPage: number;
   pageSize: number;
   onPageChange: (page: number) => void;
-  onUserStatusUpdate: (userId: number, status: UserStatus) => Promise<void>;
   onBulkStatusUpdate: (userIds: number[], status: UserStatus) => Promise<void>;
   isLoading: boolean;
   error: string | null;
@@ -22,7 +21,6 @@ export default function UserList({
   currentPage,
   pageSize,
   onPageChange,
-  onUserStatusUpdate,
   onBulkStatusUpdate,
   isLoading,
   error
@@ -50,15 +48,6 @@ export default function UserList({
       setSelectedUserIds(users.map(user => user.id));
     } else {
       setSelectedUserIds([]);
-    }
-  };
-
-  const handleStatusUpdate = async (userId: number, status: UserStatus) => {
-    setIsUpdating(true);
-    try {
-      await onUserStatusUpdate(userId, status);
-    } finally {
-      setIsUpdating(false);
     }
   };
 
@@ -112,7 +101,7 @@ export default function UserList({
       </div>
 
       {/* Table */}
-      <div className="overflow-visible">
+      <div className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -141,15 +130,12 @@ export default function UserList({
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Created
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center">
+                  <td colSpan={5} className="px-6 py-8 text-center">
                     <div className="flex items-center justify-center">
                       <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -161,7 +147,7 @@ export default function UserList({
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center">
+                  <td colSpan={5} className="px-6 py-8 text-center">
                     <div className="text-sm text-gray-500">No users found</div>
                   </td>
                 </tr>
@@ -172,7 +158,6 @@ export default function UserList({
                     user={user}
                     isSelected={selectedUserIds.includes(user.id)}
                     onSelectionChange={handleSelectionChange}
-                    onStatusUpdate={handleStatusUpdate}
                     isUpdating={isUpdating}
                   />
                 ))

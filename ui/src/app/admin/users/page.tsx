@@ -44,23 +44,6 @@ export default function AdminUsersPage() {
     }
   };
 
-  // Handle user status update
-  const handleUserStatusUpdate = async (userId: number, status: UserStatus) => {
-    try {
-      await AdminUserService.updateUserStatus(userId, status);
-      
-      // Update local state optimistically
-      setUsers(prevUsers => 
-        prevUsers.map(u => 
-          u.id === userId ? { ...u, status, approved: status === 'approved' } : u
-        )
-      );
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update user status');
-      throw err; // Re-throw to let component handle loading states
-    }
-  };
-
   // Handle bulk status update
   const handleBulkStatusUpdate = async (userIds: number[], status: UserStatus) => {
     try {
@@ -257,7 +240,6 @@ export default function AdminUsersPage() {
         currentPage={currentPage}
         pageSize={pageSize}
         onPageChange={handlePageChange}
-        onUserStatusUpdate={handleUserStatusUpdate}
         onBulkStatusUpdate={handleBulkStatusUpdate}
         isLoading={isLoadingUsers}
         error={error}
