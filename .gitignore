@@ -32,3 +32,4 @@ bin/
 TODO.md
 
 localstack-data/
+scripts/localstack-data/
