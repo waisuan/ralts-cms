@@ -33,6 +33,18 @@ describe('ApiClient', () => {
     jest.restoreAllMocks();
   });
 
+  it('uses empty baseURL in browser context (window defined)', async () => {
+    global.fetch = jest.fn().mockResolvedValue(jsonResponse({ ok: true }));
+
+    const client = new ApiClient();
+    await client.get('/api/v1/machines');
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/v1/machines',
+      expect.any(Object)
+    );
+  });
+
   it('get merges query params and returns unwrapped JSON as data', async () => {
     global.fetch = jest.fn().mockResolvedValue(jsonResponse({ hello: 'world' }));
 
@@ -111,6 +123,39 @@ describe('ApiClient', () => {
     const res = await client.delete('/v1/a');
     expect(res.data).toBeUndefined();
     expect(json).not.toHaveBeenCalled();
+  });
+
+  it('getBlob fetches relative URL in browser context', async () => {
+    const blobMock = new Blob(['binary'], { type: 'application/octet-stream' });
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      blob: async () => blobMock,
+    });
+
+    const client = new ApiClient();
+    const blob = await client.getBlob('/api/v1/machines/SN1/attachments/file.pdf');
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/v1/machines/SN1/attachments/file.pdf',
+      expect.any(Object)
+    );
+    expect(blob).toBe(blobMock);
+  });
+
+  it('getBlob appends query params correctly', async () => {
+    const blobMock = new Blob(['binary']);
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      blob: async () => blobMock,
+    });
+
+    const client = new ApiClient('http://api.example');
+    await client.getBlob('/v1/download', { format: 'pdf', q: 'test' });
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      'http://api.example/v1/download?format=pdf&q=test',
+      expect.any(Object)
+    );
   });
 });
 

@@ -177,10 +177,9 @@ export class MachineService {
 }
 
 async function downloadCSV(path: string, fallbackFilename: string): Promise<void> {
-  const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
   const token = typeof window !== 'undefined' ? localStorage.getItem('ralts_token') : null;
 
-  const resp = await fetch(`${baseURL}${path}`, {
+  const resp = await fetch(path, {
     headers: {
       ...(token && { Authorization: `Bearer ${token}` }),
     },

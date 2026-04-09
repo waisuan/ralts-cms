@@ -1,8 +1,9 @@
 // API configuration and environment settings
 
 export const API_CONFIG = {
-  // Base URL for the API - defaults to localhost:8080
-  BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080',
+  BASE_URL: typeof window !== 'undefined'
+    ? ''
+    : process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080',
   
   // API endpoints
   ENDPOINTS: {

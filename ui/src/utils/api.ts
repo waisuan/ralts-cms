@@ -22,7 +22,9 @@ export class ApiClient {
   private baseURL: string;
 
   constructor(baseURL?: string) {
-    this.baseURL = baseURL || process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
+    this.baseURL = baseURL || (typeof window !== 'undefined'
+      ? ''
+      : process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080');
   }
 
   private async request<T>(
@@ -154,14 +156,12 @@ export class ApiClient {
   }
 
   async get<T>(endpoint: string, params?: Record<string, string>): Promise<ApiResponse<T>> {
-    const url = new URL(`${this.baseURL}${endpoint}`);
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        url.searchParams.append(key, value);
-      });
+    let path = endpoint;
+    if (params && Object.keys(params).length > 0) {
+      const qs = new URLSearchParams(params).toString();
+      path += `${endpoint.includes('?') ? '&' : '?'}${qs}`;
     }
-    
-    return this.request<T>(url.pathname + url.search);
+    return this.request<T>(path);
   }
 
   async post<T>(endpoint: string, data?: unknown): Promise<ApiResponse<T>> {
@@ -400,16 +400,16 @@ export class ApiClient {
   }
 
   async getBlob(endpoint: string, params?: Record<string, string>): Promise<Blob> {
-    const url = new URL(`${this.baseURL}${endpoint}`);
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        url.searchParams.append(key, value);
-      });
+    let path = endpoint;
+    if (params && Object.keys(params).length > 0) {
+      const qs = new URLSearchParams(params).toString();
+      path += `${endpoint.includes('?') ? '&' : '?'}${qs}`;
     }
-    
-    // Get JWT token from localStorage if available
+
+    const url = `${this.baseURL}${path}`;
+
     const token = typeof window !== 'undefined' ? localStorage.getItem('ralts_token') : null;
-    
+
     const config: RequestInit = {
       headers: {
         ...(token && { 'Authorization': `Bearer ${token}` }),
@@ -417,8 +417,8 @@ export class ApiClient {
     };
 
     try {
-      const response = await fetch(url.toString(), config);
-      
+      const response = await fetch(url, config);
+
       if (!response.ok) {
         const errorText = await response.text();
         throw new ApiError(
@@ -433,7 +433,7 @@ export class ApiClient {
       if (error instanceof ApiError) {
         throw error;
       }
-      
+
       throw new ApiError(
         error instanceof Error ? error.message : 'Network error occurred',
         0,

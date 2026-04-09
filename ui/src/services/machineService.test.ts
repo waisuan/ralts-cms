@@ -13,9 +13,15 @@ jest.mock('../utils/api', () => ({
 const getMock = apiClient.get as jest.Mock;
 
 describe('MachineService', () => {
+  const originalFetch = global.fetch;
+
   beforeEach(() => {
     jest.clearAllMocks();
     getMock.mockResolvedValue({ data: { machines: [], count: 0 } });
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
   });
 
   it('getMachines builds offset from page and passes filters as query params', async () => {
@@ -50,5 +56,51 @@ describe('MachineService', () => {
 
     await MachineService.deleteMachine('x y');
     expect(apiClient.delete).toHaveBeenCalledWith('/api/v1/machines/x%20y');
+  });
+
+  it('exportMachinesCSV calls fetch with relative URL', async () => {
+    const blobMock = new Blob(['csv-data'], { type: 'text/csv' });
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      blob: async () => blobMock,
+      headers: { get: () => null },
+    });
+    window.URL.createObjectURL = jest.fn(() => 'blob:mock');
+    window.URL.revokeObjectURL = jest.fn();
+
+    await MachineService.exportMachinesCSV({ q: 'acme' });
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/v1/machines/export/csv?q=acme',
+      expect.objectContaining({
+        headers: expect.any(Object),
+      })
+    );
+
+    const calledUrl = (global.fetch as jest.Mock).mock.calls[0][0] as string;
+    expect(calledUrl).not.toMatch(/^https?:\/\//);
+  });
+
+  it('exportMaintenanceCSV calls fetch with relative URL', async () => {
+    const blobMock = new Blob(['csv-data'], { type: 'text/csv' });
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      blob: async () => blobMock,
+      headers: { get: () => null },
+    });
+    window.URL.createObjectURL = jest.fn(() => 'blob:mock');
+    window.URL.revokeObjectURL = jest.fn();
+
+    await MachineService.exportMaintenanceCSV('SN-001');
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/v1/machines/SN-001/maintenance/export/csv',
+      expect.objectContaining({
+        headers: expect.any(Object),
+      })
+    );
+
+    const calledUrl = (global.fetch as jest.Mock).mock.calls[0][0] as string;
+    expect(calledUrl).not.toMatch(/^https?:\/\//);
   });
 });
