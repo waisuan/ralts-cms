@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -41,16 +42,43 @@ func HashPassword(password, salt string) (string, error) {
 	return string(hashedBytes), nil
 }
 
-// VerifyPassword verifies a password against a stored hash and salt
+// VerifyPassword verifies a password against a stored hash and salt.
+// It supports two hashing schemes:
+//   - Ralts (current): SHA-256(password + hex_salt) -> bcrypt
+//   - Legacy roti: plain bcrypt(password) with a bcrypt-generated salt
+//
+// The legacy path is only attempted when the stored salt looks like a bcrypt
+// salt string (starts with "$2a$" or "$2b$"), which distinguishes migrated
+// roti users from native Ralts users whose salts are random hex strings.
 func VerifyPassword(password, hash, salt string) error {
-	// Combine password and salt and hash with SHA-256 to match the hashing process
+	// Try current scheme first: SHA-256(password + salt) -> bcrypt compare
 	passwordWithSalt := password + salt
 	hashed := sha256.Sum256([]byte(passwordWithSalt))
-
-	// Convert to hex string for bcrypt comparison
 	passwordForBcrypt := fmt.Sprintf("%x", hashed)
 
-	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(passwordForBcrypt))
+	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(passwordForBcrypt)); err == nil {
+		return nil
+	}
+
+	// Fallback: legacy roti plain bcrypt (salt is a bcrypt salt string)
+	if isLegacyBcryptSalt(salt) {
+		return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	}
+
+	return bcrypt.ErrMismatchedHashAndPassword
+}
+
+// NeedsPasswordUpgrade reports whether the user's password was hashed with the
+// legacy roti scheme and should be re-hashed on next successful login.
+func NeedsPasswordUpgrade(salt string) bool {
+	return isLegacyBcryptSalt(salt)
+}
+
+// isLegacyBcryptSalt detects bcrypt-generated salt strings (e.g. "$2a$10$...")
+// used by the legacy roti application. Ralts salts are 32-char hex strings and
+// will never match this pattern.
+func isLegacyBcryptSalt(salt string) bool {
+	return strings.HasPrefix(salt, "$2a$") || strings.HasPrefix(salt, "$2b$")
 }
 
 // GenerateJWTToken creates a new JWT token for the given entity ID and role with the provided secret

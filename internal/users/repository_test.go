@@ -6,9 +6,11 @@ import (
 
 	"ralts-cms/internal/testutils"
 	"ralts-cms/internal/users"
+	"ralts-cms/pkg/auth"
 
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // UserRepositoryTestSuite defines the test suite for user repository
@@ -237,6 +239,82 @@ func (suite *UserRepositoryTestSuite) TestLogin() {
 		suite.Require().Error(err)
 		suite.Assert().Nil(loggedInUser)
 		suite.Assert().Contains(err.Error(), "failed to get user by username")
+	})
+
+	suite.Run("should login with legacy roti-style bcrypt password", func() {
+		password := "legacypass123"
+
+		// Hash password the way roti does: plain bcrypt(password)
+		legacyHash, err := bcrypt.GenerateFromPassword([]byte(password), 10)
+		suite.Require().NoError(err)
+
+		// The salt stored by roti is a bcrypt salt string (e.g. "$2a$10$...")
+		legacySalt := "$2a$10$abcdefghijklmnopqrstuv"
+
+		// Insert directly into DB to bypass Ralts-style hashing
+		_, err = suite.db.PostgresClient.Exec(ctx, `
+			INSERT INTO users (username, email, password, salt, role, approved, status, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())`,
+			"legacyuser", "legacyuser@example.com", string(legacyHash), legacySalt, "NON_ADMIN", true, users.StatusApproved)
+		suite.Require().NoError(err)
+
+		// Login should succeed via the legacy fallback path
+		loggedInUser, err := suite.repo.Login(ctx, "legacyuser", password)
+		suite.Require().NoError(err)
+		suite.Assert().NotNil(loggedInUser)
+		suite.Assert().Equal("legacyuser", loggedInUser.Username)
+	})
+
+	suite.Run("should upgrade legacy password hash on login", func() {
+		password := "upgradetest456"
+
+		legacyHash, err := bcrypt.GenerateFromPassword([]byte(password), 10)
+		suite.Require().NoError(err)
+		legacySalt := "$2a$10$xyzxyzxyzxyzxyzxyzxyzu"
+
+		_, err = suite.db.PostgresClient.Exec(ctx, `
+			INSERT INTO users (username, email, password, salt, role, approved, status, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())`,
+			"upgradeuser", "upgradeuser@example.com", string(legacyHash), legacySalt, "NON_ADMIN", true, users.StatusApproved)
+		suite.Require().NoError(err)
+
+		// Login triggers the upgrade
+		_, err = suite.repo.Login(ctx, "upgradeuser", password)
+		suite.Require().NoError(err)
+
+		// Fetch the user again to verify the hash was upgraded
+		upgradedUser, err := suite.repo.GetByUsername(ctx, "upgradeuser")
+		suite.Require().NoError(err)
+
+		// Salt should now be a 32-char hex string, not a bcrypt salt
+		suite.Assert().False(auth.NeedsPasswordUpgrade(upgradedUser.Salt),
+			"salt should be upgraded from bcrypt to hex format, got: %s", upgradedUser.Salt)
+		suite.Assert().Len(upgradedUser.Salt, 32, "upgraded salt should be 32-char hex")
+
+		// Password should still verify with the new Ralts-style scheme
+		err = auth.VerifyPassword(password, upgradedUser.Password, upgradedUser.Salt)
+		suite.Assert().NoError(err, "password should verify with upgraded hash")
+
+		// Second login should use the fast (Ralts) path with no upgrade needed
+		loggedInUser, err := suite.repo.Login(ctx, "upgradeuser", password)
+		suite.Require().NoError(err)
+		suite.Assert().NotNil(loggedInUser)
+	})
+
+	suite.Run("should reject wrong password with legacy hash", func() {
+		legacyHash, err := bcrypt.GenerateFromPassword([]byte("correctpw"), 10)
+		suite.Require().NoError(err)
+		legacySalt := "$2a$10$aabbccddeeffgghhiijjkk"
+
+		_, err = suite.db.PostgresClient.Exec(ctx, `
+			INSERT INTO users (username, email, password, salt, role, approved, status, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())`,
+			"legacywrong", "legacywrong@example.com", string(legacyHash), legacySalt, "NON_ADMIN", true, users.StatusApproved)
+		suite.Require().NoError(err)
+
+		_, err = suite.repo.Login(ctx, "legacywrong", "wrongpassword")
+		suite.Require().Error(err)
+		suite.Assert().Contains(err.Error(), "invalid password")
 	})
 
 }

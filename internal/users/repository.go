@@ -5,6 +5,7 @@ package users
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"ralts-cms/pkg/auth"
 
 	"github.com/jackc/pgx/v5"
@@ -89,6 +90,20 @@ func (r *db) Login(ctx context.Context, username string, password string) (*User
 
 	if err := auth.VerifyPassword(password, user.Password, user.Salt); err != nil {
 		return nil, fmt.Errorf("invalid password: %w", err)
+	}
+
+	// Transparently upgrade legacy (roti) password hashes to the current scheme.
+	// On success the user's salt changes from a bcrypt salt to a random hex salt,
+	// so subsequent logins take the fast path without hitting the legacy fallback.
+	if auth.NeedsPasswordUpgrade(user.Salt) {
+		if upgradeErr := r.UpdatePassword(ctx, user.ID, password); upgradeErr != nil {
+			slog.Warn("failed to upgrade legacy password hash",
+				"user_id", user.ID,
+				"error", upgradeErr)
+		} else {
+			slog.Info("upgraded legacy password hash to current scheme",
+				"user_id", user.ID)
+		}
 	}
 
 	// Check if user is approved

@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"ralts-cms/pkg/auth"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 func TestGenerateSalt(t *testing.T) {
@@ -192,6 +194,124 @@ func TestVerifyPassword(t *testing.T) {
 			err = auth.VerifyPassword(tt.password, hash, tt.salt)
 			if err != nil {
 				t.Errorf("failed to verify password: %v", err)
+			}
+		})
+	}
+}
+
+func TestVerifyPassword_LegacyBcrypt(t *testing.T) {
+	tests := []struct {
+		name         string
+		password     string
+		wrongPass    string
+		bcryptCost   int
+	}{
+		{
+			name:       "should verify legacy plain bcrypt password",
+			password:   "legacypassword123",
+			wrongPass:  "wrongpassword",
+			bcryptCost: 10,
+		},
+		{
+			name:       "should verify legacy password with special chars",
+			password:   "p@$$w0rd!#%",
+			wrongPass:  "differentpassword",
+			bcryptCost: 10,
+		},
+		{
+			name:       "should verify legacy password with higher cost",
+			password:   "anotherpw",
+			wrongPass:  "nope",
+			bcryptCost: 12,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Simulate how roti hashes: BCrypt.hashpw(password, BCrypt.gensalt())
+			legacySalt, err := bcrypt.GenerateFromPassword([]byte("dummy"), tt.bcryptCost)
+			if err != nil {
+				t.Fatalf("failed to generate bcrypt salt basis: %v", err)
+			}
+			// Extract the salt portion from a bcrypt hash (first 29 chars)
+			saltStr := string(legacySalt)[:29]
+
+			// Hash the password with plain bcrypt (legacy roti style)
+			legacyHash, err := bcrypt.GenerateFromPassword([]byte(tt.password), tt.bcryptCost)
+			if err != nil {
+				t.Fatalf("failed to generate legacy hash: %v", err)
+			}
+
+			// Correct password should verify
+			err = auth.VerifyPassword(tt.password, string(legacyHash), saltStr)
+			if err != nil {
+				t.Errorf("expected legacy password to verify, got: %v", err)
+			}
+
+			// Wrong password should fail
+			err = auth.VerifyPassword(tt.wrongPass, string(legacyHash), saltStr)
+			if err == nil {
+				t.Errorf("expected error for wrong password with legacy hash")
+			}
+		})
+	}
+}
+
+func TestVerifyPassword_LegacyDoesNotActivateForHexSalt(t *testing.T) {
+	// With a normal hex salt, a wrong password should fail without
+	// ever attempting the legacy plain-bcrypt path.
+	password := "correctpassword"
+	hexSalt := "abcdef1234567890abcdef1234567890"
+
+	hash, err := auth.HashPassword(password, hexSalt)
+	if err != nil {
+		t.Fatalf("failed to hash: %v", err)
+	}
+
+	err = auth.VerifyPassword("wrongpassword", hash, hexSalt)
+	if err == nil {
+		t.Errorf("expected error for wrong password with hex salt")
+	}
+}
+
+func TestNeedsPasswordUpgrade(t *testing.T) {
+	tests := []struct {
+		name     string
+		salt     string
+		expected bool
+	}{
+		{
+			name:     "bcrypt $2a$ salt needs upgrade",
+			salt:     "$2a$10$abcdefghijklmnopqrstuv",
+			expected: true,
+		},
+		{
+			name:     "bcrypt $2b$ salt needs upgrade",
+			salt:     "$2b$12$abcdefghijklmnopqrstuv",
+			expected: true,
+		},
+		{
+			name:     "hex salt does not need upgrade",
+			salt:     "abcdef1234567890abcdef1234567890",
+			expected: false,
+		},
+		{
+			name:     "empty salt does not need upgrade",
+			salt:     "",
+			expected: false,
+		},
+		{
+			name:     "short hex salt does not need upgrade",
+			salt:     "abc123",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := auth.NeedsPasswordUpgrade(tt.salt)
+			if result != tt.expected {
+				t.Errorf("NeedsPasswordUpgrade(%q) = %v, want %v", tt.salt, result, tt.expected)
 			}
 		})
 	}
