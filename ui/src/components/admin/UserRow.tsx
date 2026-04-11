@@ -25,13 +25,17 @@ export default function UserRow({
   };
 
   return (
-    <tr className={`hover:bg-gray-50 ${isUpdating ? 'opacity-50' : ''}`}>
+    <tr
+      className={`cursor-pointer select-none ${isSelected ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50'} ${isUpdating ? 'opacity-50' : ''}`}
+      onClick={() => { if (!isUpdating) onSelectionChange(user.id, !isSelected); }}
+    >
       {/* Selection Checkbox */}
       <td className="px-6 py-4 whitespace-nowrap">
         <input
           type="checkbox"
           checked={isSelected}
           onChange={(e) => onSelectionChange(user.id, e.target.checked)}
+          onClick={(e) => e.stopPropagation()}
           disabled={isUpdating}
           className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
         />
@@ -41,7 +45,7 @@ export default function UserRow({
       <td className="px-6 py-4 whitespace-nowrap">
         <div className="flex items-center">
           <div className="flex-shrink-0 h-10 w-10">
-            {user.avatar ? (
+            {user.avatar && (user.avatar.startsWith('/') || user.avatar.startsWith('http')) ? (
               <Image
                 className="h-10 w-10 rounded-full object-cover"
                 src={user.avatar}

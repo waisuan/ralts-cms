@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import RecordsTable from './RecordsTable';
 import { Machine } from '@/types/machine';
+import { FIXTURE_MACHINES } from '@/__fixtures__/machines';
 
 jest.mock('../services/attachmentService', () => ({
   AttachmentService: {
@@ -32,6 +33,20 @@ function baseMachine(overrides: Partial<Machine> = {}): Machine {
   };
 }
 
+const defaultProps = {
+  total: 0,
+  offset: 0,
+  limit: 50,
+  loading: false,
+  sortBy: 'updated_at_desc',
+  onSortChange: jest.fn(),
+  onPageChange: jest.fn(),
+  onPageSizeChange: jest.fn(),
+  onView: jest.fn(),
+  onEdit: jest.fn(),
+  onDelete: jest.fn(),
+};
+
 describe('RecordsTable', () => {
   it('renders machine rows and calls onSortChange when sorting PPM Date', async () => {
     const user = userEvent.setup();
@@ -40,18 +55,10 @@ describe('RecordsTable', () => {
 
     render(
       <RecordsTable
+        {...defaultProps}
         machines={machines}
         total={2}
-        offset={0}
-        limit={50}
-        loading={false}
-        sortBy="updated_at_desc"
         onSortChange={onSortChange}
-        onPageChange={jest.fn()}
-        onPageSizeChange={jest.fn()}
-        onView={jest.fn()}
-        onEdit={jest.fn()}
-        onDelete={jest.fn()}
       />
     );
 
@@ -60,5 +67,94 @@ describe('RecordsTable', () => {
 
     await user.click(screen.getByRole('columnheader', { name: /ppm date/i }));
     expect(onSortChange).toHaveBeenCalledWith('ppm_date_asc');
+  });
+
+  describe('with realistic production data', () => {
+    it('renders all fixture rows', () => {
+      render(
+        <RecordsTable
+          {...defaultProps}
+          machines={FIXTURE_MACHINES}
+          total={FIXTURE_MACHINES.length}
+        />
+      );
+
+      for (const machine of FIXTURE_MACHINES) {
+        expect(screen.getByTitle(machine.serial_number)).toBeInTheDocument();
+      }
+    });
+
+    it('applies truncation classes to text cells that may overflow', () => {
+      render(
+        <RecordsTable
+          {...defaultProps}
+          machines={FIXTURE_MACHINES}
+          total={FIXTURE_MACHINES.length}
+        />
+      );
+
+      const longCustomer = screen.getByTitle('INSTITUT PERUBATAN RESPIRATORI');
+      expect(longCustomer).toHaveClass('truncate', 'block');
+
+      const longAssignee = screen.getByTitle('Puan Nurhasyimah Bt Mohd Noor');
+      expect(longAssignee).toHaveClass('truncate', 'block');
+
+      const longSerial = screen.getByTitle('UG-10203399 [R]');
+      expect(longSerial).toHaveClass('truncate', 'block');
+    });
+
+    it('renders PPM status badges alongside dates', () => {
+      render(
+        <RecordsTable
+          {...defaultProps}
+          machines={FIXTURE_MACHINES}
+          total={FIXTURE_MACHINES.length}
+        />
+      );
+
+      const overdueBadges = screen.getAllByText('Overdue');
+      expect(overdueBadges.length).toBeGreaterThan(0);
+
+      const upcomingBadges = screen.getAllByText('Upcoming');
+      expect(upcomingBadges).toHaveLength(1);
+
+      const dueBadges = screen.getAllByText('Due');
+      expect(dueBadges).toHaveLength(1);
+    });
+
+    it('does not set title attribute on cells with empty values', () => {
+      const emptyMachine = baseMachine({
+        serial_number: 'EMPTY-TEST',
+        customer: '',
+        person_in_charge: '',
+        district: '',
+      });
+
+      render(
+        <RecordsTable
+          {...defaultProps}
+          machines={[emptyMachine]}
+          total={1}
+        />
+      );
+
+      const dashes = screen.getAllByText('-');
+      for (const dash of dashes) {
+        expect(dash).not.toHaveAttribute('title');
+      }
+    });
+
+    it('uses table-fixed layout', () => {
+      render(
+        <RecordsTable
+          {...defaultProps}
+          machines={FIXTURE_MACHINES.slice(0, 3)}
+          total={3}
+        />
+      );
+
+      const table = screen.getByRole('table');
+      expect(table).toHaveClass('table-fixed');
+    });
   });
 });

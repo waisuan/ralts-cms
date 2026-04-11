@@ -403,8 +403,9 @@ export default function RecordsTable({
       },
       columnHelper.accessor('serial_number', {
         header: 'Serial No',
+        size: 130,
         cell: (info) => (
-          <span className="font-medium text-gray-900 whitespace-nowrap" title={info.getValue()}>
+          <span className="font-medium text-gray-900 truncate block" title={info.getValue()}>
             {info.getValue()}
           </span>
         ),
@@ -412,48 +413,84 @@ export default function RecordsTable({
       }),
       columnHelper.accessor('customer', {
         header: 'Customer',
-        cell: (info) => <span className="text-gray-700">{info.getValue() || '-'}</span>,
+        size: 170,
+        cell: (info) => (
+          <span className="text-gray-700 truncate block" title={info.getValue() || undefined}>
+            {info.getValue() || '-'}
+          </span>
+        ),
         enableSorting: false,
       }),
       columnHelper.accessor('state', {
         header: 'State',
-        cell: (info) => <span className="text-gray-700 whitespace-nowrap">{info.getValue() || '-'}</span>,
+        size: 100,
+        cell: (info) => (
+          <span className="text-gray-700 truncate block" title={info.getValue() || undefined}>
+            {info.getValue() || '-'}
+          </span>
+        ),
         enableSorting: false,
       }),
       columnHelper.accessor('district', {
         header: 'District',
-        cell: (info) => <span className="text-gray-700 whitespace-nowrap">{info.getValue() || '-'}</span>,
+        size: 110,
+        cell: (info) => (
+          <span className="text-gray-700 truncate block" title={info.getValue() || undefined}>
+            {info.getValue() || '-'}
+          </span>
+        ),
         enableSorting: false,
       }),
       columnHelper.accessor('model', {
         header: 'Model',
-        cell: (info) => <span className="text-gray-700">{info.getValue() || '-'}</span>,
+        size: 100,
+        cell: (info) => (
+          <span className="text-gray-700 truncate block" title={info.getValue() || undefined}>
+            {info.getValue() || '-'}
+          </span>
+        ),
         enableSorting: false,
       }),
       columnHelper.accessor('brand', {
         header: 'Brand',
-        cell: (info) => <span className="text-gray-700">{info.getValue() || '-'}</span>,
+        size: 100,
+        cell: (info) => (
+          <span className="text-gray-700 truncate block" title={info.getValue() || undefined}>
+            {info.getValue() || '-'}
+          </span>
+        ),
         enableSorting: false,
       }),
       columnHelper.accessor('account_type', {
         header: 'Type',
-        cell: (info) => <span className="text-gray-700">{info.getValue() || '-'}</span>,
+        size: 100,
+        cell: (info) => (
+          <span className="text-gray-700 truncate block" title={info.getValue() || undefined}>
+            {info.getValue() || '-'}
+          </span>
+        ),
         enableSorting: false,
       }),
       columnHelper.accessor('status', {
         header: 'Status',
-        cell: (info) => <span className="text-gray-700 whitespace-nowrap">{info.getValue() || '-'}</span>,
+        size: 130,
+        cell: (info) => (
+          <span className="text-gray-700 truncate block" title={info.getValue() || undefined}>
+            {info.getValue() || '-'}
+          </span>
+        ),
         enableSorting: false,
       }),
       columnHelper.accessor('ppm_date', {
         header: 'PPM Date',
+        size: 145,
         cell: ({ row }) => {
           const status = getPPMStatusDisplay(row.original.ppm_status);
           return (
-            <div className="flex items-center gap-1.5 whitespace-nowrap">
+            <div className="flex items-center gap-1.5 overflow-hidden whitespace-nowrap">
               <span className="text-gray-700">{formatDate(row.original.ppm_date)}</span>
               {status && (
-                <span className={`px-1.5 py-0.5 text-xs font-medium rounded-full ${status.color}`}>
+                <span className={`px-1.5 py-0.5 text-xs font-medium rounded-full shrink-0 ${status.color}`}>
                   {status.label}
                 </span>
               )}
@@ -464,21 +501,33 @@ export default function RecordsTable({
       }),
       columnHelper.accessor('tnc_date', {
         header: 'TNC Date',
+        size: 95,
         cell: (info) => <span className="text-gray-700 whitespace-nowrap">{formatDate(info.getValue())}</span>,
         enableSorting: true,
       }),
       columnHelper.accessor('person_in_charge', {
         header: 'Assignee',
-        cell: (info) => <span className="text-gray-700">{info.getValue() || '-'}</span>,
+        size: 130,
+        cell: (info) => (
+          <span className="text-gray-700 truncate block" title={info.getValue() || undefined}>
+            {info.getValue() || '-'}
+          </span>
+        ),
         enableSorting: false,
       }),
       columnHelper.accessor('reported_by', {
         header: 'Reported By',
-        cell: (info) => <span className="text-gray-700">{info.getValue() || '-'}</span>,
+        size: 120,
+        cell: (info) => (
+          <span className="text-gray-700 truncate block" title={info.getValue() || undefined}>
+            {info.getValue() || '-'}
+          </span>
+        ),
         enableSorting: false,
       }),
       columnHelper.accessor('updated_at', {
         header: 'Updated',
+        size: 95,
         cell: (info) => <span className="text-gray-500 whitespace-nowrap text-xs">{formatDate(info.getValue())}</span>,
         enableSorting: true,
       }),
@@ -578,7 +627,7 @@ export default function RecordsTable({
       {/* Table */}
       <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full" aria-label="Machines list">
+          <table className="w-full table-fixed" aria-label="Machines list">
             <thead className="bg-gray-50 border-b border-gray-200">
               {table.getHeaderGroups().map((headerGroup) => (
                 <tr key={headerGroup.id}>
@@ -601,7 +650,7 @@ export default function RecordsTable({
                         className={`px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${
                           canSort ? 'cursor-pointer select-none hover:text-gray-700' : ''
                         }`}
-                        style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
+                        style={{ width: header.getSize() }}
                         onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
                       >
                         <div className="flex items-center gap-1">
@@ -646,7 +695,7 @@ export default function RecordsTable({
                       onClick={() => row.toggleExpanded()}
                     >
                       {row.getVisibleCells().map((cell) => (
-                        <td key={cell.id} className="px-3 py-2.5 text-sm">
+                        <td key={cell.id} className="px-3 py-2.5 text-sm min-w-0">
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </td>
                       ))}

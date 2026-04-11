@@ -80,49 +80,111 @@ func main() {
 func createMachines(deps *deps.Dependencies, count int) {
 	ctx := context.Background()
 
-	// Sample data for random generation
-	customers := []string{"", "Acme Corp", "Beta Industries", "Gamma Solutions", "Delta Systems", "Epsilon Tech", "Zeta Manufacturing", "Eta Services", "Theta Logistics", "Iota Consulting", "Kappa Solutions"}
-	states := []string{"", "Selangor", "Kuala Lumpur", "Penang", "Johor", "Perak", "Kedah", "Negeri Sembilan", "Melaka", "Pahang", "Terengganu"}
-	accountTypes := []string{"", "Premium", "Standard", "Basic", "Enterprise", "Professional"}
-	models := []string{"", "X100", "Y200", "Z300", "A400", "B500", "C600", "D700", "E800", "F900", "G1000"}
-	statuses := []string{"", "Active", "Inactive", "Maintenance", "Repair", "Operational", "Standby", "Offline", "Testing"}
-	brands := []string{"", "BrandA", "BrandB", "BrandC", "BrandD", "BrandE", "BrandF", "BrandG", "BrandH", "BrandI", "BrandJ"}
-	districts := []string{"", "Petaling", "Klang", "Shah Alam", "Subang Jaya", "Puchong", "Damansara", "Bangsar", "Ampang", "Cheras", "Kepong"}
-	persons := []string{"", "John Doe", "Jane Smith", "Bob Johnson", "Alice Brown", "Charlie Wilson", "Diana Davis", "Edward Miller", "Fiona Garcia", "George Martinez", "Helen Rodriguez"}
-	reporters := []string{"", "Tech Team A", "Tech Team B", "Maintenance Crew", "Service Department", "Engineering Team", "Operations Staff", "Support Team", "Field Engineers"}
+	// Realistic Malaysian production data for seed generation
+	customers := []string{
+		"", "National Kidney Foundation", "Calibration Equipment",
+		"UITM Pulau Pinang", "Hospital Seberang Jaya", "Hospital Mersing",
+		"Hospital Segamat", "Hospital Segamat ED", "Hospital Kemaman (ED)",
+		"MTSB from KK Presint 9 Putrajaya", "INSTITUT PERUBATAN RESPIRATORI",
+		"Klinik Kesihatan Anika, Klang", "Klinik Kesihatan Kuala Lipis",
+		"Klinik Kesihatan Benta", "Klinik Kesihatan Padang Tengku",
+		"Klinik Kesihatan Sg Koyan", "Klinik Kesihatan Seremban",
+		"Klinik Kesihatan Cheneh", "Klinik Kesihatan Air Putih",
+		"Klinik Kesihatan Batu 2 1/2", "Klinik Kesihatan Kerteh",
+		"Klinik Kesihatan Penambang", "Klinik Kesihatan Buloh Kasap",
+		"Klinik Kesihatan Lundang Paku", "Klinik Kesihatan Ajil",
+		"KLINIK KESIHATAN GUNONG", "KLINIK KESIHATAN BACHOK",
+		"KLINIK KESIHATAN GUA MUSANG", "KLINIK KESIHATAN LABOK",
+		"KLINIK KESIHATAN BERIS KUBOR BESAR", "KLINIK KESIHATAN BANGGOL JUDAH",
+		"Klinik Kesihatan Tengkawang", "Klinik Kesihatan Chukai",
+		"Klinik Kesihatan Kuala Kemaman",
+	}
+	states := []string{
+		"", "Selangor", "Kuala Lumpur", "Pulau Pinang", "Johor", "Perak",
+		"Kedah", "Negeri Sembilan", "Melaka", "Pahang", "Terengganu",
+		"Kelantan", "Wilayah Persekutuan", "Sabah", "Sarawak",
+	}
+	accountTypes := []string{"", "Premium", "Standard", "Basic", "Enterprise"}
+	models := []string{"", "X100", "Y200", "Z300", "A400", "B500", "C600"}
+	statuses := []string{
+		"", "Placement", "Asset", "Asset ( In Use )",
+		"Send For Calibration", "Done Calibration", "Reagent Rental",
+	}
+	brands := []string{"", "Sysmex", "Roche", "Abbott", "Beckman Coulter", "Siemens", "Bio-Rad"}
+	districts := []string{
+		"", "Klang", "Kuala Lipis", "Kemaman", "Kota Bharu", "Bachok",
+		"Gua Musang", "Machang", "Segamat", "Mersing", "Seremban",
+		"Wilayah Persekutuan Kuala Lumpur", "Hulu Terengganu",
+		"Petaling", "Shah Alam", "Subang Jaya",
+	}
+	persons := []string{
+		"", "Muhammad Syukri", "Norzilam Bt Othman",
+		"Wan Nursyuhada Wan Hanafi", "Puan Nurhasyimah Bt Mohd Noor",
+		"En. Ujang Bin Haimim", "Pn.Shakira", "Nurul Azwa Md Dali",
+		"Pn Norpipah bt Abd Hamid", "Mohamad Hamdan Bin Mustafa",
+		"Pn Norhayati Othman U32", "Pn Wan Robina bt Che Wan Abas",
+		"En Nazri MA", "Suhailah Safar", "Nor Sufiati Awang U32(KUP)",
+		"Pn Siti Nursalihah Mohd Anuar U29", "Pn Hamisah AB Hamid",
+		"Jamei bin Hasan U29", "ZAWAWI BIN ABDUL RAZAK", "Hasniza Md Yusoff",
+	}
+	reporters := []string{
+		"", "Muhammad Syukri", "Norzilam Bt Othman", "Pn.Shakira",
+		"Mohamad Hamdan Bin Mustafa", "En Nazri MA", "Suhailah Safar",
+	}
 	notes := []string{
 		"",
-		"Regular maintenance scheduled",
-		"Equipment running smoothly",
-		"Minor adjustments needed",
-		"Performance optimization required",
-		"Routine inspection completed",
-		"Upgrade recommended",
-		"Preventive maintenance due",
-		"System integration pending",
-		"Quality control check needed",
-		"Safety inspection required",
+		"PPM service completed",
+		"Reagent replacement done",
+		"Calibration verified within range",
+		"Pending part replacement from supplier",
+		"Routine inspection completed - no issues found",
+		"Escalated to regional service engineer",
+		"Awaiting TNC renewal from HQ",
+		"Machine relocated to new ward",
+		"Software update applied v2.1.3",
+		"Annual preventive maintenance completed",
 	}
-	attachments := []string{"", "report.pdf", "manual.pdf", "specs.pdf", "maintenance.pdf", "inspection.pdf", "certificate.pdf", "warranty.pdf", "guide.pdf", "checklist.pdf", "protocol.pdf"}
+	attachments := []string{
+		"", "service_report.pdf", "calibration_cert.pdf", "inspection_form.pdf",
+		"maintenance_log.pdf", "tnc_certificate.pdf", "ppm_report.pdf",
+		"work_order.pdf", "checklist.pdf",
+	}
 
 	maintenanceActions := []string{
-		"Routine maintenance performed",
-		"Filter replacement completed",
-		"Oil change and lubrication",
-		"Calibration and testing",
-		"Component inspection",
-		"Software update installed",
-		"Hardware upgrade completed",
-		"Safety check performed",
-		"Performance optimization",
-		"Preventive maintenance",
+		"PPM service completed - all checks passed",
+		"Reagent and consumables replaced",
+		"Calibration performed and verified",
+		"Emergency repair - power supply unit replaced",
+		"Software update and system configuration",
+		"Corrective maintenance - sensor alignment",
+		"Inspection completed - minor wear observed",
+		"Full service overhaul",
+		"Filter replacement and cleaning",
+		"Board replacement and functional test",
 	}
-	maintenanceTypes := []string{"Preventive", "Corrective", "Emergency", "Scheduled", "Breakdown", "Inspection", "Calibration", "Upgrade"}
-	maintenanceTechs := []string{"Mike Johnson", "Sarah Williams", "David Brown", "Lisa Davis", "Tom Wilson", "Amy Garcia", "Chris Martinez", "Rachel Rodriguez"}
+	maintenanceTypes := []string{"Preventive", "Corrective", "Emergency", "Inspection"}
+	maintenanceTechs := []string{
+		"Muhammad Syukri", "Ahmad Faizal", "Nur Aisyah", "Mohd Rizal",
+		"Siti Aminah", "Hafiz Rahman", "Nurul Huda", "Azman Ismail",
+	}
+
+	serialPrefixes := []string{
+		"UG-", "UD-", "UB-", "UA ", "UD ", "UB ", "P", "",
+	}
+	serialSuffixes := []string{"", "", "", "", "", "[R]", " [R]"}
+	usedSerials := make(map[string]bool, count)
 
 	for i := 0; i < count; i++ {
-		// Generate unique serial number
-		serialNumber := fmt.Sprintf("SN-%06d", i+1)
+		var serialNumber string
+		for {
+			prefix := randomChoice(serialPrefixes)
+			suffix := randomChoice(serialSuffixes)
+			serialNumber = fmt.Sprintf("%s%08d%s", prefix, randomInt(10000, 99999999), suffix)
+			if !usedSerials[serialNumber] {
+				usedSerials[serialNumber] = true
+				break
+			}
+		}
 
 		// Create machine with random data
 		machine := &machines.Machine{
@@ -151,8 +213,7 @@ func createMachines(deps *deps.Dependencies, count int) {
 
 		log.Printf("Created machine: %s", serialNumber)
 
-		// Randomly create 0-5 maintenance records for this machine
-		maintenanceCount := randomInt(0, count)
+		maintenanceCount := randomInt(0, 6)
 		for j := 0; j < maintenanceCount; j++ {
 			workOrderNumber := fmt.Sprintf("WO-%s-%03d", serialNumber, j+1)
 
@@ -182,40 +243,34 @@ func createMachines(deps *deps.Dependencies, count int) {
 func createUsers(deps *deps.Dependencies, count int) {
 	ctx := context.Background()
 
-	// Sample data for random user generation
-	firstNames := []string{"John", "Jane", "Bob", "Alice", "Charlie", "Diana", "Edward", "Fiona", "George", "Helen", "Ian", "Julia", "Kevin", "Lisa", "Mike", "Nancy", "Oscar", "Patricia", "Quinn", "Rachel"}
-	lastNames := []string{"Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez", "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson", "Thomas", "Taylor", "Moore", "Jackson", "Martin"}
-	domains := []string{"example.com", "test.org", "demo.net", "sample.co", "mock.io", "fake.com", "dummy.org", "placeholder.net"}
-	roles := []string{"user", "admin", "manager", "technician", "supervisor"}
-	statuses := []string{"active", "inactive", "suspended", "pending"}
+	usernames := []string{
+		"syukri", "norzilam", "nursyuhada", "nurhasyimah", "ujang",
+		"shakira", "azwa", "norpipah", "hamdan", "norhayati",
+		"robina", "nazri", "suhailah", "sufiati", "nursalihah",
+		"hamisah", "jamei", "zawawi", "hasniza", "faizal",
+	}
+	domains := []string{"clown-cms.com", "example.com", "test.org"}
+	roles := []string{users.RoleNonAdmin, users.RoleAdmin}
+	statuses := []string{users.StatusApproved, users.StatusPendingApproval}
 
-	// Common passwords for testing
-	passwords := []string{"password123", "test123", "demo123", "user123", "admin123", "secure123", "temp123", "default123"}
+	passwords := []string{"password123", "test123", "demo123", "user123"}
 
 	for i := 0; i < count; i++ {
-		// Generate unique email
-		firstName := randomChoice(firstNames)
-		lastName := randomChoice(lastNames)
+		username := usernames[i%len(usernames)]
+		if i >= len(usernames) {
+			username = fmt.Sprintf("%s%d", username, i/len(usernames))
+		}
 		domain := randomChoice(domains)
-		email := fmt.Sprintf("%s.%s.%d@%s", firstName, lastName, i+1, domain)
+		email := fmt.Sprintf("%s@%s", username, domain)
 
-		// Create user with random data
 		status := randomChoice(statuses)
 		user := &users.User{
-			Username: fmt.Sprintf("%s %s", firstName, lastName),
+			Username: username,
 			Email:    email,
 			Password: randomChoice(passwords),
 			Role:     randomChoice(roles),
 			Status:   &status,
-			// Avatar is optional, so we'll leave it as nil for most users
-			// Occasionally add an avatar
-			Avatar: func() *string {
-				if randomInt(1, 101) <= 20 { // 20% chance of having avatar
-					avatar := fmt.Sprintf("avatar-%d.jpg", randomInt(1, 11))
-					return &avatar
-				}
-				return nil
-			}(),
+			Approved: status == users.StatusApproved,
 		}
 
 		// Create the user
