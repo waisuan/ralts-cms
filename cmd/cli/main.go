@@ -213,7 +213,7 @@ func createMachines(deps *deps.Dependencies, count int) {
 
 		log.Printf("Created machine: %s", serialNumber)
 
-		maintenanceCount := randomInt(0, 6)
+		maintenanceCount := randomInt(0, count)
 		for j := 0; j < maintenanceCount; j++ {
 			workOrderNumber := fmt.Sprintf("WO-%s-%03d", serialNumber, j+1)
 

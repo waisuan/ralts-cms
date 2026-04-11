@@ -28,6 +28,7 @@ ui/blob-report/
 ui/users.txt
 
 bin/
+cli
 
 TODO.md
 

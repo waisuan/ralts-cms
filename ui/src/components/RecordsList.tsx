@@ -260,13 +260,17 @@ export default function RecordsList({
   }, [apiFilters]);
 
   const handleViewModeChange = useCallback((mode: ViewMode) => {
+    const prev = viewMode;
     setViewMode(mode);
     try {
       localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode);
     } catch {
       /* ignore */
     }
-  }, []);
+    if (prev === 'cards' && mode === 'table') {
+      refetch();
+    }
+  }, [viewMode, refetch]);
 
   const handleTableSortChange = useCallback(
     (apiSort: string) => {
