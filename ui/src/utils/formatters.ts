@@ -9,6 +9,21 @@ export function formatDate(dateString: string): string {
   });
 }
 
+/**
+ * Format a bare YYYY-MM-DD string for display without timezone shift.
+ * Unlike formatDate, this parses the string as local time so "2026-04-12"
+ * always displays as Apr 12, 2026 regardless of the browser's timezone.
+ */
+export function formatLocalDate(dateString: string): string {
+  if (!dateString) return '-';
+  const [year, month, day] = dateString.split('-').map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
 export function formatDateTime(dateString: string): string {
   if (!dateString) return '-';
   return new Date(dateString).toLocaleDateString('en-US', {

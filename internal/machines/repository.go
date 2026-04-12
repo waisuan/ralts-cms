@@ -401,16 +401,16 @@ func (r *db) Search(ctx context.Context, query string, options *ListOptions) ([]
 		options = DefaultListOptions()
 	}
 
-	// Build the base query with full-text search
+	// Build the base query with trigram fuzzy search
 	baseQuery := `
 		SELECT id, "serialNumber", COALESCE(customer, ''), COALESCE(state, ''), COALESCE("accountType", ''), 
 		       COALESCE(model, ''), COALESCE(status, ''), COALESCE(brand, ''), 
 		       COALESCE(district, ''), COALESCE("personInCharge", ''), COALESCE("reportedBy", ''), 
 		       COALESCE("additionalNotes", ''), COALESCE(attachment, ''), 
 		       COALESCE("tncDate", '0001-01-01'::date), COALESCE("ppmDate", '0001-01-01'::date), "createdAt", "updatedAt",
-		       ts_rank(search_vector, plainto_tsquery('english', $1)) as rank
+		       word_similarity($1, search_text) as rank
 		FROM machines 
-		WHERE search_vector @@ plainto_tsquery('english', $1)
+		WHERE $1 <% search_text
 	`
 
 	// Build filter conditions using helper (start at $2 since $1 is used for search query)
@@ -475,7 +475,7 @@ func (r *db) CountSearch(ctx context.Context, query string, options *ListOptions
 	baseQuery := `
 		SELECT COUNT(*)
 		FROM machines 
-		WHERE search_vector @@ plainto_tsquery('english', $1)
+		WHERE $1 <% search_text
 	`
 
 	// Build filter conditions using helper (start at $2 since $1 is used for search query)

@@ -33,7 +33,7 @@ export default function AdminEventsPage() {
   const [dateRange, setDateRange] = useState<DateRangeValue>({ from: undefined, to: undefined });
   const [resourceType, setResourceType] = useState<string>('');
   const [action, setAction] = useState<string>('');
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
 
   // Polling state
   const [isLive, setIsLive] = useState(false);

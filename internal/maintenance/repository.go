@@ -296,14 +296,14 @@ func (r *db) SearchByMachine(ctx context.Context, machineSerialNumber, query str
 		options = DefaultListOptions()
 	}
 
-	// Build the base query with full-text search filtered by machine
+	// Build the base query with trigram fuzzy search filtered by machine
 	baseQuery := `
 		SELECT id, "serialNumber", "workOrderNumber", COALESCE("workOrderDate", '0001-01-01'::date), 
 		       COALESCE("actionTaken", ''), COALESCE("reportedBy", ''), COALESCE("workOrderType", ''), 
 		       attachment, "createdAt", "updatedAt",
-		       ts_rank(search_vector, plainto_tsquery('english', $2)) as rank
+		       word_similarity($2, search_text) as rank
 		FROM maintenance 
-		WHERE "serialNumber" = $1 AND search_vector @@ plainto_tsquery('english', $2)
+		WHERE "serialNumber" = $1 AND $2 <% search_text
 	`
 
 	// Build ORDER BY clause based on sort option
@@ -357,7 +357,7 @@ func (r *db) CountSearchByMachine(ctx context.Context, machineSerialNumber, sear
 	sqlQuery := `
 		SELECT COUNT(*)
 		FROM maintenance 
-		WHERE "serialNumber" = $1 AND search_vector @@ plainto_tsquery('english', $2)
+		WHERE "serialNumber" = $1 AND $2 <% search_text
 	`
 
 	var count int

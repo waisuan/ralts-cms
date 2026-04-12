@@ -16,6 +16,7 @@ import {
 import { Machine } from '../types/machine';
 import { PPM_STATUSES, PPM_STATUS_COLORS } from '../utils/constants';
 import { AttachmentService } from '../services/attachmentService';
+import { formatDate, formatDateTime } from '../utils/formatters';
 
 interface RecordsTableProps {
   machines: Machine[];
@@ -47,17 +48,6 @@ function getPPMStatusDisplay(ppmStatus: string) {
     default:
       return null;
   }
-}
-
-function formatDate(dateString: string): string {
-  if (!dateString) return '-';
-  return new Date(dateString).toLocaleDateString();
-}
-
-function formatDateTime(dateString: string): string {
-  if (!dateString) return '-';
-  const d = new Date(dateString);
-  return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 }
 
 function AttachmentLink({ machine }: { machine: Machine }) {

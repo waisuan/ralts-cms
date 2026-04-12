@@ -2,6 +2,7 @@ import Image from 'next/image';
 import { User } from '@/services/userService';
 import { AdminUserService, USER_STATUS, USER_ROLE, UserRole } from '@/services/adminUserService';
 import StatusBadge from './StatusBadge';
+import { formatDate } from '@/utils/formatters';
 
 interface UserRowProps {
   user: User;
@@ -16,14 +17,6 @@ export default function UserRow({
   onSelectionChange,
   isUpdating 
 }: UserRowProps) {
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
   return (
     <tr
       className={`cursor-pointer select-none ${isSelected ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50'} ${isUpdating ? 'opacity-50' : ''}`}

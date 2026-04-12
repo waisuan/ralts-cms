@@ -1,4 +1,5 @@
 import DateRangePicker, { type DateRangeValue } from '@/components/DateRangePicker';
+import { formatLocalDate } from '@/utils/formatters';
 
 interface RecordsListDateFiltersPanelProps {
   ppmDateRange: DateRangeValue;
@@ -45,8 +46,8 @@ export default function RecordsListDateFiltersPanel({
             <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
               PPM:{' '}
               {ppmDateRange.from === ppmDateRange.to || !ppmDateRange.to
-                ? ppmDateRange.from
-                : `${ppmDateRange.from} to ${ppmDateRange.to}`}
+                ? formatLocalDate(ppmDateRange.from)
+                : `${formatLocalDate(ppmDateRange.from)} to ${formatLocalDate(ppmDateRange.to!)}`}
               <button
                 type="button"
                 onClick={() => onPpmChange({ from: undefined, to: undefined })}
@@ -62,8 +63,8 @@ export default function RecordsListDateFiltersPanel({
             <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
               TNC:{' '}
               {tncDateRange.from === tncDateRange.to || !tncDateRange.to
-                ? tncDateRange.from
-                : `${tncDateRange.from} to ${tncDateRange.to}`}
+                ? formatLocalDate(tncDateRange.from)
+                : `${formatLocalDate(tncDateRange.from)} to ${formatLocalDate(tncDateRange.to!)}`}
               <button
                 type="button"
                 onClick={() => onTncChange({ from: undefined, to: undefined })}

@@ -26,7 +26,10 @@ function EventRow({ event, isExpanded, onToggleExpand, isNew }: EventRowProps) {
 
   return (
     <>
-      <tr className={`hover:bg-gray-50 transition-colors duration-500 ${isNew ? 'bg-green-100' : ''}`}>
+      <tr
+        className={`hover:bg-gray-50 transition-colors duration-500 ${hasDetails ? 'cursor-pointer' : ''} ${isNew ? 'bg-green-100' : ''}`}
+        onClick={hasDetails ? onToggleExpand : undefined}
+      >
         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
           <div className="flex flex-col">
             <span className="font-medium text-gray-900">
@@ -61,20 +64,15 @@ function EventRow({ event, isExpanded, onToggleExpand, isNew }: EventRowProps) {
         </td>
         <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
           {hasDetails && (
-            <button
-              onClick={onToggleExpand}
-              className="text-blue-600 hover:text-blue-900 focus:outline-none"
-            >
-              {isExpanded ? (
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                </svg>
-              ) : (
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              )}
-            </button>
+            isExpanded ? (
+              <svg className="h-5 w-5 inline-block text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+              </svg>
+            ) : (
+              <svg className="h-5 w-5 inline-block text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            )
           )}
         </td>
       </tr>
