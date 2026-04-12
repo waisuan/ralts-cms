@@ -365,7 +365,9 @@ export default function MaintenanceTable({
       columnHelper.accessor('updated_at', {
         header: 'Updated',
         cell: (info) => (
-          <span className="text-gray-500 whitespace-nowrap text-xs">{formatDateTime(info.getValue())}</span>
+          <span className="text-gray-500 whitespace-nowrap text-xs" title={formatDateTime(info.getValue())}>
+            {formatDate(info.getValue())}
+          </span>
         ),
         enableSorting: true,
       }),

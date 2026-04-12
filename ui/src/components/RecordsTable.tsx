@@ -204,6 +204,10 @@ function ExpandedRowDetail({
           <p className="text-gray-900">{formatDateTime(machine.created_at)}</p>
         </div>
         <div>
+          <span className="font-medium text-gray-500">Last Updated</span>
+          <p className="text-gray-900">{formatDateTime(machine.updated_at)}</p>
+        </div>
+        <div>
           <span className="font-medium text-gray-500">Maintenance Records</span>
           <p className="text-gray-900">{machine.maintenance_count ?? 0}</p>
         </div>
@@ -518,7 +522,11 @@ export default function RecordsTable({
       columnHelper.accessor('updated_at', {
         header: 'Updated',
         size: 95,
-        cell: (info) => <span className="text-gray-500 whitespace-nowrap text-xs">{formatDate(info.getValue())}</span>,
+        cell: (info) => (
+          <span className="text-gray-500 whitespace-nowrap text-xs" title={formatDateTime(info.getValue())}>
+            {formatDate(info.getValue())}
+          </span>
+        ),
         enableSorting: true,
       }),
       {

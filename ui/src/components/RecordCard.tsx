@@ -282,7 +282,7 @@ export default function RecordCard({ machine, onView, onEdit, onDelete }: Record
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
               <span>Created:</span>
-              <span className="text-gray-700">{formatDate(machine.created_at)}</span>
+              <span className="text-gray-700" title={formatDateTime(machine.created_at)}>{formatDate(machine.created_at)}</span>
             </span>
             <span className="text-gray-400">&bull;</span>
             <span className="flex items-center gap-1 text-gray-500">
@@ -290,7 +290,7 @@ export default function RecordCard({ machine, onView, onEdit, onDelete }: Record
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
               <span>Updated:</span>
-              <span className="text-gray-700">{formatDate(machine.updated_at)}</span>
+              <span className="text-gray-700" title={formatDateTime(machine.updated_at)}>{formatDate(machine.updated_at)}</span>
             </span>
           </div>
         </div>
