@@ -1,0 +1,13 @@
+FROM alpine:3.20
+
+RUN apk add --no-cache \
+    postgresql16-client \
+    aws-cli \
+    bash \
+    coreutils
+
+COPY scripts/migrate-data.sh /app/migrate-data.sh
+RUN chmod +x /app/migrate-data.sh
+
+WORKDIR /app
+CMD ["./migrate-data.sh", "sync"]

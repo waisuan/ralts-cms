@@ -2,19 +2,30 @@
 set -euo pipefail
 
 # ---------------------------------------------------------------------------
-# migrate-data.sh -- Migrate Postgres data from legacy roti to Ralts-CMS.
+# migrate-data.sh -- Migrate Postgres data and S3 attachments from legacy
+# roti to Ralts-CMS (Railway).
 #
 # Usage:
 #   ./scripts/migrate-data.sh initial   # Full load (first time)
 #   ./scripts/migrate-data.sh sync      # Incremental sync (daily cron)
 #
 # Required environment variables:
-#   SOURCE_DATABASE_URL  -- legacy Postgres connection string
-#   TARGET_DATABASE_URL  -- Railway Postgres connection string
+#   SOURCE_DATABASE_URL        -- legacy Postgres connection string
+#   TARGET_DATABASE_URL        -- Railway Postgres connection string
 #
-# Optional:
-#   LAST_SYNC_FILE       -- path to persist last-sync timestamp
-#                           (default: /tmp/migrate_data_last_sync_ts)
+# Optional (Postgres):
+#   LAST_SYNC_FILE             -- path to persist last-sync timestamp
+#                                 (default: /tmp/migrate_data_last_sync_ts)
+#
+# Optional (S3 -- set all to enable attachment sync):
+#   SOURCE_S3_BUCKET           -- legacy AWS S3 bucket name
+#   TARGET_S3_BUCKET           -- Railway storage bucket name
+#   TARGET_S3_ENDPOINT         -- Railway S3 endpoint URL
+#   TARGET_S3_ACCESS_KEY_ID    -- Railway bucket access key
+#   TARGET_S3_SECRET_ACCESS_KEY -- Railway bucket secret key
+#
+#   Legacy AWS credentials are read from the standard AWS_ACCESS_KEY_ID,
+#   AWS_SECRET_ACCESS_KEY, and AWS_DEFAULT_REGION env vars.
 # ---------------------------------------------------------------------------
 
 WORK_DIR=$(mktemp -d)
@@ -269,6 +280,52 @@ health_checks() {
   log "  search_vector populated: machines=$sv_machines  maintenance=$sv_maint"
 }
 
+# -- S3 sync ----------------------------------------------------------------
+# Two-step local relay: download from legacy AWS, upload to Railway bucket.
+# aws s3 sync is idempotent -- only new/modified objects are transferred on
+# the upload leg (compares size + last-modified).
+
+s3_sync() {
+  require_var SOURCE_S3_BUCKET
+  require_var TARGET_S3_BUCKET
+  require_var TARGET_S3_ENDPOINT
+  require_var TARGET_S3_ACCESS_KEY_ID
+  require_var TARGET_S3_SECRET_ACCESS_KEY
+
+  log "Syncing S3 attachments..."
+  local s3_work="$WORK_DIR/s3"
+  mkdir -p "$s3_work"
+
+  aws s3 sync "s3://$SOURCE_S3_BUCKET" "$s3_work" \
+    --exclude "*.sql" --exclude "*.zip"
+
+  local src_count
+  src_count=$(find "$s3_work" -type f | wc -l)
+  log "  Downloaded $src_count files from source"
+
+  if [[ "$src_count" -eq 0 ]]; then
+    log "  WARNING: No files downloaded from source -- skipping upload"
+    return
+  fi
+
+  AWS_ACCESS_KEY_ID="$TARGET_S3_ACCESS_KEY_ID" \
+  AWS_SECRET_ACCESS_KEY="$TARGET_S3_SECRET_ACCESS_KEY" \
+    aws s3 sync "$s3_work" "s3://$TARGET_S3_BUCKET" \
+    --endpoint-url "$TARGET_S3_ENDPOINT" \
+    --region auto
+
+  log "  Uploaded to target bucket"
+  log "S3 sync complete"
+}
+
+maybe_s3_sync() {
+  if [[ -n "${SOURCE_S3_BUCKET:-}" ]]; then
+    s3_sync
+  else
+    log "S3 sync skipped (SOURCE_S3_BUCKET not set)"
+  fi
+}
+
 # -- Modes ------------------------------------------------------------------
 
 run_initial() {
@@ -287,6 +344,7 @@ run_initial() {
   reset_sequences
   validate
   health_checks
+  maybe_s3_sync
 
   log "=== INITIAL MIGRATION COMPLETE ==="
 }
@@ -315,6 +373,7 @@ run_sync() {
 
   validate
   health_checks
+  maybe_s3_sync
 
   date -u '+%Y-%m-%d %H:%M:%S' > "$LAST_SYNC_FILE"
   log "Sync timestamp saved to $LAST_SYNC_FILE"
@@ -333,10 +392,20 @@ case "${1:-}" in
     echo "  initial  Full migration (first time)"
     echo "  sync     Incremental sync (daily cron)"
     echo ""
-    echo "Environment variables:"
-    echo "  SOURCE_DATABASE_URL  Legacy Postgres connection string (required)"
-    echo "  TARGET_DATABASE_URL  Railway Postgres connection string (required)"
-    echo "  LAST_SYNC_FILE       Path to persist sync timestamp (default: /tmp/migrate_data_last_sync_ts)"
+    echo "Environment variables (Postgres -- required):"
+    echo "  SOURCE_DATABASE_URL          Legacy Postgres connection string"
+    echo "  TARGET_DATABASE_URL          Railway Postgres connection string"
+    echo "  LAST_SYNC_FILE               Path to persist sync timestamp (default: /tmp/migrate_data_last_sync_ts)"
+    echo ""
+    echo "Environment variables (S3 -- optional, set all to enable):"
+    echo "  SOURCE_S3_BUCKET             Legacy AWS S3 bucket name"
+    echo "  TARGET_S3_BUCKET             Railway storage bucket name"
+    echo "  TARGET_S3_ENDPOINT           Railway S3 endpoint URL"
+    echo "  TARGET_S3_ACCESS_KEY_ID      Railway bucket access key"
+    echo "  TARGET_S3_SECRET_ACCESS_KEY  Railway bucket secret key"
+    echo "  AWS_ACCESS_KEY_ID            Legacy AWS access key (standard AWS var)"
+    echo "  AWS_SECRET_ACCESS_KEY        Legacy AWS secret key (standard AWS var)"
+    echo "  AWS_DEFAULT_REGION           Legacy AWS region (standard AWS var)"
     exit 1
     ;;
 esac
