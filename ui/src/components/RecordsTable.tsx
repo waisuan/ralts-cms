@@ -264,6 +264,7 @@ const DEFAULT_VISIBLE_COLUMNS: VisibilityState = {
   brand: false,
   account_type: false,
   reported_by: false,
+  attachment: false,
 };
 
 const COLUMN_VISIBILITY_STORAGE_KEY = 'ralts-table-columns';
@@ -297,6 +298,7 @@ const COLUMN_LABELS: Record<string, string> = {
   brand: 'Brand',
   account_type: 'Type',
   reported_by: 'Reported By',
+  attachment: 'Attachment',
 };
 
 export default function RecordsTable({
@@ -517,6 +519,16 @@ export default function RecordsTable({
             {info.getValue() || '-'}
           </span>
         ),
+        enableSorting: false,
+      }),
+      columnHelper.accessor('attachment', {
+        header: 'Attachment',
+        size: 150,
+        cell: ({ row }) => {
+          const machine = row.original;
+          if (!machine.attachment) return <span className="text-gray-400">-</span>;
+          return <AttachmentLink machine={machine} />;
+        },
         enableSorting: false,
       }),
       columnHelper.accessor('updated_at', {
