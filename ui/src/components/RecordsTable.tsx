@@ -592,8 +592,16 @@ export default function RecordsTable({
           <>
             <div className="fixed inset-0 z-10" onClick={() => setShowColumnMenu(false)} />
             <div className="absolute right-0 top-full mt-1 z-20 w-52 bg-white border border-gray-200 rounded-lg shadow-lg py-2 max-h-80 overflow-y-auto">
-              <div className="px-3 py-1.5 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Toggle Columns
+              <div className="flex items-center justify-between px-3 py-1.5">
+                <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Toggle Columns
+                </span>
+                <button
+                  onClick={() => handleColumnVisibilityChange(DEFAULT_VISIBLE_COLUMNS)}
+                  className="text-xs text-blue-600 hover:text-blue-800"
+                >
+                  Reset
+                </button>
               </div>
               {toggleableColumns.map((col) => (
                 <label
@@ -609,14 +617,6 @@ export default function RecordsTable({
                   {COLUMN_LABELS[col.id] || col.id}
                 </label>
               ))}
-              <div className="border-t border-gray-100 mt-1 pt-1 px-3">
-                <button
-                  onClick={() => handleColumnVisibilityChange(DEFAULT_VISIBLE_COLUMNS)}
-                  className="text-xs text-blue-600 hover:text-blue-800"
-                >
-                  Reset to defaults
-                </button>
-              </div>
             </div>
           </>
         )}
