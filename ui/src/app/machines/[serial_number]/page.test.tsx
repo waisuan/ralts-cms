@@ -12,19 +12,16 @@ jest.mock('next/navigation', () => ({
 jest.mock('@/components/MaintenanceHistory', () => {
   return function MockMaintenanceHistory({
     machine,
-    onBack,
     onEdit,
     onDelete,
   }: {
     machine: { serial_number: string };
-    onBack: () => void;
     onEdit?: () => void;
     onDelete?: () => void;
   }) {
     return (
       <div data-testid="maintenance-history">
         <h1>Maintenance History for {machine?.serial_number || 'Unknown'}</h1>
-        <button onClick={onBack}>Back</button>
         {onEdit && <button onClick={onEdit}>Edit Machine</button>}
         {onDelete && <button onClick={onDelete}>Delete Machine</button>}
       </div>

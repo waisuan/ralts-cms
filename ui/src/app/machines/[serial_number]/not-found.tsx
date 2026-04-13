@@ -13,7 +13,7 @@ export default function NotFound() {
           href="/"
           className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
         >
-          Back to Machines
+          Go to Machines
         </Link>
       </div>
     </div>

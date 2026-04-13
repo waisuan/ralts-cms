@@ -82,7 +82,7 @@ describe('MaintenanceHistory', () => {
 
     (MaintenanceService.getMaintenanceList as jest.Mock).mockResolvedValue(mockApiResponse);
 
-    render(<MaintenanceHistory machine={mockMachine} onBack={() => {}} />);
+    render(<MaintenanceHistory machine={mockMachine} />);
     
     // Wait for the API call to complete and verify the machine information and counts are displayed
     await waitFor(() => {
@@ -118,7 +118,7 @@ describe('MaintenanceHistory', () => {
 
     (MaintenanceService.getMaintenanceList as jest.Mock).mockResolvedValue(mockApiResponse);
 
-    render(<MaintenanceHistory machine={mockMachine} onBack={() => {}} />);
+    render(<MaintenanceHistory machine={mockMachine} />);
     
     await waitFor(() => {
       // Use more specific queries that target the count display elements

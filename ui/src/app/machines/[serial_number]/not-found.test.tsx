@@ -36,19 +36,19 @@ describe('NotFound', () => {
     expect(screen.getByText('🔧')).toBeInTheDocument();
   });
 
-  it('has a link back to the machines list', () => {
+  it('has a link to the machines list', () => {
     render(<NotFound />);
 
-    const backLink = screen.getByText('Back to Machines');
-    expect(backLink).toBeInTheDocument();
-    expect(backLink.closest('a')).toHaveAttribute('href', '/');
+    const homeLink = screen.getByText('Go to Machines');
+    expect(homeLink).toBeInTheDocument();
+    expect(homeLink.closest('a')).toHaveAttribute('href', '/');
   });
 
-  it('has proper button styling on the back link', () => {
+  it('has proper button styling on the home link', () => {
     render(<NotFound />);
 
-    const backLink = screen.getByText('Back to Machines');
-    expect(backLink).toHaveClass('bg-blue-600', 'hover:bg-blue-700', 'text-white');
+    const homeLink = screen.getByText('Go to Machines');
+    expect(homeLink).toHaveClass('bg-blue-600', 'hover:bg-blue-700', 'text-white');
   });
 
   it('has centered layout', () => {

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import UserMenu from './UserMenu';
 
 export default function Header() {
@@ -8,7 +9,12 @@ export default function Header() {
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center">
-            <h1 className="text-xl font-semibold text-gray-900">Ralts CMS</h1>
+            <Link
+              href="/"
+              className="text-xl font-semibold text-gray-900 hover:text-blue-600 transition-colors"
+            >
+              Ralts CMS
+            </Link>
             <span className="ml-2 text-sm text-gray-500 hidden sm:inline">Content Management System</span>
           </div>
 

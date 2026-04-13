@@ -28,10 +28,6 @@ function MachineContent({ machine }: { machine: Machine }) {
   const [isUpdating, setIsUpdating] = useState(false);
 
 
-  const handleBack = () => {
-    router.push('/');
-  };
-
   const handleEdit = () => {
     setMachineToEdit(machine);
     setModalMode('edit');
@@ -103,10 +99,9 @@ function MachineContent({ machine }: { machine: Machine }) {
 
       <MaintenanceHistory
         machine={machine}
-        onBack={handleBack}
         onEdit={handleEdit}
         onDelete={handleDelete}
-              />
+      />
 
         {/* Machine Modal (Edit) */}
       <MachineModal

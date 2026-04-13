@@ -12,11 +12,9 @@ import MaintenanceCardList from './MaintenanceCardList';
 import AddMaintenanceModal from './AddMaintenanceModal';
 import EditMaintenanceModal from './EditMaintenanceModal';
 import DeleteMaintenanceConfirm from './DeleteMaintenanceConfirm';
-import FullPageLoader from './FullPageLoader';
 
 interface MaintenanceHistoryProps {
   machine: Machine;
-  onBack: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
 }
@@ -30,7 +28,6 @@ const MAINTENANCE_SORT_OPTIONS = [
 
 export default function MaintenanceHistory({
   machine,
-  onBack,
   onEdit,
   onDelete,
 }: MaintenanceHistoryProps) {
@@ -47,14 +44,6 @@ export default function MaintenanceHistory({
   const [editingRecord, setEditingRecord] = useState<Maintenance | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletingRecord, setDeletingRecord] = useState<Maintenance | null>(null);
-
-  // Navigation
-  const [isNavigatingBack, setIsNavigatingBack] = useState(false);
-
-  const handleBackNavigation = () => {
-    setIsNavigatingBack(true);
-    onBack();
-  };
 
   const handleExportMaintenanceCSV = async () => {
     setCsvExporting(true);
@@ -134,18 +123,6 @@ export default function MaintenanceHistory({
       <div className="container mx-auto px-4">
         {/* Header */}
         <div className="mb-4 md:mb-8">
-          <div className="flex items-center gap-4 mb-4">
-            <button
-              onClick={handleBackNavigation}
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-            >
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              Back to Machines
-            </button>
-          </div>
-
           <div className="hidden md:block">
             <MachineInfoCard machine={machine} onEdit={onEdit} onDelete={onDelete} />
           </div>
@@ -380,7 +357,6 @@ export default function MaintenanceHistory({
         onSuccess={() => maint.refetch()}
       />
 
-      <FullPageLoader isVisible={isNavigatingBack} message="Loading machines list..." />
     </div>
   );
 }
