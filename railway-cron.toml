@@ -1,4 +1,4 @@
-# Cron sync service – daily Postgres + S3 sync from legacy roti to Railway.
+# Cron sync service – weekly Postgres + S3 sync from legacy roti to Railway.
 # In Railway: create a new service in the project, set Config File Path to
 # /railway-cron.toml, Root Directory to / (default).
 #
@@ -13,4 +13,4 @@ dockerfilePath = "Dockerfile.migrate"
 watchPatterns = ["scripts/migrate-data.sh", "Dockerfile.migrate", "railway-cron.toml"]
 
 [deploy]
-cronSchedule = "0 2 * * *"
+cronSchedule = "0 2 * * 1"

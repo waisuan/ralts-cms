@@ -360,7 +360,7 @@ run_sync() {
   if [[ -f "$LAST_SYNC_FILE" ]]; then
     last_sync_ts=$(cat "$LAST_SYNC_FILE")
   else
-    last_sync_ts=$(date -u -d '24 hours ago' '+%Y-%m-%d %H:%M:%S')
+    last_sync_ts=$(date -u -d '7 days ago' '+%Y-%m-%d %H:%M:%S')
   fi
   validate_ts_format "$last_sync_ts"
   log "Syncing changes since: $last_sync_ts"
