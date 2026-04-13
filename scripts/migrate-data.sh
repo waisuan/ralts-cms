@@ -145,6 +145,7 @@ import_machines() {
   {
     echo "CREATE TEMP TABLE tmp_machines (LIKE machines INCLUDING DEFAULTS);"
     echo "ALTER TABLE tmp_machines DROP COLUMN IF EXISTS search_vector;"
+    echo "ALTER TABLE tmp_machines DROP COLUMN IF EXISTS search_text;"
     drop_not_null_block tmp_machines
     echo "\\copy tmp_machines($MACHINES_EXPORT_FLAT) FROM '$WORK_DIR/machines.csv' WITH CSV HEADER"
     cat <<SQL
@@ -178,6 +179,7 @@ import_maintenance() {
   {
     echo "CREATE TEMP TABLE tmp_maintenance (LIKE maintenance INCLUDING DEFAULTS);"
     echo "ALTER TABLE tmp_maintenance DROP COLUMN IF EXISTS search_vector;"
+    echo "ALTER TABLE tmp_maintenance DROP COLUMN IF EXISTS search_text;"
     drop_not_null_block tmp_maintenance
     echo "\\copy tmp_maintenance($MAINTENANCE_EXPORT_FLAT) FROM '$WORK_DIR/maintenance.csv' WITH CSV HEADER"
     cat <<SQL
@@ -274,10 +276,10 @@ health_checks() {
   legacy_pw_count=$(tgt_psql -tAc "SELECT count(*) FROM users WHERE salt LIKE '\$2a\$%' OR salt LIKE '\$2b\$%'")
   log "  Legacy password hashes remaining: $legacy_pw_count"
 
-  local sv_machines sv_maint
-  sv_machines=$(tgt_psql -tAc "SELECT count(*) FROM machines WHERE search_vector IS NOT NULL")
-  sv_maint=$(tgt_psql -tAc "SELECT count(*) FROM maintenance WHERE search_vector IS NOT NULL")
-  log "  search_vector populated: machines=$sv_machines  maintenance=$sv_maint"
+  local st_machines st_maint
+  st_machines=$(tgt_psql -tAc "SELECT count(*) FROM machines WHERE search_text IS NOT NULL AND search_text <> ''")
+  st_maint=$(tgt_psql -tAc "SELECT count(*) FROM maintenance WHERE search_text IS NOT NULL AND search_text <> ''")
+  log "  search_text populated: machines=$st_machines  maintenance=$st_maint"
 }
 
 # -- S3 sync ----------------------------------------------------------------
