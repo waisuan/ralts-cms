@@ -6,7 +6,6 @@ interface RecordsListDesktopHeaderProps {
   filterType: MachineListFilterType;
   filterStatusSuffix: string;
   effectiveViewMode: ViewMode;
-  machinesLength: number;
   total: number;
   overdueCount: number;
   dueCount: number;
@@ -28,7 +27,6 @@ export default function RecordsListDesktopHeader({
   filterType,
   filterStatusSuffix,
   effectiveViewMode,
-  machinesLength,
   total,
   overdueCount,
   dueCount,
@@ -67,9 +65,9 @@ export default function RecordsListDesktopHeader({
             </span>
           )}
         </div>
-        {effectiveViewMode === 'cards' && (
+        {effectiveViewMode === 'table' && (
           <p className="text-sm text-gray-500 mt-1">
-            Showing {machinesLength} of {total} machine{total !== 1 ? 's' : ''}
+            {total} machine{total !== 1 ? 's' : ''}
             {filterStatusSuffix}
             {loading && ' (updating...)'}
           </p>

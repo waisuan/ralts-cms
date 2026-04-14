@@ -331,7 +331,6 @@ export default function RecordsList({
         filterType={filterType}
         filterStatusSuffix={filterStatusSuffix}
         effectiveViewMode={effectiveViewMode}
-        machinesLength={machines.length}
         total={total}
         overdueCount={overdueCount}
         dueCount={dueCount}
@@ -377,6 +376,20 @@ export default function RecordsList({
         />
       ) : (
         <>
+          {total > 0 && (
+            <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
+              <PaginationControls
+                pageIndex={Math.floor(offset / limit)}
+                pageCount={Math.ceil(total / limit)}
+                limit={limit}
+                total={total}
+                onPageChange={(idx) => { handlePageChange(idx); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                onPageSizeChange={(size) => { handlePageSizeChange(size); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                loading={loading}
+              />
+            </div>
+          )}
+
           <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 transition-opacity ${loading ? 'opacity-50 pointer-events-none' : ''}`}>
             {machines.map((machine) => (
               <RecordCard
@@ -389,16 +402,31 @@ export default function RecordsList({
             ))}
           </div>
 
-          {total > 0 && (
-            <PaginationControls
-              pageIndex={Math.floor(offset / limit)}
-              pageCount={Math.ceil(total / limit)}
-              limit={limit}
-              total={total}
-              onPageChange={(idx) => { handlePageChange(idx); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-              onPageSizeChange={(size) => { handlePageSizeChange(size); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-              loading={loading}
-            />
+          {machines.length > 0 && (
+            <div className="flex justify-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                aria-label="Scroll to top"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                </svg>
+                Top
+              </button>
+              <button
+                type="button"
+                onClick={() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' })}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                aria-label="Scroll to bottom"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+                Bottom
+              </button>
+            </div>
           )}
 
           {machines.length === 0 && (
