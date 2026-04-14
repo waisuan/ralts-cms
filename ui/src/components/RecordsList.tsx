@@ -10,6 +10,7 @@ import { SearchOptions } from './SearchBar';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import RecordCard from './RecordCard';
 import RecordsTable from './RecordsTable';
+import PaginationControls from './PaginationControls';
 import MachineModal from './MachineModal';
 import FullPageLoader from './FullPageLoader';
 import LoadingOverlay from './LoadingOverlay';
@@ -99,7 +100,6 @@ export default function RecordsList({
     loading,
     error,
     refetch,
-    loadMore,
     goToPage,
     setLimit,
     overdueCount,
@@ -130,12 +130,6 @@ export default function RecordsList({
       onTotalChange(total);
     }
   }, [total, onTotalChange]);
-
-  const filteredMachines = machines;
-
-  const handleLoadMore = async () => {
-    await loadMore();
-  };
 
   const handleView = (serial_number: string) => {
     setIsNavigating(true);
@@ -260,17 +254,9 @@ export default function RecordsList({
   }, [apiFilters]);
 
   const handleViewModeChange = useCallback((mode: ViewMode) => {
-    const prev = viewMode;
     setViewMode(mode);
-    try {
-      localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode);
-    } catch {
-      /* ignore */
-    }
-    if (prev === 'cards' && mode === 'table') {
-      refetch();
-    }
-  }, [viewMode, refetch]);
+    try { localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode); } catch {}
+  }, []);
 
   const handleTableSortChange = useCallback(
     (apiSort: string) => {
@@ -280,14 +266,14 @@ export default function RecordsList({
     [onSortChange]
   );
 
-  const handleTablePageChange = useCallback(
+  const handlePageChange = useCallback(
     (page: number) => {
       goToPage(page);
     },
     [goToPage]
   );
 
-  const handleTablePageSizeChange = useCallback(
+  const handlePageSizeChange = useCallback(
     (size: number) => {
       setLimit(size);
     },
@@ -375,7 +361,7 @@ export default function RecordsList({
 
       {effectiveViewMode === 'table' ? (
         <RecordsTable
-          machines={filteredMachines}
+          machines={machines}
           total={total}
           offset={offset}
           limit={limit}
@@ -383,16 +369,16 @@ export default function RecordsList({
           sortBy={SORT_TYPE_TO_API[sortBy] || 'updated_at_desc'}
           searchQuery={searchOptions.query.trim() || undefined}
           onSortChange={handleTableSortChange}
-          onPageChange={handleTablePageChange}
-          onPageSizeChange={handleTablePageSizeChange}
+          onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
           onView={handleView}
           onEdit={handleEdit}
           onDelete={handleDelete}
         />
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredMachines.map((machine) => (
+          <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 transition-opacity ${loading ? 'opacity-50 pointer-events-none' : ''}`}>
+            {machines.map((machine) => (
               <RecordCard
                 key={machine.serial_number}
                 machine={machine}
@@ -403,27 +389,19 @@ export default function RecordsList({
             ))}
           </div>
 
-          {offset + limit < total && (
-            <div className="flex justify-center pt-4">
-              <button
-                type="button"
-                onClick={handleLoadMore}
-                disabled={loading}
-                className="bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-400 text-gray-700 px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
-              >
-                {loading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
-                    Loading...
-                  </>
-                ) : (
-                  `Load More (${total - (offset + limit)} remaining)`
-                )}
-              </button>
-            </div>
+          {total > 0 && (
+            <PaginationControls
+              pageIndex={Math.floor(offset / limit)}
+              pageCount={Math.ceil(total / limit)}
+              limit={limit}
+              total={total}
+              onPageChange={(idx) => { handlePageChange(idx); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+              onPageSizeChange={(size) => { handlePageSizeChange(size); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+              loading={loading}
+            />
           )}
 
-          {filteredMachines.length === 0 && (
+          {machines.length === 0 && (
             <div className="text-center py-12">
               <div className="text-gray-400 text-6xl mb-4">📄</div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">{emptyState.title}</h3>

@@ -143,7 +143,7 @@ jest.mock('../hooks/useMachines', () => ({
     refetch: jest.fn(),
     setLimit: jest.fn(),
     setFilters: jest.fn(),
-    loadMore: jest.fn(),
+    goToPage: jest.fn(),
     reset: jest.fn(),
   }),
 }));

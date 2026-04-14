@@ -23,6 +23,7 @@ import {
   isCustomWorkOrderType,
   workOrderTypePillLabel,
 } from '../utils/formatters';
+import PaginationControls from './PaginationControls';
 
 interface MaintenanceTableProps {
   machineSerialNumber: string;
@@ -274,19 +275,6 @@ export default function MaintenanceTable({
     [pageIndex, limit]
   );
 
-  const handlePaginationChange = useCallback(
-    (updater: PaginationState | ((old: PaginationState) => PaginationState)) => {
-      const next = typeof updater === 'function' ? updater(pagination) : updater;
-      if (next.pageSize !== limit) {
-        onPageSizeChange(next.pageSize);
-      }
-      if (next.pageIndex !== pageIndex) {
-        onPageChange(next.pageIndex + 1);
-      }
-    },
-    [pagination, limit, pageIndex, onPageChange, onPageSizeChange]
-  );
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const columns = useMemo<ColumnDef<Maintenance, any>[]>(
     () => [
@@ -410,7 +398,6 @@ export default function MaintenanceTable({
     },
     onSortingChange: handleSortingChange,
     onExpandedChange: setExpanded,
-    onPaginationChange: handlePaginationChange,
     getCoreRowModel: getCoreRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
     manualSorting: true,
@@ -534,64 +521,16 @@ export default function MaintenanceTable({
         </table>
       </div>
 
-      {/* Pagination */}
       {total > 0 && (
-        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-gray-50">
-          <div className="flex items-center gap-2 text-sm text-gray-700">
-            <span>
-              {(currentPage - 1) * limit + 1}-{Math.min(currentPage * limit, total)} of {total}
-            </span>
-            <select
-              value={limit}
-              onChange={(e) => onPageSizeChange(Number(e.target.value))}
-              aria-label="Rows per page"
-              className="border border-gray-300 rounded px-2 py-1 text-sm bg-white"
-            >
-              {[50, 100].map((size) => (
-                <option key={size} value={size}>
-                  {size} / page
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => table.firstPage()}
-              disabled={!table.getCanPreviousPage()}
-              className="px-2 py-1 text-sm text-gray-900 border border-gray-400 rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed bg-white"
-              title="First page"
-            >
-              ««
-            </button>
-            <button
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-              className="px-2 py-1 text-sm text-gray-900 border border-gray-400 rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed bg-white"
-              title="Previous page"
-            >
-              «
-            </button>
-            <span className="px-3 py-1 text-sm text-gray-900">
-              Page {pageIndex + 1} of {pageCount || 1}
-            </span>
-            <button
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-              className="px-2 py-1 text-sm text-gray-900 border border-gray-400 rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed bg-white"
-              title="Next page"
-            >
-              »
-            </button>
-            <button
-              onClick={() => table.lastPage()}
-              disabled={!table.getCanNextPage()}
-              className="px-2 py-1 text-sm text-gray-900 border border-gray-400 rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed bg-white"
-              title="Last page"
-            >
-              »»
-            </button>
-          </div>
-        </div>
+        <PaginationControls
+          pageIndex={currentPage - 1}
+          pageCount={pageCount}
+          limit={limit}
+          total={total}
+          onPageChange={(idx) => onPageChange(idx + 1)}
+          onPageSizeChange={onPageSizeChange}
+          loading={loading}
+        />
       )}
     </div>
   );

@@ -26,7 +26,6 @@ export interface UseMachinesReturn {
   refetch: () => Promise<void>;
   setLimit: (limit: number) => void;
   setFilters: (filters: MachineFilters) => void;
-  loadMore: () => Promise<void>;
   goToPage: (page: number) => Promise<void>;
   reset: () => void;
 }
@@ -53,14 +52,8 @@ export function useMachines(options: UseMachinesOptions = {}): UseMachinesReturn
   const debouncedFilters = useDebounce(filters, 300); // 300ms debounce
 
   // Use refs to avoid stale closures
-  const offsetRef = useRef(offset);
   const limitRef = useRef(limit);
   const filtersRef = useRef(filters);
-
-  // Update refs when state changes
-  useEffect(() => {
-    offsetRef.current = offset;
-  }, [offset]);
 
   useEffect(() => {
     limitRef.current = limit;
@@ -77,17 +70,15 @@ export function useMachines(options: UseMachinesOptions = {}): UseMachinesReturn
     }
   }, [initialFilters, filters]);
 
-  const fetchMachines = useCallback(async (targetOffset?: number, shouldAppend = false) => {
+  const fetchMachines = useCallback(async (targetOffset?: number) => {
     setLoading(true);
     setError(null);
 
-    // When filters change, always start from offset 0 unless explicitly specified
-    const currentOffset = targetOffset !== undefined ? targetOffset : (shouldAppend ? offsetRef.current : 0);
+    const currentOffset = targetOffset !== undefined ? targetOffset : 0;
     const currentLimit = limitRef.current;
     const currentFilters = filtersRef.current;
 
     try {
-      // Calculate page from offset for the API call
       const page = Math.floor(currentOffset / currentLimit) + 1;
       const response = await MachineService.getMachines(page, currentLimit, currentFilters);
       
@@ -95,9 +86,7 @@ export function useMachines(options: UseMachinesOptions = {}): UseMachinesReturn
       
       if (!data || !data.machines) {
         console.warn('API returned unexpected format, using empty machines array');
-        if (!shouldAppend) {
-          setMachines([]);
-        }
+        setMachines([]);
         setTotal(0);
         setOffset(0);
         setLimit(data.limit || currentLimit);
@@ -107,13 +96,7 @@ export function useMachines(options: UseMachinesOptions = {}): UseMachinesReturn
         return;
       }
       
-      if (shouldAppend) {
-        // Append new machines to existing ones
-        setMachines(prev => [...prev, ...data.machines]);
-      } else {
-        // Replace machines array
-        setMachines(data.machines);
-      }
+      setMachines(data.machines);
       
       // API count matches the filtered list (including date ranges combined with PPM status).
       setTotal(data.count ?? 0);
@@ -138,28 +121,17 @@ export function useMachines(options: UseMachinesOptions = {}): UseMachinesReturn
   useEffect(() => {
     if (autoFetch) {
       // When filters change, always start fresh from offset 0
-      fetchMachines(0, false);
+      fetchMachines(0);
     }
-  }, [fetchMachines, autoFetch, debouncedFilters]); // Use debounced filters
+  }, [fetchMachines, autoFetch, debouncedFilters]);
 
   const refetch = useCallback(async () => {
-    await fetchMachines(0, false); // Reset to offset 0 and replace machines
+    await fetchMachines(0);
   }, [fetchMachines]);
-
-  const loadMore = useCallback(async () => {
-    const currentOffset = offsetRef.current;
-    const currentLimit = limitRef.current;
-    const currentTotal = total;
-    
-    const nextOffset = currentOffset + currentLimit;
-    if (nextOffset < currentTotal) {
-      await fetchMachines(nextOffset, true); // Load next page and append
-    }
-  }, [fetchMachines, total]);
 
   const goToPage = useCallback(async (page: number) => {
     const targetOffset = page * limitRef.current;
-    await fetchMachines(targetOffset, false);
+    await fetchMachines(targetOffset);
   }, [fetchMachines]);
 
   const reset = useCallback(() => {
@@ -179,7 +151,7 @@ export function useMachines(options: UseMachinesOptions = {}): UseMachinesReturn
     setLimit(newLimit);
     setOffset(0);
     limitRef.current = newLimit;
-    fetchMachines(0, false);
+    fetchMachines(0);
   }, [fetchMachines]);
 
   const handleSetFilters = useCallback((newFilters: MachineFilters) => {
@@ -201,7 +173,6 @@ export function useMachines(options: UseMachinesOptions = {}): UseMachinesReturn
     refetch,
     setLimit: handleSetLimit,
     setFilters: handleSetFilters,
-    loadMore,
     goToPage,
     reset,
   };
