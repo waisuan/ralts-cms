@@ -403,7 +403,7 @@ export default function RecordsList({
           </div>
 
           {machines.length > 0 && (
-            <div className="flex justify-center gap-3 pt-2">
+            <div className="flex justify-center pt-2">
               <button
                 type="button"
                 onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
@@ -413,18 +413,7 @@ export default function RecordsList({
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
                 </svg>
-                Top
-              </button>
-              <button
-                type="button"
-                onClick={() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' })}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-sm text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                aria-label="Scroll to bottom"
-              >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-                Bottom
+                Back to Top
               </button>
             </div>
           )}
