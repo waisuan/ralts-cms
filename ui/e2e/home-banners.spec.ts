@@ -39,10 +39,12 @@ test.describe('home banners', () => {
     await page.goto('/');
     await page.waitForResponse((r) => r.url().includes('/api/v1/machines'));
 
-    await page.getByRole('button', { name: 'View Overdue' }).click();
-    await page.waitForRequest((req) =>
-      req.url().includes('/api/v1/machines') && req.url().includes('ppm_status_filter=overdue')
+    const overdueRequest = page.waitForRequest(
+      (req) =>
+        req.url().includes('/api/v1/machines') && req.url().includes('ppm_status_filter=overdue')
     );
+    await page.getByRole('button', { name: 'View Overdue' }).click();
+    await overdueRequest;
 
     const afterClear = page.waitForRequest(
       (req) =>
