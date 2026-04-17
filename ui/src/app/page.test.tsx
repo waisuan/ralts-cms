@@ -1,5 +1,6 @@
-import { render, screen } from '@testing-library/react';
-import Home from './page';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { withNuqsTestingAdapter, type UrlUpdateEvent } from 'nuqs/adapters/testing';
+import HomeContent from './HomeContent';
 
 interface MockRecordsListProps {
   searchOptions?: { query: string; property: string };
@@ -30,7 +31,6 @@ interface MockOverdueAlertProps {
   isDueDismissed?: boolean;
 }
 
-// Mock the components since we're testing the page integration
 jest.mock('../components/RecordsList', () => {
   return function MockRecordsList({ searchOptions, filterType, sortBy }: MockRecordsListProps) {
     return (
@@ -71,7 +71,6 @@ jest.mock('../components/OverdueAlert', () => {
     isOverdueDismissed = false,
     isDueDismissed = false,
   }: MockOverdueAlertProps) {
-    // Provide default stats if undefined
     const defaultStats = {
       overdueCount: 1,
       dueCount: 1,
@@ -115,7 +114,6 @@ jest.mock('../components/OverdueAlert', () => {
   };
 });
 
-// Mock the useOverdueStats hook
 jest.mock('../hooks/useOverdueStats', () => ({
   useOverdueStats: () => ({
     overdueCount: 1,
@@ -127,7 +125,6 @@ jest.mock('../hooks/useOverdueStats', () => ({
   }),
 }));
 
-// Mock the useMachines hook to prevent API calls
 jest.mock('../hooks/useMachines', () => ({
   useMachines: () => ({
     machines: [],
@@ -141,34 +138,71 @@ jest.mock('../hooks/useMachines', () => ({
     dueCount: 1,
     almostDueCount: 1,
     refetch: jest.fn(),
-    setLimit: jest.fn(),
-    setFilters: jest.fn(),
-    goToPage: jest.fn(),
     reset: jest.fn(),
   }),
 }));
 
 describe('Home Page', () => {
   it('renders the main page with all components and basic functionality', () => {
-    render(<Home />);
+    render(<HomeContent />, { wrapper: withNuqsTestingAdapter({ searchParams: '' }) });
 
-    // Check that all main components are present
     expect(screen.getByTestId('search-bar')).toBeInTheDocument();
     expect(screen.getByTestId('records-list')).toBeInTheDocument();
     expect(screen.getByTestId('overdue-alert')).toBeInTheDocument();
 
-    // Check that overdue and due alerts are displayed
     expect(screen.getByText('1 machine is overdue for PPM maintenance')).toBeInTheDocument();
     expect(screen.getByText('1 machine is due for PPM maintenance today')).toBeInTheDocument();
     expect(screen.getByText('View Overdue')).toBeInTheDocument();
     expect(screen.getByText('View Due')).toBeInTheDocument();
 
-    // Check that search functionality is available
     expect(screen.getByTestId('search-input')).toBeInTheDocument();
     expect(screen.getByText('Any')).toBeInTheDocument();
 
-    // Check that RecordsList shows default state
     expect(screen.getByText('Search Property: any')).toBeInTheDocument();
     expect(screen.getByText('Filter Type: all')).toBeInTheDocument();
+  });
+
+  it('derives initial state from URL search params', () => {
+    render(<HomeContent />, {
+      wrapper: withNuqsTestingAdapter({
+        searchParams: '?q=klinik&search_by=any&filter=overdue&sort=ppm_date_asc',
+      }),
+    });
+
+    expect(screen.getByText('Search Query: klinik')).toBeInTheDocument();
+    expect(screen.getByText('Search Property: any')).toBeInTheDocument();
+    expect(screen.getByText('Filter Type: overdue')).toBeInTheDocument();
+    expect(screen.getByText('Sort By: ppm_date_asc')).toBeInTheDocument();
+  });
+
+  it('writes the expected params when the user clicks "View Overdue"', async () => {
+    const onUrlUpdate = jest.fn<void, [UrlUpdateEvent]>();
+
+    render(<HomeContent />, {
+      wrapper: withNuqsTestingAdapter({ searchParams: '', onUrlUpdate }),
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByText('View Overdue'));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(onUrlUpdate).toHaveBeenCalled();
+    const last = onUrlUpdate.mock.calls.at(-1)?.[0];
+    expect(last).toBeDefined();
+    expect(last?.queryString).toContain('q=overdue');
+    expect(last?.queryString).toContain('search_by=ppm_status');
+    expect(last?.queryString).toContain('filter=overdue');
+  });
+
+  it('falls back to defaults when URL has invalid values', () => {
+    render(<HomeContent />, {
+      wrapper: withNuqsTestingAdapter({
+        searchParams: '?filter=bogus&sort=nope&limit=999',
+      }),
+    });
+
+    expect(screen.getByText('Filter Type: all')).toBeInTheDocument();
+    expect(screen.getByText('Sort By: newest')).toBeInTheDocument();
   });
 });

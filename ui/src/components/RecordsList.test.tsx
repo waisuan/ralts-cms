@@ -152,9 +152,6 @@ jest.mock('../hooks/useMachines', () => ({
     dueCount: 1,
     almostDueCount: 1,
     refetch: jest.fn(),
-    setLimit: jest.fn(),
-    setFilters: jest.fn(),
-    goToPage: jest.fn(),
     reset: jest.fn(),
   }),
 }));
@@ -209,8 +206,23 @@ describe('RecordsList', () => {
     jest.useRealTimers();
   });
 
+  const defaultDateRange = { from: undefined, to: undefined };
+
   it('renders the component with machines and basic functionality', () => {
-    render(<RecordsList searchOptions={defaultSearchOptions} />);
+    render(
+      <RecordsList
+        searchOptions={defaultSearchOptions}
+        page={1}
+        limit={50}
+        ppmDateRange={defaultDateRange}
+        tncDateRange={defaultDateRange}
+        onPageChange={jest.fn()}
+        onLimitChange={jest.fn()}
+        onPpmDateRangeChange={jest.fn()}
+        onTncDateRangeChange={jest.fn()}
+        onClearDateRanges={jest.fn()}
+      />
+    );
 
     // Check that the component renders with basic elements
     // Title is "Machines" (was "All Machines"); desktop header also shows "Add New Machine" text

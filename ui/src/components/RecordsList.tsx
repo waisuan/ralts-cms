@@ -21,7 +21,6 @@ import {
   type MachineListSortType,
 } from '@/utils/machineListFilters';
 import {
-  ITEMS_PER_PAGE_TABLE,
   VIEW_MODE_STORAGE_KEY,
   loadViewMode,
   SORT_TYPE_TO_API,
@@ -42,6 +41,15 @@ interface RecordsListProps {
   searchOptions: SearchOptions;
   filterType?: FilterType;
   sortBy?: SortType;
+  page: number;
+  limit: number;
+  ppmDateRange: DateRangeValue;
+  tncDateRange: DateRangeValue;
+  onPageChange: (page: number) => void;
+  onLimitChange: (limit: number) => void;
+  onPpmDateRangeChange: (value: DateRangeValue) => void;
+  onTncDateRangeChange: (value: DateRangeValue) => void;
+  onClearDateRanges: () => void;
   onShowAll?: () => void;
   onSortChange?: (sortBy: SortType) => void;
   onCountsUpdate?: (overdue: number, due: number) => void;
@@ -53,6 +61,15 @@ export default function RecordsList({
   searchOptions,
   filterType = 'all',
   sortBy = 'newest',
+  page,
+  limit: propLimit,
+  ppmDateRange,
+  tncDateRange,
+  onPageChange,
+  onLimitChange,
+  onPpmDateRangeChange,
+  onTncDateRangeChange,
+  onClearDateRanges,
   onShowAll,
   onSortChange,
   onCountsUpdate,
@@ -71,9 +88,9 @@ export default function RecordsList({
   const [isNavigating, setIsNavigating] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const [ppmDateRange, setPpmDateRange] = useState<DateRangeValue>({ from: undefined, to: undefined });
-  const [tncDateRange, setTncDateRange] = useState<DateRangeValue>({ from: undefined, to: undefined });
-  const [showDateFilters, setShowDateFilters] = useState(false);
+  const hasDateFilters = !!(ppmDateRange.from || ppmDateRange.to || tncDateRange.from || tncDateRange.to);
+  const [showDateFilters, setShowDateFilters] = useState(hasDateFilters);
+  useEffect(() => { if (hasDateFilters) setShowDateFilters(true); }, [hasDateFilters]);
   const [showMobileSortMenu, setShowMobileSortMenu] = useState(false);
 
   const [isDeletingMachine, setIsDeletingMachine] = useState(false);
@@ -100,13 +117,11 @@ export default function RecordsList({
     loading,
     error,
     refetch,
-    goToPage,
-    setLimit,
     overdueCount,
     dueCount,
   } = useMachines({
-    page: 1,
-    limit: ITEMS_PER_PAGE_TABLE,
+    page: page - 1,
+    limit: propLimit,
     filters: apiFilters,
     autoFetch: true,
   });
@@ -267,26 +282,14 @@ export default function RecordsList({
   );
 
   const handlePageChange = useCallback(
-    (page: number) => {
-      goToPage(page);
+    (page0: number) => {
+      onPageChange(page0 + 1);
     },
-    [goToPage]
-  );
-
-  const handlePageSizeChange = useCallback(
-    (size: number) => {
-      setLimit(size);
-    },
-    [setLimit]
+    [onPageChange]
   );
 
   const filterStatusSuffix = getRecordsListFilterStatusSuffix(filterType);
   const emptyState = getRecordsListEmptyState(filterType, searchOptions.query);
-
-  const clearDateRanges = useCallback(() => {
-    setPpmDateRange({ from: undefined, to: undefined });
-    setTncDateRange({ from: undefined, to: undefined });
-  }, []);
 
   if (loading && machines.length === 0) {
     return <RecordsListLoadingState />;
@@ -352,9 +355,9 @@ export default function RecordsList({
         <RecordsListDateFiltersPanel
           ppmDateRange={ppmDateRange}
           tncDateRange={tncDateRange}
-          onPpmChange={setPpmDateRange}
-          onTncChange={setTncDateRange}
-          onClearAll={clearDateRanges}
+          onPpmChange={onPpmDateRangeChange}
+          onTncChange={onTncDateRangeChange}
+          onClearAll={onClearDateRanges}
         />
       )}
 
@@ -369,7 +372,7 @@ export default function RecordsList({
           searchQuery={searchOptions.query.trim() || undefined}
           onSortChange={handleTableSortChange}
           onPageChange={handlePageChange}
-          onPageSizeChange={handlePageSizeChange}
+          onPageSizeChange={onLimitChange}
           onView={handleView}
           onEdit={handleEdit}
           onDelete={handleDelete}
@@ -384,7 +387,7 @@ export default function RecordsList({
                 limit={limit}
                 total={total}
                 onPageChange={(idx) => { handlePageChange(idx); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                onPageSizeChange={(size) => { handlePageSizeChange(size); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                onPageSizeChange={(size) => { onLimitChange(size); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                 loading={loading}
               />
             </div>

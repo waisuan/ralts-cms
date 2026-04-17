@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
+import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import './globals.css';
 import { AuthProvider } from '@/contexts/AuthContext';
 import AppContent from '@/components/AppContent';
@@ -28,10 +29,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <AuthProvider>
-          <PageTransitionLoader />
-          <AppContent>{children}</AppContent>
-        </AuthProvider>
+        <NuqsAdapter>
+          <AuthProvider>
+            <PageTransitionLoader />
+            <AppContent>{children}</AppContent>
+          </AuthProvider>
+        </NuqsAdapter>
       </body>
     </html>
   );

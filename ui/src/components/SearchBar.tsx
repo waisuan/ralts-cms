@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   SEARCH_PROPERTIES,
   SEARCHABLE_PPM_STATUSES,
@@ -19,6 +19,8 @@ interface SearchBarProps {
   resultCount?: number;
 }
 
+const TEXT_DEBOUNCE_MS = 300;
+
 // Helper function to convert internal PPM status to consumer-facing text
 function getPPMStatusDisplayText(internalValue: string): string {
   const statusOption = SEARCHABLE_PPM_STATUSES.find(status => status.value === internalValue);
@@ -32,13 +34,52 @@ export default function SearchBar({
   resultCount,
 }: SearchBarProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [localQuery, setLocalQuery] = useState(searchOptions.query);
+  const committedRef = useRef({ query: searchOptions.query, property: searchOptions.property });
+  const onSearchRef = useRef(onSearch);
+  const searchOptionsRef = useRef(searchOptions);
 
-  const handleQueryChange = (query: string) => {
+  useEffect(() => {
+    onSearchRef.current = onSearch;
+  }, [onSearch]);
+
+  useEffect(() => {
+    searchOptionsRef.current = searchOptions;
+  }, [searchOptions]);
+
+  // Resync local input whenever the externally-committed query OR property
+  // changes (URL load, banner click, property switch, clear). Tracking the
+  // property too prevents a stale text value from leaking across a property
+  // change (e.g. typed "foo" while property was "any", parent flips property
+  // to "ppm_status" — a pending debounce must not commit "foo" as a status).
+  const { query: externalQuery, property: externalProperty } = searchOptions;
+  useEffect(() => {
+    const prev = committedRef.current;
+    if (externalQuery !== prev.query || externalProperty !== prev.property) {
+      committedRef.current = { query: externalQuery, property: externalProperty };
+      setLocalQuery(externalQuery);
+    }
+  }, [externalQuery, externalProperty]);
+
+  // Debounce free-text commits so typing doesn't fire a fetch on every keystroke.
+  useEffect(() => {
+    if (localQuery === committedRef.current.query) return;
+    const timer = setTimeout(() => {
+      committedRef.current = { ...committedRef.current, query: localQuery };
+      onSearchRef.current({ ...searchOptionsRef.current, query: localQuery });
+    }, TEXT_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [localQuery]);
+
+  const commitImmediately = (query: string) => {
+    committedRef.current = { query, property: searchOptions.property };
+    setLocalQuery(query);
     onSearch({ ...searchOptions, query });
   };
 
   const handlePropertyChange = (property: string) => {
-    // Clear the query when switching to a different property type
+    committedRef.current = { query: '', property };
+    setLocalQuery('');
     onSearch({ query: '', property });
     setIsDropdownOpen(false);
   };
@@ -107,7 +148,7 @@ export default function SearchBar({
               /* PPM Status Dropdown */
               <select
                 value={searchOptions.query}
-                onChange={(e) => handleQueryChange(e.target.value)}
+                onChange={(e) => commitImmediately(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border-0 rounded-r-lg focus:outline-none text-gray-900 bg-white appearance-none"
               >
                 <option value="">Select PPM Status...</option>
@@ -122,8 +163,8 @@ export default function SearchBar({
               <input
                 type="text"
                 placeholder={`Search by ${currentProperty?.label.toLowerCase()}...`}
-                value={searchOptions.query}
-                onChange={(e) => handleQueryChange(e.target.value)}
+                value={localQuery}
+                onChange={(e) => setLocalQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border-0 rounded-r-lg focus:outline-none placeholder-gray-400 text-gray-900"
               />
             )}
@@ -177,11 +218,11 @@ export default function SearchBar({
             </div>
             
             {/* Clear Button - Only show when there's a query and not loading */}
-            {searchOptions.query && !isSearching && (
+            {(isPPMStatusPropertyValue ? searchOptions.query : localQuery) && !isSearching && (
               <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
                 <button
                   type="button"
-                  onClick={() => handleQueryChange('')}
+                  onClick={() => commitImmediately('')}
                   className="text-gray-400 hover:text-gray-600 focus:outline-none focus:text-gray-600 transition-colors"
                   title="Clear search"
                 >
