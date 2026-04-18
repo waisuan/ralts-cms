@@ -6,6 +6,7 @@ bootstrap
 tmp/
 
 # Frontend (Next.js) - ui/
+ui/tsconfig.tsbuildinfo
 ui/node_modules/
 ui/.next/
 ui/out/
