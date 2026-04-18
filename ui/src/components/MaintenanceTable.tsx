@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback, Fragment } from 'react';
+import type { RowData } from '@tanstack/table-core';
 import {
   useReactTable,
   getCoreRowModel,
@@ -25,13 +26,14 @@ import {
 } from '../utils/formatters';
 import PaginationControls from './PaginationControls';
 
+/* eslint-disable @typescript-eslint/no-unused-vars -- generics mirror ColumnMeta in @tanstack/table-core */
 declare module '@tanstack/react-table' {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  interface ColumnMeta<TData extends unknown, TValue> {
+  interface ColumnMeta<TData extends RowData, TValue> {
     headerAlign?: 'left' | 'center' | 'right';
     headerBold?: boolean;
   }
 }
+/* eslint-enable @typescript-eslint/no-unused-vars */
 
 interface MaintenanceTableProps {
   machineSerialNumber: string;
