@@ -8,6 +8,7 @@ import { handleApiError } from '../utils/api';
 import { isAuthError } from '../utils/auth';
 import { backendDateToHtmlDate } from '../utils/dateUtils';
 import LoadingOverlay from './LoadingOverlay';
+import { useLockBodyScroll } from '../hooks/useLockBodyScroll';
 
 interface EditMaintenanceModalProps {
   machineSerialNumber: string;
@@ -46,6 +47,8 @@ export default function EditMaintenanceModal({
   onClose,
   onSuccess,
 }: EditMaintenanceModalProps) {
+  useLockBodyScroll(isOpen);
+
   const [form, setForm] = useState<FormData>(emptyForm);
   const [originalForm, setOriginalForm] = useState<FormData>(emptyForm);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -236,10 +239,15 @@ export default function EditMaintenanceModal({
     <>
       <LoadingOverlay isVisible={isUpdating} message="Updating maintenance record..." />
 
-      <div className="fixed inset-0 z-50 overflow-y-auto">
-        <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={handleCancelClick} />
+      <div
+        className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50"
+        onClick={handleCancelClick}
+      >
         <div className="flex min-h-full items-center justify-center p-4">
-          <div className="relative w-full max-w-2xl bg-white rounded-lg shadow-xl">
+          <div
+            className="relative w-full max-w-2xl bg-white rounded-lg shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
               <h2 className="text-xl font-semibold text-gray-900">Edit Maintenance Record</h2>
               <button onClick={handleCancelClick} className="text-gray-400 hover:text-gray-600 transition-colors">
@@ -350,10 +358,18 @@ export default function EditMaintenanceModal({
 
       {/* Discard changes confirmation */}
       {showDiscardConfirm && (
-        <div className="fixed inset-0 z-[60] overflow-y-auto">
-          <div className="fixed inset-0 bg-black bg-opacity-50" />
+        <div
+          className="fixed inset-0 z-[60] overflow-y-auto bg-black bg-opacity-50"
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowDiscardConfirm(false);
+          }}
+        >
           <div className="flex min-h-full items-center justify-center p-4">
-            <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div
+              className="relative bg-white rounded-lg shadow-xl max-w-md w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="p-6">
                 <div className="flex items-center mb-4">
                   <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100">

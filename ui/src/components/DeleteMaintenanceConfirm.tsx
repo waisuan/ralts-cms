@@ -7,6 +7,7 @@ import { AttachmentService } from '../services/attachmentService';
 import { handleApiError } from '../utils/api';
 import { isAuthError } from '../utils/auth';
 import LoadingOverlay from './LoadingOverlay';
+import { useLockBodyScroll } from '../hooks/useLockBodyScroll';
 
 interface DeleteMaintenanceConfirmProps {
   machineSerialNumber: string;
@@ -25,6 +26,8 @@ export default function DeleteMaintenanceConfirm({
 }: DeleteMaintenanceConfirmProps) {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  useLockBodyScroll(isOpen && record !== null);
 
   if (!isOpen || !record) return null;
 
@@ -73,10 +76,15 @@ export default function DeleteMaintenanceConfirm({
   return (
     <>
       <LoadingOverlay isVisible={isDeleting} message="Deleting maintenance record..." />
-      <div className="fixed inset-0 z-50 overflow-y-auto">
-        <div className="fixed inset-0 bg-black bg-opacity-50" onClick={handleClose} />
+      <div
+        className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50"
+        onClick={handleClose}
+      >
         <div className="flex min-h-full items-center justify-center p-4">
-          <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full">
+          <div
+            className="relative bg-white rounded-lg shadow-xl max-w-md w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-6">
               <div className="flex items-center mb-4">
                 <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100">

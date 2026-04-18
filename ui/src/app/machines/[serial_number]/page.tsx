@@ -5,6 +5,7 @@ import { Suspense, useEffect, useState } from 'react';
 import MaintenanceHistory from '@/components/MaintenanceHistory';
 import MachineModal from '@/components/MachineModal';
 import LoadingOverlay from '@/components/LoadingOverlay';
+import RecordsListDeleteModal from '@/components/recordsList/RecordsListDeleteModal';
 import { Machine } from '@/types/machine';
 import { MachineService } from '@/services/machineService';
 import { handleApiError } from '@/utils/api';
@@ -25,6 +26,7 @@ function MachineContent({ machine }: { machine: Machine }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [machineToDelete, setMachineToDelete] = useState<Machine | null>(null);
   const [isDeletingMachine, setIsDeletingMachine] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
 
 
@@ -36,27 +38,29 @@ function MachineContent({ machine }: { machine: Machine }) {
 
   const handleDelete = () => {
     setMachineToDelete(machine);
+    setDeleteError(null);
     setShowDeleteConfirm(true);
   };
 
   const handleConfirmDelete = async () => {
-    if (machineToDelete) {
-      try {
-        setIsDeletingMachine(true);
-        await MachineService.deleteMachine(machineToDelete.serial_number);
-        // Navigate back to home page
-        router.push('/');
-      } catch (error) {
-        console.error('Failed to delete machine:', error);
-        alert('Failed to delete machine. Please try again.');
-        setIsDeletingMachine(false);
-      }
+    if (!machineToDelete) return;
+    try {
+      setIsDeletingMachine(true);
+      setDeleteError(null);
+      await MachineService.deleteMachine(machineToDelete.serial_number);
+      setShowDeleteConfirm(false);
+      router.push('/');
+    } catch (error) {
+      console.error('Failed to delete machine:', error);
+      setDeleteError(handleApiError(error).message);
+    } finally {
+      setIsDeletingMachine(false);
     }
-    setShowDeleteConfirm(false);
   };
 
   const handleCancelDelete = () => {
     setMachineToDelete(null);
+    setDeleteError(null);
     setShowDeleteConfirm(false);
   };
 
@@ -87,14 +91,9 @@ function MachineContent({ machine }: { machine: Machine }) {
 
   return (
     <>
-      {/* Loading Overlay - shows when updating or deleting machine data */}
-      <LoadingOverlay 
-        isVisible={isUpdating || isDeletingMachine} 
-        message={
-          isUpdating ? "Loading machine details..." :
-          isDeletingMachine ? "Deleting machine..." :
-          "Loading..."
-        }
+      <LoadingOverlay
+        isVisible={isUpdating}
+        message={isUpdating ? 'Loading machine details...' : 'Loading...'}
       />
 
       <Suspense
@@ -116,63 +115,14 @@ function MachineContent({ machine }: { machine: Machine }) {
         onSubmit={handleMachineSubmit}
       />
 
-      {/* Delete Confirmation Modal */}
       {showDeleteConfirm && machineToDelete && (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-          <div className="fixed inset-0 bg-black bg-opacity-50" onClick={handleCancelDelete} />
-          <div className="flex min-h-full items-center justify-center p-4">
-            <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full">
-              <div className="p-6">
-                <div className="flex items-center mb-4">
-                  <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100">
-                    <svg
-                      className="h-6 w-6 text-red-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                      />
-                    </svg>
-                  </div>
-                </div>
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2 text-center">
-                    Delete Machine
-                  </h3>
-                  <p className="text-sm text-gray-500 mb-2 text-center">
-                    Are you sure you want to delete machine{' '}
-                    <strong>{machineToDelete.serial_number}</strong>?
-                  </p>
-                  <p className="text-sm text-gray-500 mb-2 text-center">
-                    This action cannot be undone. All data associated with this machine will be
-                    permanently removed.
-                  </p>
-                </div>
-                <div className="flex space-x-3 mt-6">
-                  <button
-                    type="button"
-                    onClick={handleCancelDelete}
-                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleConfirmDelete}
-                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
-                  >
-                    Delete Machine
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <RecordsListDeleteModal
+          machine={machineToDelete}
+          deleteError={deleteError}
+          isDeleting={isDeletingMachine}
+          onCancel={handleCancelDelete}
+          onConfirm={handleConfirmDelete}
+        />
       )}
     </>
   );

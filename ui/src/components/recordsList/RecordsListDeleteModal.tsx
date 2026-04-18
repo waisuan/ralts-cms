@@ -1,8 +1,9 @@
 import type { Machine } from '@/types/machine';
+import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
 
 interface RecordsListDeleteModalProps {
   machine: Machine;
-  deleteError: string | null;
+  deleteError?: string | null;
   isDeleting: boolean;
   onCancel: () => void;
   onConfirm: () => void;
@@ -10,16 +11,22 @@ interface RecordsListDeleteModalProps {
 
 export default function RecordsListDeleteModal({
   machine,
-  deleteError,
+  deleteError = null,
   isDeleting,
   onCancel,
   onConfirm,
 }: RecordsListDeleteModalProps) {
+  useLockBodyScroll(true);
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="fixed inset-0 bg-black bg-opacity-50" onClick={onCancel} />
+    <div
+      className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50"
+      onClick={onCancel}
+    >
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full">
+        <div
+          className="relative bg-white rounded-lg shadow-xl max-w-md w-full"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="p-6">
             <div className="flex items-center mb-4">
               <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100">

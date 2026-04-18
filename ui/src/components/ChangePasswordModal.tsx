@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserService } from '@/services/userService';
 import { ApiError } from '@/utils/api';
+import { useLockBodyScroll } from '@/hooks/useLockBodyScroll';
 
 interface ChangePasswordModalProps {
   isOpen: boolean;
@@ -10,6 +11,8 @@ interface ChangePasswordModalProps {
 }
 
 export default function ChangePasswordModal({ isOpen, onClose }: ChangePasswordModalProps) {
+  useLockBodyScroll(isOpen);
+
   const [formData, setFormData] = useState({
     currentPassword: '',
     newPassword: '',
@@ -167,16 +170,15 @@ export default function ChangePasswordModal({ isOpen, onClose }: ChangePasswordM
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
-        onClick={onClose}
-      />
-
-      {/* Modal */}
+    <div
+      className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50"
+      onClick={onClose}
+    >
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="relative w-full max-w-md bg-white rounded-lg shadow-xl">
+        <div
+          className="relative w-full max-w-md bg-white rounded-lg shadow-xl"
+          onClick={(e) => e.stopPropagation()}
+        >
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <h2 className="text-xl font-semibold text-gray-900">Change Password</h2>

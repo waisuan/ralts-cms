@@ -5,6 +5,7 @@ import { Machine } from '../types/machine';
 import { MALAYSIAN_STATES } from '../utils/constants';
 import { backendDateToHtmlDate, htmlDateToBackendDate } from '../utils/dateUtils';
 import { AttachmentService } from '../services/attachmentService';
+import { useLockBodyScroll } from '../hooks/useLockBodyScroll';
 
 type MachineModalMode = 'add' | 'edit';
 
@@ -23,6 +24,8 @@ export default function MachineModal({
   onClose,
   onSubmit,
 }: MachineModalProps) {
+  useLockBodyScroll(isOpen);
+
   const [formData, setFormData] = useState({
     serial_number: '',
     customer: '',
@@ -469,16 +472,15 @@ export default function MachineModal({
   if (!isOpen || (mode === 'edit' && !machine)) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
-        onClick={handleCancelClick}
-      />
-
-      {/* Modal */}
+    <div
+      className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50"
+      onClick={handleCancelClick}
+    >
       <div className="flex min-h-full items-center justify-center p-0 sm:p-4">
-        <div className="relative w-full max-w-4xl bg-white sm:rounded-lg shadow-xl min-h-screen sm:min-h-0">
+        <div
+          className="relative w-full max-w-4xl bg-white sm:rounded-lg shadow-xl min-h-screen sm:min-h-0"
+          onClick={(e) => e.stopPropagation()}
+        >
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
             <h2 className="text-xl font-semibold text-gray-900">{modalConfig.title}</h2>
@@ -975,10 +977,18 @@ export default function MachineModal({
 
       {/* Cancel Confirmation Dialog */}
       {showCancelConfirm && (
-        <div className="fixed inset-0 z-60 overflow-y-auto">
-          <div className="fixed inset-0 bg-black bg-opacity-50" />
+        <div
+          className="fixed inset-0 z-[60] overflow-y-auto bg-black bg-opacity-50"
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowCancelConfirm(false);
+          }}
+        >
           <div className="flex min-h-full items-center justify-center p-4">
-            <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div
+              className="relative bg-white rounded-lg shadow-xl max-w-md w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="p-6">
                 <div className="flex items-center mb-4">
                   <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100">

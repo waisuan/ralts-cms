@@ -7,6 +7,7 @@ import { AttachmentService } from '../services/attachmentService';
 import { handleApiError } from '../utils/api';
 import { isAuthError } from '../utils/auth';
 import LoadingOverlay from './LoadingOverlay';
+import { useLockBodyScroll } from '../hooks/useLockBodyScroll';
 
 interface AddMaintenanceModalProps {
   machineSerialNumber: string;
@@ -43,6 +44,8 @@ export default function AddMaintenanceModal({
   onClose,
   onSuccess,
 }: AddMaintenanceModalProps) {
+  useLockBodyScroll(isOpen);
+
   const [form, setForm] = useState<FormData>(emptyForm);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -185,10 +188,15 @@ export default function AddMaintenanceModal({
   return (
     <>
       <LoadingOverlay isVisible={isCreating} message="Creating maintenance record..." />
-      <div className="fixed inset-0 z-50 overflow-y-auto">
-        <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={onClose} />
+      <div
+        className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50"
+        onClick={onClose}
+      >
         <div className="flex min-h-full items-center justify-center p-4">
-          <div className="relative w-full max-w-2xl bg-white rounded-lg shadow-xl">
+          <div
+            className="relative w-full max-w-2xl bg-white rounded-lg shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
               <h2 className="text-xl font-semibold text-gray-900">Add New Maintenance Record</h2>
               <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">

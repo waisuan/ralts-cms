@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, Fragment } from 'react';
+import { useState, useMemo, useCallback, Fragment } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -24,6 +24,14 @@ import {
   workOrderTypePillLabel,
 } from '../utils/formatters';
 import PaginationControls from './PaginationControls';
+
+declare module '@tanstack/react-table' {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  interface ColumnMeta<TData extends unknown, TValue> {
+    headerAlign?: 'left' | 'center' | 'right';
+    headerBold?: boolean;
+  }
+}
 
 interface MaintenanceTableProps {
   machineSerialNumber: string;
@@ -123,68 +131,72 @@ function MaintenanceAttachmentLink({
   );
 }
 
+function MaintenanceAttachmentIcon({
+  machineSerialNumber,
+  record,
+}: {
+  machineSerialNumber: string;
+  record: Maintenance;
+}) {
+  const { downloading, handleDownload } = useMaintenanceDownload(machineSerialNumber, record);
 
-function MaintenanceActionMenu({
+  return (
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); handleDownload(); }}
+      disabled={downloading}
+      className="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors disabled:opacity-50"
+      title={`Download ${record.attachment}`}
+      aria-label={`Download ${record.attachment}`}
+    >
+      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+      </svg>
+    </button>
+  );
+}
+
+function MaintenanceRowActions({
+  machineSerialNumber,
   record,
   onEdit,
   onDelete,
 }: {
+  machineSerialNumber: string;
   record: Maintenance;
   onEdit: (r: Maintenance) => void;
   onDelete: (r: Maintenance) => void;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { setIsOpen(false); }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen]);
-
   return (
-    <div className="relative">
+    <div className="flex items-center justify-end gap-1">
+      {record.attachment && (
+        <MaintenanceAttachmentIcon
+          machineSerialNumber={machineSerialNumber}
+          record={record}
+        />
+      )}
       <button
-        onClick={(e) => {
-          e.stopPropagation();
-          setIsOpen(!isOpen);
-        }}
-        aria-haspopup="true"
-        aria-expanded={isOpen}
-        className="p-1 text-gray-400 hover:text-gray-700 rounded transition-colors"
-        title="Actions"
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onEdit(record); }}
+        className="p-1.5 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50 rounded transition-colors"
+        title="Edit record"
+        aria-label="Edit record"
       >
-        <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-          <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
         </svg>
       </button>
-      {isOpen && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setIsOpen(false); }} />
-          <div className="absolute right-0 z-20 mt-1 w-36 bg-white border border-gray-200 rounded-lg shadow-lg py-1">
-            <button
-              onClick={(e) => { e.stopPropagation(); setIsOpen(false); onEdit(record); }}
-              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
-              Edit
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); setIsOpen(false); onDelete(record); }}
-              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              Delete
-            </button>
-          </div>
-        </>
-      )}
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onDelete(record); }}
+        className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+        title="Delete record"
+        aria-label="Delete record"
+      >
+        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+        </svg>
+      </button>
     </div>
   );
 }
@@ -308,13 +320,8 @@ export default function MaintenanceTable({
       columnHelper.accessor('work_order_number', {
         header: 'Work Order',
         cell: ({ row }) => (
-          <span className="font-medium text-gray-900 whitespace-nowrap overflow-hidden text-ellipsis flex items-center gap-1" title={row.original.work_order_number}>
+          <span className="font-medium text-gray-900 whitespace-nowrap overflow-hidden text-ellipsis block" title={row.original.work_order_number}>
             {row.original.work_order_number}
-            {row.original.attachment && (
-              <svg className="h-3 w-3 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-label="Has attachment">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-              </svg>
-            )}
           </span>
         ),
         enableSorting: false,
@@ -341,18 +348,6 @@ export default function MaintenanceTable({
         },
         enableSorting: false,
       }),
-      columnHelper.accessor('action_taken', {
-        header: 'Action Summary',
-        cell: (info) => {
-          const text = info.getValue() || '';
-          return (
-            <span className="text-gray-700 truncate block" title={text}>
-              {text || '-'}
-            </span>
-          );
-        },
-        enableSorting: false,
-      }),
       columnHelper.accessor('reported_by', {
         header: 'Reported By',
         cell: (info) => (
@@ -371,21 +366,35 @@ export default function MaintenanceTable({
         ),
         enableSorting: true,
       }),
+      columnHelper.accessor('action_taken', {
+        header: 'Action Summary',
+        cell: (info) => {
+          const text = info.getValue() || '';
+          return (
+            <span className="text-gray-700 truncate block" title={text}>
+              {text || '-'}
+            </span>
+          );
+        },
+        enableSorting: false,
+        meta: { headerAlign: 'center', headerBold: true },
+      }),
       {
         id: 'actions',
         header: () => null,
         cell: ({ row }) => (
-          <MaintenanceActionMenu
+          <MaintenanceRowActions
+            machineSerialNumber={machineSerialNumber}
             record={row.original}
             onEdit={onEdit}
             onDelete={onDelete}
           />
         ),
-        size: 44,
+        size: 112,
         enableSorting: false,
       },
     ],
-    [onEdit, onDelete]
+    [onEdit, onDelete, machineSerialNumber]
   );
 
   const table = useReactTable({
@@ -425,13 +434,13 @@ export default function MaintenanceTable({
         <table className="w-full table-fixed" aria-label="Maintenance records">
           <colgroup>
             <col className="w-8" />
-            <col className="w-[17%]" />
-            <col className="w-[11%]" />
-            <col className="w-[10%]" />
-            <col className="w-[18%]" />
-            <col className="w-[15%]" />
-            <col className="w-[17%]" />
-            <col className="w-10" />
+            <col className="w-[12%]" />
+            <col className="w-[12%]" />
+            <col className="w-[12%]" />
+            <col className="w-[12%]" />
+            <col className="w-[12%]" />
+            <col className="w-[24%]" />
+            <col className="w-28" />
           </colgroup>
           <thead className="bg-gray-50 border-b border-gray-200">
             {table.getHeaderGroups().map((headerGroup) => (
@@ -439,6 +448,15 @@ export default function MaintenanceTable({
                 {headerGroup.headers.map((header) => {
                   const canSort = header.column.getCanSort();
                   const sorted = header.column.getIsSorted();
+                  const headerAlign = header.column.columnDef.meta?.headerAlign ?? 'left';
+                  const headerBold = header.column.columnDef.meta?.headerBold ?? false;
+                  const justifyClass =
+                    headerAlign === 'center'
+                      ? 'justify-center'
+                      : headerAlign === 'right'
+                        ? 'justify-end'
+                        : 'justify-start';
+                  const weightClass = headerBold ? 'font-bold text-gray-700' : 'font-medium text-gray-500';
                   return (
                     <th
                       key={header.id}
@@ -452,12 +470,12 @@ export default function MaintenanceTable({
                               : 'none'
                           : undefined
                       }
-                      className={`px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${
+                      className={`px-3 py-3 text-xs uppercase tracking-wider ${weightClass} ${
                         canSort ? 'cursor-pointer select-none hover:text-gray-700' : ''
                       }`}
                       onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
                     >
-                      <div className="flex items-center gap-1">
+                      <div className={`flex items-center gap-1 ${justifyClass}`}>
                         {header.isPlaceholder
                           ? null
                           : flexRender(header.column.columnDef.header, header.getContext())}

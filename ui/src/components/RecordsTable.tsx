@@ -412,11 +412,22 @@ export default function RecordsTable({
       columnHelper.accessor('serial_number', {
         header: 'Serial No',
         size: 130,
-        cell: (info) => (
-          <span className="font-medium text-gray-900 truncate block" title={info.getValue()}>
-            {info.getValue()}
-          </span>
-        ),
+        cell: (info) => {
+          const value = info.getValue();
+          return (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onView(value);
+              }}
+              className="font-medium text-blue-600 hover:text-blue-800 hover:underline truncate block text-left w-full"
+              title={value}
+            >
+              {value}
+            </button>
+          );
+        },
         enableSorting: false,
       }),
       columnHelper.accessor('customer', {
