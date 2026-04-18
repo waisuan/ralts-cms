@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import MaintenanceHistory from '@/components/MaintenanceHistory';
 import MachineModal from '@/components/MachineModal';
 import LoadingOverlay from '@/components/LoadingOverlay';
@@ -97,11 +97,15 @@ function MachineContent({ machine }: { machine: Machine }) {
         }
       />
 
-      <MaintenanceHistory
-        machine={machine}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-      />
+      <Suspense
+        fallback={<LoadingOverlay isVisible message="Loading maintenance..." />}
+      >
+        <MaintenanceHistory
+          machine={machine}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
+      </Suspense>
 
         {/* Machine Modal (Edit) */}
       <MachineModal

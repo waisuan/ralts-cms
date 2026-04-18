@@ -31,6 +31,7 @@ import (
 func main() {
 	entityType := flag.String("type", "", "The type of entity to create/query (machine, user, admin, events)")
 	entityCount := flag.Int("count", 0, "The number of entities to create (not required for admin/events)")
+	appendMode := flag.Bool("append", false, "Append to existing data instead of wiping tables first (machine/user only)")
 	adminUsername := flag.String("username", "", "Username for admin account (required when type=admin)")
 	adminPassword := flag.String("password", "", "Password for admin account (required when type=admin)")
 	// Event query flags
@@ -62,11 +63,15 @@ func main() {
 
 	switch *entityType {
 	case "machine":
-		deps.PostgresClient.Exec(context.Background(), "DELETE FROM machines")
-		deps.PostgresClient.Exec(context.Background(), "DELETE FROM maintenance")
+		if !*appendMode {
+			deps.PostgresClient.Exec(context.Background(), "DELETE FROM machines")
+			deps.PostgresClient.Exec(context.Background(), "DELETE FROM maintenance")
+		}
 		createMachines(deps, *entityCount)
 	case "user":
-		deps.PostgresClient.Exec(context.Background(), "DELETE FROM users")
+		if !*appendMode {
+			deps.PostgresClient.Exec(context.Background(), "DELETE FROM users")
+		}
 		createUsers(deps, *entityCount)
 	case "admin":
 		createAdminAccount(deps, *adminUsername, *adminPassword)

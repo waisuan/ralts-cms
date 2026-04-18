@@ -1,14 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Machine } from '../types/machine';
 import { Maintenance } from '../types/maintenance';
 import { MachineService } from '../services/machineService';
 import { useMaintenance } from '../hooks/useMaintenance';
+import { useUrlMaintenanceState } from '../hooks/useUrlMaintenanceState';
 import { useIsMobile } from '../hooks/useMediaQuery';
+import {
+  MAINTENANCE_SORT_OPTIONS,
+  type MaintenanceSortValue,
+} from '@/utils/maintenanceSortOptions';
 import MachineInfoCard from './MachineInfoCard';
 import MaintenanceTable from './MaintenanceTable';
 import MaintenanceCardList from './MaintenanceCardList';
+import DebouncedSearchInput from './DebouncedSearchInput';
 import AddMaintenanceModal from './AddMaintenanceModal';
 import EditMaintenanceModal from './EditMaintenanceModal';
 import DeleteMaintenanceConfirm from './DeleteMaintenanceConfirm';
@@ -19,36 +25,56 @@ interface MaintenanceHistoryProps {
   onDelete?: () => void;
 }
 
-const MAINTENANCE_SORT_OPTIONS = [
-  { value: 'updated_at_desc', label: 'Newest First' },
-  { value: 'updated_at_asc', label: 'Oldest First' },
-  { value: 'work_order_date_desc', label: 'Work Order Date (Latest)' },
-  { value: 'work_order_date_asc', label: 'Work Order Date (Earliest)' },
-] as const;
-
 export default function MaintenanceHistory({
   machine,
   onEdit,
   onDelete,
 }: MaintenanceHistoryProps) {
-  const maint = useMaintenance({ serialNumber: machine.serial_number });
+  const urlState = useUrlMaintenanceState();
+  const { q, sort, page, limit, setSearchQuery, setSort, setPage, setLimit } = urlState;
+  const qTrimmed = q.trim();
+  const filters = useMemo(
+    () => ({ q: qTrimmed || undefined, sort }),
+    [qTrimmed, sort],
+  );
+  const maint = useMaintenance({
+    serialNumber: machine.serial_number,
+    page,
+    limit,
+    filters,
+    autoFetch: true,
+  });
   const isMobile = useIsMobile();
 
-  // CSV export
   const [csvExporting, setCsvExporting] = useState(false);
   const [showMobileSortMenu, setShowMobileSortMenu] = useState(false);
 
-  // Modal coordination
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState<Maintenance | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletingRecord, setDeletingRecord] = useState<Maintenance | null>(null);
 
+  // Auto-correct a stale `page` URL param (e.g. deep link to ?page=99 on a
+  // dataset that has fewer pages).
+  useEffect(() => {
+    if (!maint.loading && maint.records.length === 0 && maint.total > 0 && page > 1) {
+      setPage(1);
+    }
+  }, [maint.loading, maint.records.length, maint.total, page, setPage]);
+
+  const handleSortChange = useCallback(
+    (next: string) => setSort(next as MaintenanceSortValue),
+    [setSort],
+  );
+
   const handleExportMaintenanceCSV = async () => {
     setCsvExporting(true);
     try {
-      await MachineService.exportMaintenanceCSV(machine.serial_number, maint.debouncedSearchQuery || undefined);
+      await MachineService.exportMaintenanceCSV(
+        machine.serial_number,
+        qTrimmed || undefined,
+      );
     } catch (err) {
       console.error('Maintenance CSV export failed:', err);
       alert('Failed to export maintenance CSV. Please try again.');
@@ -78,9 +104,10 @@ export default function MaintenanceHistory({
   };
 
   const existingWorkOrderNumbers = maint.records.map((r) => r.work_order_number);
+  const hasActiveSearch = qTrimmed !== '';
 
-  // Loading state
-  if (maint.isInitialLoading && maint.records.length === 0) {
+  // Initial full-page spinner when we have no records yet.
+  if (maint.loading && maint.records.length === 0 && !hasActiveSearch) {
     return (
       <div className="min-h-screen bg-gray-50 py-8">
         <div className="container mx-auto px-4">
@@ -179,9 +206,12 @@ export default function MaintenanceHistory({
                         {MAINTENANCE_SORT_OPTIONS.map((opt) => (
                           <button
                             key={opt.value}
-                            onClick={() => { maint.setSort(opt.value); setShowMobileSortMenu(false); }}
+                            onClick={() => {
+                              setSort(opt.value);
+                              setShowMobileSortMenu(false);
+                            }}
                             className={`w-full text-left px-4 py-2 text-sm transition-colors ${
-                              maint.sort === opt.value ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700 hover:bg-gray-50'
+                              sort === opt.value ? 'bg-blue-50 text-blue-600 font-medium' : 'text-gray-700 hover:bg-gray-50'
                             }`}
                           >
                             {opt.label}
@@ -210,51 +240,25 @@ export default function MaintenanceHistory({
           </div>
         </div>
 
-        {/* Search Bar — centered like machines page */}
+        {/* Search Bar */}
         <div className="flex justify-center mb-6">
-          <div className="w-full max-w-2xl relative">
-            <div className="flex items-center bg-white border border-gray-300 rounded-lg shadow-sm focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent">
-              <div className="flex-1 relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  {maint.isSearchLoading ? (
-                    <svg className="h-5 w-5 text-gray-400 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                  ) : (
-                    <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                  )}
-                </div>
-                <input
-                  type="text"
-                  placeholder="Search maintenance records..."
-                  value={maint.searchQuery}
-                  onChange={(e) => maint.setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border-0 rounded-lg focus:outline-none placeholder-gray-400 text-gray-900"
-                />
-                {maint.hasActiveSearch && !maint.isSearchLoading && (
-                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                    <button
-                      type="button"
-                      onClick={maint.clearSearch}
-                      className="text-gray-400 hover:text-gray-600 focus:outline-none focus:text-gray-600 transition-colors"
-                      title="Clear search"
-                    >
-                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-            {maint.hasActiveSearch && (
-              <div className="mt-2 text-sm text-gray-500 text-center">
-                Searching for &ldquo;{maint.searchQuery}&rdquo;
-                {' · '}{maint.total} result{maint.total !== 1 ? 's' : ''} found
-              </div>
-            )}
+          <div className="w-full max-w-2xl">
+            <DebouncedSearchInput
+              value={q}
+              onChange={setSearchQuery}
+              placeholder="Search maintenance records..."
+              isLoading={maint.loading}
+              ariaLabel="Search maintenance records"
+              infoText={
+                hasActiveSearch && !maint.loading ? (
+                  <>
+                    Searching for &ldquo;{q}&rdquo;
+                    {' · '}
+                    {maint.total} result{maint.total !== 1 ? 's' : ''} found
+                  </>
+                ) : null
+              }
+            />
           </div>
         </div>
 
@@ -305,10 +309,13 @@ export default function MaintenanceHistory({
           <MaintenanceCardList
             records={maint.records}
             total={maint.total}
-            loading={maint.isInitialLoading || maint.isSearchLoading || maint.isPaginationLoading}
+            currentPage={page}
+            limit={limit}
+            loading={maint.loading}
             machineSerialNumber={machine.serial_number}
-            searchQuery={maint.debouncedSearchQuery}
-            onLoadMore={maint.loadMore}
+            searchQuery={q}
+            onPageChange={setPage}
+            onLimitChange={setLimit}
             onEdit={handleOpenEdit}
             onDelete={handleOpenDelete}
           />
@@ -317,14 +324,14 @@ export default function MaintenanceHistory({
             machineSerialNumber={machine.serial_number}
             records={maint.records}
             total={maint.total}
-            currentPage={maint.currentPage}
-            limit={maint.limit}
-            loading={maint.isInitialLoading || maint.isSearchLoading || maint.isPaginationLoading}
-            sortBy={maint.sort}
-            searchQuery={maint.debouncedSearchQuery}
-            onSortChange={maint.setSort}
-            onPageChange={maint.goToPage}
-            onPageSizeChange={maint.setLimit}
+            currentPage={page}
+            limit={limit}
+            loading={maint.loading}
+            sortBy={sort}
+            searchQuery={q}
+            onSortChange={handleSortChange}
+            onPageChange={setPage}
+            onPageSizeChange={setLimit}
             onEdit={handleOpenEdit}
             onDelete={handleOpenDelete}
           />

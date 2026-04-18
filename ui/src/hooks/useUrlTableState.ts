@@ -21,27 +21,13 @@ import {
   ITEMS_PER_PAGE_TABLE,
   SORT_OPTIONS,
 } from '@/components/recordsList/recordsListConstants';
+import { LIMIT_VALUES, clampPage, coerceLimit } from '@/hooks/urlStateHelpers';
 
 const SEARCH_PROPERTY_VALUES = SEARCH_PROPERTIES.map(
   (p) => p.value,
 ) as readonly SearchPropertyValue[];
 const FILTER_VALUES = ['all', 'overdue', 'due'] as const satisfies readonly MachineListFilterType[];
 const SORT_VALUES: readonly MachineListSortType[] = SORT_OPTIONS.map((o) => o.value);
-const LIMIT_VALUES = [ITEMS_PER_PAGE_TABLE, 100] as const;
-type LimitValue = (typeof LIMIT_VALUES)[number];
-
-function coerceLimit(value: number): LimitValue {
-  if ((LIMIT_VALUES as readonly number[]).includes(value)) return value as LimitValue;
-  if (process.env.NODE_ENV !== 'production') {
-    console.warn(`useUrlTableState: unexpected limit ${value}, falling back to ${ITEMS_PER_PAGE_TABLE}`);
-  }
-  return ITEMS_PER_PAGE_TABLE;
-}
-
-function clampPage(page: number): number {
-  if (!Number.isFinite(page)) return 1;
-  return Math.max(1, Math.floor(page));
-}
 
 function coerceSearchProperty(value: string): SearchPropertyValue {
   return (SEARCH_PROPERTY_VALUES as readonly string[]).includes(value)

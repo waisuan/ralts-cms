@@ -48,3 +48,27 @@ export function getPPMStatusLabel(ppm_date: string): PPMStatus | null {
   const status = getPPMStatus(ppm_date);
   return status ? status.label : null;
 }
+
+export interface PPMStatusDisplay {
+  label: string;
+  color: string;
+}
+
+/**
+ * Map the server-provided `machine.ppm_status` string to a pill-ready
+ * { label, color } for rendering. Returns null for unknown/blank values so
+ * callers can skip rendering.
+ */
+export function getPPMStatusDisplay(ppmStatus: string): PPMStatusDisplay | null {
+  if (!ppmStatus) return null;
+  switch (ppmStatus) {
+    case PPM_STATUSES.OVERDUE:
+      return { label: 'Overdue', color: PPM_STATUS_COLORS[PPM_STATUSES.OVERDUE] };
+    case PPM_STATUSES.DUE:
+      return { label: 'Due', color: PPM_STATUS_COLORS[PPM_STATUSES.DUE] };
+    case PPM_STATUSES.ALMOST_DUE:
+      return { label: 'Upcoming', color: PPM_STATUS_COLORS[PPM_STATUSES.ALMOST_DUE] };
+    default:
+      return null;
+  }
+}

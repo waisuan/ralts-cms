@@ -210,3 +210,8 @@ migrate-down:
 seed-dev:
 	APP_ENV=development go run cmd/cli/main.go -type machine -count 100
 	APP_ENV=development go run cmd/cli/main.go -type user -count 10
+
+# Append more machines to existing dev data without wiping.
+# Usage: make seed-dev-append COUNT=50
+seed-dev-append:
+	APP_ENV=development go run cmd/cli/main.go -type machine -count $(or $(COUNT),50) -append

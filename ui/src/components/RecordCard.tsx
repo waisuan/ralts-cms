@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { Machine } from '../types/machine';
-import { PPM_STATUSES, PPM_STATUS_COLORS } from '../utils/constants';
 import { AttachmentService } from '../services/attachmentService';
 import { formatDate, formatDateTime } from '../utils/formatters';
+import { getPPMStatusDisplay } from '../utils/ppmUtils';
 import { useIsMobile } from '../hooks/useMediaQuery';
 
 interface RecordCardProps {
@@ -12,20 +12,6 @@ interface RecordCardProps {
   onView: (serial_number: string) => void;
   onEdit: (serial_number: string) => void;
   onDelete: (serial_number: string) => void;
-}
-
-function getPPMStatusDisplay(ppmStatus: string) {
-  if (!ppmStatus) return null;
-  switch (ppmStatus) {
-    case 'overdue':
-      return { label: 'Overdue', color: PPM_STATUS_COLORS[PPM_STATUSES.OVERDUE] };
-    case 'due':
-      return { label: 'Due', color: PPM_STATUS_COLORS[PPM_STATUSES.DUE] };
-    case 'almost_due':
-      return { label: 'Upcoming', color: PPM_STATUS_COLORS[PPM_STATUSES.ALMOST_DUE] };
-    default:
-      return null;
-  }
 }
 
 function DetailField({ label, value }: { label: string; value: string }) {
@@ -121,6 +107,8 @@ export default function RecordCard({ machine, onView, onEdit, onDelete }: Record
                   TNC: {machine.tnc_date ? formatDate(machine.tnc_date) : '-'}
                   {' · '}
                   PPM: {machine.ppm_date ? formatDate(machine.ppm_date) : '-'}
+                  {' · '}
+                  {maintenanceCount} record{maintenanceCount !== 1 ? 's' : ''}
                 </p>
               )}
             </div>
@@ -145,6 +133,10 @@ export default function RecordCard({ machine, onView, onEdit, onDelete }: Record
               <DetailField label="Account Type" value={machine.account_type || '-'} />
               <DetailField label="Person In Charge" value={machine.person_in_charge || '-'} />
               <DetailField label="Reported By" value={machine.reported_by || '-'} />
+              <DetailField
+                label="Maintenance"
+                value={`${maintenanceCount} record${maintenanceCount !== 1 ? 's' : ''}`}
+              />
               <DetailField label="Created" value={formatDateTime(machine.created_at)} />
               <DetailField label="Updated" value={formatDateTime(machine.updated_at)} />
             </div>

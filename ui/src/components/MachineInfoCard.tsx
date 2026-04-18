@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Machine } from '../types/machine';
 import { AttachmentService } from '../services/attachmentService';
 import { formatDate, formatDateTime } from '../utils/formatters';
+import { getPPMStatusDisplay } from '../utils/ppmUtils';
 
 interface MachineInfoCardProps {
   machine: Machine;
@@ -13,6 +14,7 @@ interface MachineInfoCardProps {
 
 export default function MachineInfoCard({ machine, onEdit, onDelete }: MachineInfoCardProps) {
   const [downloading, setDownloading] = useState(false);
+  const ppmStatus = getPPMStatusDisplay(machine.ppm_status);
 
   const handleDownloadAttachment = async () => {
     if (!machine.attachment || downloading) return;
@@ -85,7 +87,16 @@ export default function MachineInfoCard({ machine, onEdit, onDelete }: MachineIn
           </div>
           <div>
             <span className="text-sm text-gray-500">PPM Date:</span>
-            <div className="font-medium text-gray-900">{machine.ppm_date ? formatDate(machine.ppm_date) : 'Not set'}</div>
+            <div className="font-medium text-gray-900 flex items-center gap-2 flex-wrap">
+              <span>{machine.ppm_date ? formatDate(machine.ppm_date) : 'Not set'}</span>
+              {ppmStatus && (
+                <span
+                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${ppmStatus.color}`}
+                >
+                  {ppmStatus.label}
+                </span>
+              )}
+            </div>
           </div>
           <div>
             <span className="text-sm text-gray-500">Reported By:</span>

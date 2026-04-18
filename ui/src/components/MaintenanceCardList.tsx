@@ -2,14 +2,18 @@
 
 import { Maintenance } from '../types/maintenance';
 import MaintenanceCard from './MaintenanceCard';
+import PaginationControls from './PaginationControls';
 
 interface MaintenanceCardListProps {
   records: Maintenance[];
   total: number;
+  currentPage: number; // 1-indexed
+  limit: number;
   loading: boolean;
   machineSerialNumber: string;
   searchQuery?: string;
-  onLoadMore: () => void;
+  onPageChange: (page: number) => void;
+  onLimitChange: (limit: number) => void;
   onEdit: (record: Maintenance) => void;
   onDelete: (record: Maintenance) => void;
 }
@@ -17,15 +21,16 @@ interface MaintenanceCardListProps {
 export default function MaintenanceCardList({
   records,
   total,
+  currentPage,
+  limit,
   loading,
   machineSerialNumber,
   searchQuery,
-  onLoadMore,
+  onPageChange,
+  onLimitChange,
   onEdit,
   onDelete,
 }: MaintenanceCardListProps) {
-  const remaining = total - records.length;
-
   if (records.length === 0 && !loading) {
     return (
       <div className="text-center py-12">
@@ -42,12 +47,30 @@ export default function MaintenanceCardList({
     );
   }
 
+  const pageCount = Math.ceil(total / limit);
+  const scrollTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+
   return (
     <div>
-      <p className="text-xs text-gray-500 mb-3">
-        Showing {records.length} of {total} record{total !== 1 ? 's' : ''}
-        {loading && ' · updating...'}
-      </p>
+      {total > 0 && (
+        <div className="bg-white rounded-lg shadow-sm border overflow-hidden mb-4">
+          <PaginationControls
+            pageIndex={currentPage - 1}
+            pageCount={pageCount}
+            limit={limit}
+            total={total}
+            onPageChange={(idx) => {
+              onPageChange(idx + 1);
+              scrollTop();
+            }}
+            onPageSizeChange={(size) => {
+              onLimitChange(size);
+              scrollTop();
+            }}
+            loading={loading}
+          />
+        </div>
+      )}
 
       {loading && records.length === 0 && (
         <div className="flex justify-center py-4">
@@ -55,7 +78,11 @@ export default function MaintenanceCardList({
         </div>
       )}
 
-      <div className="space-y-3">
+      <div
+        className={`space-y-3 transition-opacity ${
+          loading ? 'opacity-50 pointer-events-none' : ''
+        }`}
+      >
         {records.map((record) => (
           <MaintenanceCard
             key={record.work_order_number}
@@ -67,21 +94,28 @@ export default function MaintenanceCardList({
         ))}
       </div>
 
-      {remaining > 0 && (
+      {records.length > 0 && (
         <div className="flex justify-center pt-4">
           <button
-            onClick={onLoadMore}
-            disabled={loading}
-            className="bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 disabled:text-gray-400 text-gray-700 px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
+            type="button"
+            onClick={scrollTop}
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            aria-label="Scroll to top"
           >
-            {loading ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
-                Loading...
-              </>
-            ) : (
-              `Load More (${remaining} remaining)`
-            )}
+            <svg
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M5 15l7-7 7 7"
+              />
+            </svg>
+            Top
           </button>
         </div>
       )}
