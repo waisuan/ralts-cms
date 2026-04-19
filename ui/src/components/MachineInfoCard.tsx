@@ -244,7 +244,7 @@ export default function MachineInfoCard({ machine, onEdit, onDelete }: MachineIn
               <div>
                 <span className="text-sm text-gray-500">TNC Date:</span>
                 <div
-                  className={`font-medium ${tncDisplay.isUnset ? machineDateUnsetClassName : 'text-gray-900'}`}
+                  className={tncDisplay.isUnset ? machineDateUnsetClassName : 'font-medium text-gray-900'}
                 >
                   {tncDisplay.text}
                 </div>

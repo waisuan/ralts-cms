@@ -11,7 +11,7 @@ export function formatDate(dateString: string): string {
 }
 
 /** Tailwind classes when TNC/PPM is sentinel or empty (read-only surfaces). */
-export const machineDateUnsetClassName = 'text-red-600 font-medium';
+export const machineDateUnsetClassName = 'text-red-600 font-bold';
 
 /** Display for machine TNC/PPM: sentinel/zero dates show as "-" and flag as unset for styling. */
 export function formatMachineDateDisplay(iso: string): { text: string; isUnset: boolean } {
