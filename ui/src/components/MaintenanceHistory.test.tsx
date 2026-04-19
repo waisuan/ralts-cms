@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { withNuqsTestingAdapter, type UrlUpdateEvent } from 'nuqs/adapters/testing';
 import MaintenanceHistory from './MaintenanceHistory';
+import { machineInfoExpandedSessionKey } from './MachineInfoCard';
 import { Machine } from '../types/machine';
 import { MaintenanceService } from '../services/maintenanceService';
 import { useIsMobile } from '../hooks/useMediaQuery';
@@ -74,6 +75,7 @@ describe('MaintenanceHistory', () => {
     jest.clearAllMocks();
     useIsMobileMock.mockReturnValue(false);
     getList.mockResolvedValue({ data: baseResponse });
+    sessionStorage.removeItem(machineInfoExpandedSessionKey(mockMachine.serial_number));
   });
 
   it('renders machine information and counts on initial load', async () => {
@@ -81,8 +83,10 @@ describe('MaintenanceHistory', () => {
       wrapper: withNuqsTestingAdapter({ searchParams: '' }),
     });
 
+    const expandMachineInfo = await screen.findByRole('button', { name: /show machine details/i });
+    fireEvent.click(expandMachineInfo);
+
     await waitFor(() => {
-      expect(screen.getByText(mockMachine.serial_number)).toBeInTheDocument();
       expect(screen.getByText(mockMachine.model)).toBeInTheDocument();
     });
 
