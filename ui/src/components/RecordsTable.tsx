@@ -17,7 +17,13 @@ import {
 import { Machine } from '../types/machine';
 import { PPM_STATUSES, PPM_STATUS_COLORS } from '../utils/constants';
 import { AttachmentService } from '../services/attachmentService';
-import { formatDate, formatDateTime } from '../utils/formatters';
+import {
+  formatDate,
+  formatDateTime,
+  formatMachineDateDisplay,
+  machineDateUnsetClassName,
+} from '../utils/formatters';
+import { isMachineDateUnset } from '../utils/dateUtils';
 import { machineDetailHref } from '../utils/machineRoutes';
 import PaginationControls from './PaginationControls';
 
@@ -500,10 +506,14 @@ export default function RecordsTable({
         size: 145,
         cell: ({ row }) => {
           const status = getPPMStatusDisplay(row.original.ppm_status);
+          const ppmDisp = formatMachineDateDisplay(row.original.ppm_date);
+          const showPpmPill = status && !isMachineDateUnset(row.original.ppm_date);
           return (
             <div className="flex items-center gap-1.5 overflow-hidden whitespace-nowrap">
-              <span className="text-gray-700">{formatDate(row.original.ppm_date)}</span>
-              {status && (
+              <span className={ppmDisp.isUnset ? machineDateUnsetClassName : 'text-gray-700'}>
+                {ppmDisp.text}
+              </span>
+              {showPpmPill && (
                 <span className={`px-1.5 py-0.5 text-xs font-medium rounded-full shrink-0 ${status.color}`}>
                   {status.label}
                 </span>
@@ -516,7 +526,16 @@ export default function RecordsTable({
       columnHelper.accessor('tnc_date', {
         header: 'TNC Date',
         size: 95,
-        cell: (info) => <span className="text-gray-700 whitespace-nowrap">{formatDate(info.getValue())}</span>,
+        cell: (info) => {
+          const v = formatMachineDateDisplay(info.getValue() ?? '');
+          return (
+            <span
+              className={`whitespace-nowrap ${v.isUnset ? machineDateUnsetClassName : 'text-gray-700'}`}
+            >
+              {v.text}
+            </span>
+          );
+        },
         enableSorting: true,
       }),
       columnHelper.accessor('person_in_charge', {

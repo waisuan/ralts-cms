@@ -2,6 +2,7 @@ import type { Maintenance } from '@/types/maintenance';
 import {
   formatDate,
   formatDateTime,
+  formatMachineDateDisplay,
   getTypeColor,
   isCustomWorkOrderType,
   workOrderTypePillLabel,
@@ -47,6 +48,27 @@ describe('work order type helpers', () => {
 describe('formatDate', () => {
   it('returns dash for empty string', () => {
     expect(formatDate('')).toBe('-');
+  });
+});
+
+describe('formatMachineDateDisplay', () => {
+  it('shows dash and isUnset for sentinel dates', () => {
+    expect(formatMachineDateDisplay('0001-01-01T00:00:00Z')).toEqual({
+      text: '-',
+      isUnset: true,
+    });
+    expect(formatMachineDateDisplay('0001-12-31T00:00:00Z')).toEqual({
+      text: '-',
+      isUnset: true,
+    });
+  });
+
+  it('formats real dates like formatDate', () => {
+    const iso = '2024-06-15T00:00:00Z';
+    expect(formatMachineDateDisplay(iso)).toEqual({
+      text: formatDate(iso),
+      isUnset: false,
+    });
   });
 });
 

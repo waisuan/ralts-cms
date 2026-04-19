@@ -1,4 +1,5 @@
 import type { Maintenance } from '../types/maintenance';
+import { isMachineDateUnset } from './dateUtils';
 
 export function formatDate(dateString: string): string {
   if (!dateString) return '-';
@@ -7,6 +8,15 @@ export function formatDate(dateString: string): string {
     month: 'short',
     day: 'numeric',
   });
+}
+
+/** Tailwind classes when TNC/PPM is sentinel or empty (read-only surfaces). */
+export const machineDateUnsetClassName = 'text-red-600 font-medium';
+
+/** Display for machine TNC/PPM: sentinel/zero dates show as "-" and flag as unset for styling. */
+export function formatMachineDateDisplay(iso: string): { text: string; isUnset: boolean } {
+  if (isMachineDateUnset(iso)) return { text: '-', isUnset: true };
+  return { text: formatDate(iso), isUnset: false };
 }
 
 /**

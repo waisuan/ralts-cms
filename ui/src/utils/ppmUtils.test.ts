@@ -29,6 +29,12 @@ describe('getPPMStatus', () => {
     jest.setSystemTime(new Date('2024-06-25T12:00:00.000Z').getTime());
     expect(getPPMStatus('')).toBeNull();
   });
+
+  it('returns null for Go zero / sentinel ppm_date', () => {
+    jest.setSystemTime(new Date('2024-06-25T12:00:00.000Z').getTime());
+    expect(getPPMStatus('0001-01-01T00:00:00Z')).toBeNull();
+    expect(getPPMStatus('0001-12-31T00:00:00Z')).toBeNull();
+  });
 });
 
 describe('getPPMStatusLabel', () => {

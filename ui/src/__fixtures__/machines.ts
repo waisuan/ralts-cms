@@ -243,13 +243,13 @@ export const FIXTURE_MACHINES: Machine[] = [
     maintenance_count: 5,
     updated_at: '2018-04-06T00:00:00Z',
   }),
-  // PPM "due" status
+  // PPM "due" status (real calendar date so UI can show server pill; sentinel dates hide pills)
   m({
     serial_number: 'UA 60101281',
     customer: 'UITM Pulau Pinang',
     state: 'Pulau Pinang',
     status: '',
-    ppm_date: '0001-12-31T00:00:00Z',
+    ppm_date: '2026-06-15T00:00:00Z',
     ppm_status: 'due',
     tnc_date: '2006-08-21T00:00:00Z',
     updated_at: '2016-03-03T00:00:00Z',

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Machine } from '../types/machine';
 import { MALAYSIAN_STATES } from '../utils/constants';
-import { backendDateToHtmlDate, htmlDateToBackendDate } from '../utils/dateUtils';
+import { backendDateToHtmlDate, htmlDateToBackendDate, isMachineDateUnset } from '../utils/dateUtils';
 import { AttachmentService } from '../services/attachmentService';
 import { useLockBodyScroll } from '../hooks/useLockBodyScroll';
 
@@ -15,6 +15,16 @@ interface MachineModalProps {
   machine?: Machine | null; // Required for edit mode, optional for add mode
   onClose: () => void;
   onSubmit: (machine: Machine | Omit<Machine, 'created_at' | 'updated_at'>) => Promise<void>;
+}
+
+/** Edit mode: API sent a sentinel date (shown as empty in the date input) — border highlight until user picks a date. */
+function editSentinelDateNeedsPick(
+  mode: MachineModalMode,
+  machine: Machine | null | undefined,
+  backendIso: string,
+  htmlDate: string
+): boolean {
+  return mode === 'edit' && !!machine && isMachineDateUnset(backendIso) && !htmlDate;
 }
 
 export default function MachineModal({
@@ -135,6 +145,9 @@ export default function MachineModal({
       };
     }
   }, [mode]);
+
+  const tncNeedsAttention = editSentinelDateNeedsPick(mode, machine, machine?.tnc_date ?? '', formData.tnc_date);
+  const ppmNeedsAttention = editSentinelDateNeedsPick(mode, machine, machine?.ppm_date ?? '', formData.ppm_date);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -749,7 +762,7 @@ export default function MachineModal({
                   value={formData.tnc_date}
                   onChange={(e) => handleInputChange('tnc_date', e.target.value)}
                   className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 ${
-                    errors.tnc_date ? 'border-red-500' : 'border-gray-300'
+                    errors.tnc_date || tncNeedsAttention ? 'border-red-500' : 'border-gray-300'
                   }`}
                 />
                 {errors.tnc_date && <p className="mt-1 text-sm text-red-600">{errors.tnc_date}</p>}
@@ -766,7 +779,7 @@ export default function MachineModal({
                   value={formData.ppm_date}
                   onChange={(e) => handleInputChange('ppm_date', e.target.value)}
                   className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 ${
-                    errors.ppm_date ? 'border-red-500' : 'border-gray-300'
+                    errors.ppm_date || ppmNeedsAttention ? 'border-red-500' : 'border-gray-300'
                   }`}
                 />
                 {errors.ppm_date && <p className="mt-1 text-sm text-red-600">{errors.ppm_date}</p>}

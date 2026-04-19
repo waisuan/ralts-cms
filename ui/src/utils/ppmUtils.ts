@@ -1,4 +1,5 @@
 import { PPM_STATUSES, PPM_STATUS_COLORS, type PPMStatus } from './constants';
+import { isMachineDateUnset } from './dateUtils';
 
 export interface PPMStatusInfo {
   label: PPMStatus;
@@ -9,7 +10,7 @@ export interface PPMStatusInfo {
  * Calculate PPM status based on PPM date
  */
 export function getPPMStatus(ppm_date: string): PPMStatusInfo | null {
-  if (!ppm_date) return null;
+  if (!ppm_date || isMachineDateUnset(ppm_date)) return null;
 
   const today = new Date();
   const ppm = new Date(ppm_date);

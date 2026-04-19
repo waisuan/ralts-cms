@@ -125,6 +125,16 @@ func (suite *MachineRepositoryTestSuite) TestGetBySerialNumber() {
 		suite.Assert().Equal(string(machines.PPMStatusOverdue), retrieved.PpmStatus)
 	})
 
+	suite.Run("should return empty PPM status for year-1 sentinel PPM date", func() {
+		machine := testutils.CreateMachine("MACHINE006B")
+		machine.PpmDate = time.Date(1, 12, 31, 0, 0, 0, 0, time.UTC)
+		suite.Require().NoError(suite.repo.Create(ctx, machine))
+
+		retrieved, err := suite.repo.GetBySerialNumber(ctx, "MACHINE006B")
+		suite.Require().NoError(err)
+		suite.Assert().Equal("", retrieved.PpmStatus)
+	})
+
 	suite.Run("should return error for non-existent machine", func() {
 		_, err := suite.repo.GetBySerialNumber(ctx, "NONEXISTENT")
 		suite.Require().Error(err)
@@ -964,6 +974,22 @@ func (suite *MachineRepositoryTestSuite) TestCountByStatus() {
 		suite.Require().NoError(err)
 		suite.Assert().Equal(int32(3), overdueCount)
 		suite.Assert().Equal(int32(2), dueCount)
+		suite.Assert().Equal(int32(0), almostDueCount)
+	})
+
+	suite.Run("should not count sentinel year-1 PPM dates toward any status bucket", func() {
+		realOverdue := testutils.CreateMachine("REAL_OVERDUE")
+		realOverdue.PpmDate = time.Now().UTC().AddDate(0, 0, -2)
+		suite.Require().NoError(suite.repo.Create(ctx, realOverdue))
+
+		sentinel := testutils.CreateMachine("SENTINEL_PPM")
+		sentinel.PpmDate = time.Date(1, 1, 1, 0, 0, 0, 0, time.UTC)
+		suite.Require().NoError(suite.repo.Create(ctx, sentinel))
+
+		overdueCount, dueCount, almostDueCount, err := suite.repo.CountByStatus(ctx)
+		suite.Require().NoError(err)
+		suite.Assert().Equal(int32(1), overdueCount)
+		suite.Assert().Equal(int32(0), dueCount)
 		suite.Assert().Equal(int32(0), almostDueCount)
 	})
 }

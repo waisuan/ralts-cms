@@ -3,7 +3,12 @@
 import { useEffect, useState } from 'react';
 import { Machine } from '../types/machine';
 import { AttachmentService } from '../services/attachmentService';
-import { formatDate, formatDateTime } from '../utils/formatters';
+import {
+  formatDateTime,
+  formatMachineDateDisplay,
+  machineDateUnsetClassName,
+} from '../utils/formatters';
+import { isMachineDateUnset } from '../utils/dateUtils';
 import { getPPMStatusDisplay } from '../utils/ppmUtils';
 
 interface MachineInfoCardProps {
@@ -41,6 +46,9 @@ export default function MachineInfoCard({ machine, onEdit, onDelete }: MachineIn
   const [expanded, setExpanded] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const ppmStatus = getPPMStatusDisplay(machine.ppm_status);
+  const showPpmServerPill = ppmStatus && !isMachineDateUnset(machine.ppm_date);
+  const tncDisplay = formatMachineDateDisplay(machine.tnc_date);
+  const ppmDisplay = formatMachineDateDisplay(machine.ppm_date);
   const locationSummary = formatMachineLocation(machine.district, machine.state);
 
   useEffect(() => {
@@ -119,9 +127,9 @@ export default function MachineInfoCard({ machine, onEdit, onDelete }: MachineIn
                   {' · '}
                   <span>{locationSummary}</span>
                 </p>
-                {(ppmStatus || machine.attachment) && (
+                {(showPpmServerPill || machine.attachment) && (
                   <div className="mt-1.5 flex flex-wrap items-center gap-3">
-                    {ppmStatus && (
+                    {showPpmServerPill && (
                       <span
                         className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${ppmStatus.color}`}
                       >
@@ -235,15 +243,17 @@ export default function MachineInfoCard({ machine, onEdit, onDelete }: MachineIn
             <div className="space-y-2">
               <div>
                 <span className="text-sm text-gray-500">TNC Date:</span>
-                <div className="font-medium text-gray-900">
-                  {machine.tnc_date ? formatDate(machine.tnc_date) : 'Not set'}
+                <div
+                  className={`font-medium ${tncDisplay.isUnset ? machineDateUnsetClassName : 'text-gray-900'}`}
+                >
+                  {tncDisplay.text}
                 </div>
               </div>
               <div>
                 <span className="text-sm text-gray-500">PPM Date:</span>
                 <div className="font-medium text-gray-900 flex items-center gap-2 flex-wrap">
-                  <span>{machine.ppm_date ? formatDate(machine.ppm_date) : 'Not set'}</span>
-                  {ppmStatus && (
+                  <span className={ppmDisplay.isUnset ? machineDateUnsetClassName : ''}>{ppmDisplay.text}</span>
+                  {showPpmServerPill && (
                     <span
                       className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${ppmStatus.color}`}
                     >

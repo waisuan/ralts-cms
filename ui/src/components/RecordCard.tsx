@@ -4,7 +4,13 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { Machine } from '../types/machine';
 import { AttachmentService } from '../services/attachmentService';
-import { formatDate, formatDateTime } from '../utils/formatters';
+import {
+  formatDate,
+  formatDateTime,
+  formatMachineDateDisplay,
+  machineDateUnsetClassName,
+} from '../utils/formatters';
+import { isMachineDateUnset } from '../utils/dateUtils';
 import { getPPMStatusDisplay } from '../utils/ppmUtils';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import { machineDetailHref } from '../utils/machineRoutes';
@@ -15,11 +21,19 @@ interface RecordCardProps {
   onDelete: (serial_number: string) => void;
 }
 
-function DetailField({ label, value }: { label: string; value: string }) {
+function DetailField({
+  label,
+  value,
+  valueClassName,
+}: {
+  label: string;
+  value: string;
+  valueClassName?: string;
+}) {
   return (
     <div>
       <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</span>
-      <p className="text-gray-900 mt-0.5">{value || '-'}</p>
+      <p className={`mt-0.5 ${valueClassName ?? 'text-gray-900'}`}>{value || '-'}</p>
     </div>
   );
 }
@@ -57,6 +71,9 @@ export default function RecordCard({ machine, onEdit, onDelete }: RecordCardProp
   const [showNotesModal, setShowNotesModal] = useState(false);
   const isMobile = useIsMobile();
   const status = getPPMStatusDisplay(machine.ppm_status);
+  const showPpmServerPill = status && !isMachineDateUnset(machine.ppm_date);
+  const tncDisplay = formatMachineDateDisplay(machine.tnc_date);
+  const ppmDisplay = formatMachineDateDisplay(machine.ppm_date);
   const maintenanceCount = machine.maintenance_count ?? 0;
   const maintenanceLabel = maintenanceRecordCountLabel(maintenanceCount);
 
@@ -114,7 +131,7 @@ export default function RecordCard({ machine, onEdit, onDelete }: RecordCardProp
                   {machine.serial_number}
                   {machine.model && <span className="text-gray-500 font-normal"> ({machine.model})</span>}
                 </span>
-                {status && (
+                {showPpmServerPill && (
                   <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${status.color}`}>
                     {status.label}
                   </span>
@@ -133,9 +150,11 @@ export default function RecordCard({ machine, onEdit, onDelete }: RecordCardProp
           </button>
           {!isExpanded && (
             <p className="text-xs text-gray-500 mt-1">
-              TNC: {machine.tnc_date ? formatDate(machine.tnc_date) : '-'}
+              TNC:{' '}
+              <span className={tncDisplay.isUnset ? machineDateUnsetClassName : ''}>{tncDisplay.text}</span>
               {' · '}
-              PPM: {machine.ppm_date ? formatDate(machine.ppm_date) : '-'}
+              PPM:{' '}
+              <span className={ppmDisplay.isUnset ? machineDateUnsetClassName : ''}>{ppmDisplay.text}</span>
               {' · '}
               <MachineDetailLink
                 machine={machine}
@@ -150,8 +169,16 @@ export default function RecordCard({ machine, onEdit, onDelete }: RecordCardProp
         {isExpanded && (
           <div className="px-4 pb-4 border-t border-gray-100 pt-3 space-y-3">
             <div className="grid grid-cols-2 gap-3 text-sm">
-              <DetailField label="TNC Date" value={machine.tnc_date ? formatDate(machine.tnc_date) : '-'} />
-              <DetailField label="PPM Date" value={machine.ppm_date ? formatDate(machine.ppm_date) : '-'} />
+              <DetailField
+                label="TNC Date"
+                value={tncDisplay.text}
+                valueClassName={tncDisplay.isUnset ? machineDateUnsetClassName : 'text-gray-900'}
+              />
+              <DetailField
+                label="PPM Date"
+                value={ppmDisplay.text}
+                valueClassName={ppmDisplay.isUnset ? machineDateUnsetClassName : 'text-gray-900'}
+              />
               {machine.model && <DetailField label="Model" value={machine.model} />}
               {machine.brand && <DetailField label="Brand" value={machine.brand} />}
               <DetailField label="District" value={machine.district || '-'} />
@@ -266,7 +293,7 @@ export default function RecordCard({ machine, onEdit, onDelete }: RecordCardProp
                   </svg>
                 </button>
               )}
-              {status && (
+              {showPpmServerPill && (
                 <span className={`px-2 py-1 text-xs font-medium rounded-full ${status.color}`}>
                   {status.label}
                 </span>
@@ -291,10 +318,16 @@ export default function RecordCard({ machine, onEdit, onDelete }: RecordCardProp
 
           <div className="text-xs mb-4 space-y-1">
             <div className="text-gray-500">
-              TNC Date: <span className="text-gray-700">{machine.tnc_date ? formatDate(machine.tnc_date) : '-'}</span>
+              TNC Date:{' '}
+              <span className={tncDisplay.isUnset ? machineDateUnsetClassName : 'text-gray-700'}>
+                {tncDisplay.text}
+              </span>
             </div>
             <div className="text-gray-500">
-              PPM Date: <span className="text-gray-700">{machine.ppm_date ? formatDate(machine.ppm_date) : '-'}</span>
+              PPM Date:{' '}
+              <span className={ppmDisplay.isUnset ? machineDateUnsetClassName : 'text-gray-700'}>
+                {ppmDisplay.text}
+              </span>
             </div>
             <div className="text-gray-500">
               Reported By: <span className="text-gray-700">{machine.reported_by || 'Not specified'}</span>

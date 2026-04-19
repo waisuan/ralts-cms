@@ -29,6 +29,13 @@ type Machine struct {
 	MaintenanceCount int       `json:"maintenance_count"`
 }
 
+// IsPpmDateUnset reports whether ppmDate is a zero/sentinel value that must not receive a computed PPM status.
+// Matches client logic: UTC calendar year ≤ 1 (Go zero time and legacy DB dates like 0001-01-01 / 0001-12-31).
+func IsPpmDateUnset(t time.Time) bool {
+	y, _, _ := t.UTC().Date()
+	return y <= 1
+}
+
 // SetTimestamps sets the CreatedAt and UpdatedAt timestamps
 func (m *Machine) SetTimestamps() {
 	now := time.Now().UTC()

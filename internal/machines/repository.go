@@ -116,18 +116,22 @@ func buildFilterConditions(options *ListOptions, startIndex int) filterResult {
 	}
 }
 
-// getPpmStatusCondition returns the SQL condition for a given PPM status
+// Sentinel PPM dates (NULL or calendar year ≤ 1) must match IsPpmDateUnset / calculatePPMStatus.
+const sqlPpmDateEligibleForStatus = `"ppmDate" IS NOT NULL AND (EXTRACT(YEAR FROM "ppmDate"))::int > 1`
+
+var sqlPpmStatusExtra = map[PPMStatus]string{
+	PPMStatusOverdue:   `"ppmDate" < CURRENT_DATE`,
+	PPMStatusDue:       `"ppmDate" = CURRENT_DATE`,
+	PPMStatusAlmostDue: `"ppmDate" > CURRENT_DATE AND "ppmDate" <= CURRENT_DATE + INTERVAL '2 weeks'`,
+}
+
+// getPpmStatusCondition returns the SQL WHERE fragment for filtering by computed PPM bucket.
 func getPpmStatusCondition(status PPMStatus) string {
-	switch status {
-	case PPMStatusOverdue:
-		return `"ppmDate" < CURRENT_DATE`
-	case PPMStatusDue:
-		return `"ppmDate" = CURRENT_DATE`
-	case PPMStatusAlmostDue:
-		return `"ppmDate" > CURRENT_DATE AND "ppmDate" <= CURRENT_DATE + INTERVAL '2 weeks'`
-	default:
+	extra, ok := sqlPpmStatusExtra[status]
+	if !ok {
 		return ""
 	}
+	return sqlPpmDateEligibleForStatus + ` AND ` + extra
 }
 
 // buildOrderByClause returns the ORDER BY clause for the given sort option
@@ -380,9 +384,9 @@ func (r *db) Count(ctx context.Context, options *ListOptions) (int, error) {
 func (r *db) CountByStatus(ctx context.Context) (int32, int32, int32, error) {
 	query := `
 		SELECT 
-			COUNT(CASE WHEN "ppmDate" < CURRENT_DATE THEN 1 END) as overdue_count,
-			COUNT(CASE WHEN "ppmDate" = CURRENT_DATE THEN 1 END) as due_count,
-			COUNT(CASE WHEN "ppmDate" > CURRENT_DATE AND "ppmDate" <= CURRENT_DATE + INTERVAL '2 weeks' THEN 1 END) as almost_due_count
+			COUNT(CASE WHEN ` + sqlPpmDateEligibleForStatus + ` AND "ppmDate" < CURRENT_DATE THEN 1 END) as overdue_count,
+			COUNT(CASE WHEN ` + sqlPpmDateEligibleForStatus + ` AND "ppmDate" = CURRENT_DATE THEN 1 END) as due_count,
+			COUNT(CASE WHEN ` + sqlPpmDateEligibleForStatus + ` AND "ppmDate" > CURRENT_DATE AND "ppmDate" <= CURRENT_DATE + INTERVAL '2 weeks' THEN 1 END) as almost_due_count
 		FROM machines
 	`
 
@@ -500,6 +504,10 @@ func (r *db) CountSearch(ctx context.Context, query string, options *ListOptions
 
 // calculatePPMStatus determines the PPM status based on the PPM date
 func (r *db) calculatePPMStatus(ppmDate time.Time) PPMStatus {
+	if IsPpmDateUnset(ppmDate) {
+		return ""
+	}
+
 	now := time.Now().UTC()
 
 	// Remove time components for accurate day comparison
