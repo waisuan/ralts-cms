@@ -31,6 +31,7 @@ declare module '@tanstack/react-table' {
   interface ColumnMeta<TData extends RowData, TValue> {
     headerAlign?: 'left' | 'center' | 'right';
     headerBold?: boolean;
+    verticalEdges?: boolean;
   }
 }
 /* eslint-enable @typescript-eslint/no-unused-vars */
@@ -65,6 +66,12 @@ const REVERSE_SORT_MAP: Record<string, Record<string, string>> = {
   work_order_date: { true: 'work_order_date_desc', false: 'work_order_date_asc' },
 };
 
+/** Shared with thead/tbody for Action Summary column framing. */
+const COLUMN_VERTICAL_EDGES_CLASS = 'border-l border-r border-gray-200';
+
+function verticalEdgesClass(meta: { verticalEdges?: boolean } | undefined) {
+  return meta?.verticalEdges ? COLUMN_VERTICAL_EDGES_CLASS : '';
+}
 
 function useMaintenanceDownload(machineSerialNumber: string, record: Maintenance) {
   const [downloading, setDownloading] = useState(false);
@@ -147,7 +154,7 @@ function MaintenanceAttachmentIcon({
       type="button"
       onClick={(e) => { e.stopPropagation(); handleDownload(); }}
       disabled={downloading}
-      className="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors disabled:opacity-50"
+      className="p-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors disabled:opacity-50"
       title={`Download ${record.attachment}`}
       aria-label={`Download ${record.attachment}`}
     >
@@ -170,7 +177,7 @@ function MaintenanceRowActions({
   onDelete: (r: Maintenance) => void;
 }) {
   return (
-    <div className="flex items-center justify-end gap-1">
+    <div className="flex w-full flex-wrap items-center justify-center gap-0.5">
       {record.attachment && (
         <MaintenanceAttachmentIcon
           machineSerialNumber={machineSerialNumber}
@@ -180,7 +187,7 @@ function MaintenanceRowActions({
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); onEdit(record); }}
-        className="p-1.5 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50 rounded transition-colors"
+        className="p-1 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50 rounded transition-colors"
         title="Edit record"
         aria-label="Edit record"
       >
@@ -191,7 +198,7 @@ function MaintenanceRowActions({
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); onDelete(record); }}
-        className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+        className="p-1 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
         title="Delete record"
         aria-label="Delete record"
       >
@@ -379,7 +386,7 @@ export default function MaintenanceTable({
           );
         },
         enableSorting: false,
-        meta: { headerAlign: 'center', headerBold: true },
+        meta: { headerAlign: 'center', headerBold: true, verticalEdges: true },
       }),
       {
         id: 'actions',
@@ -392,7 +399,7 @@ export default function MaintenanceTable({
             onDelete={onDelete}
           />
         ),
-        size: 112,
+        size: 72,
         enableSorting: false,
       },
     ],
@@ -442,7 +449,7 @@ export default function MaintenanceTable({
             <col className="w-[12%]" />
             <col className="w-[12%]" />
             <col className="w-[24%]" />
-            <col className="w-28" />
+            <col className="w-[4.5rem]" />
           </colgroup>
           <thead className="bg-gray-50 border-b border-gray-200">
             {table.getHeaderGroups().map((headerGroup) => (
@@ -474,7 +481,7 @@ export default function MaintenanceTable({
                       }
                       className={`px-3 py-3 text-xs uppercase tracking-wider ${weightClass} ${
                         canSort ? 'cursor-pointer select-none hover:text-gray-700' : ''
-                      }`}
+                      } ${verticalEdgesClass(header.column.columnDef.meta)}`}
                       onClick={canSort ? header.column.getToggleSortingHandler() : undefined}
                     >
                       <div className={`flex items-center gap-1 ${justifyClass}`}>
@@ -519,7 +526,10 @@ export default function MaintenanceTable({
                     onClick={() => row.toggleExpanded()}
                   >
                     {row.getVisibleCells().map((cell) => (
-                      <td key={cell.id} className="px-3 py-2.5 text-sm min-w-0">
+                      <td
+                        key={cell.id}
+                        className={`px-3 py-2.5 text-sm min-w-0 ${verticalEdgesClass(cell.column.columnDef.meta)}`}
+                      >
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>
                     ))}

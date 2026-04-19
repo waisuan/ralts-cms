@@ -1,6 +1,9 @@
 // Search-related constants
 export const DEFAULT_SEARCH_PROPERTY = 'any' as const;
 
+/** In-app changelog / release notes */
+export const CHANGELOG_PATH = '/changelog' as const;
+
 // Other application constants can be added here as needed
 export const SEARCH_PROPERTIES = [
   { value: 'any', label: 'Any' },

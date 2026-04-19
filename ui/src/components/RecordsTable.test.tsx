@@ -42,7 +42,6 @@ const defaultProps = {
   onSortChange: jest.fn(),
   onPageChange: jest.fn(),
   onPageSizeChange: jest.fn(),
-  onView: jest.fn(),
   onEdit: jest.fn(),
   onDelete: jest.fn(),
 };

@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { notFound, useRouter } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import MaintenanceHistory from '@/components/MaintenanceHistory';
 import MachineModal from '@/components/MachineModal';
@@ -10,7 +10,7 @@ import { Machine } from '@/types/machine';
 import { MachineService } from '@/services/machineService';
 import { handleApiError } from '@/utils/api';
 import { isAuthError } from '@/utils/auth';
-import { notFound } from 'next/navigation';
+import { machineDetailHref } from '@/utils/machineRoutes';
 
 interface MachinePageProps {
   params: Promise<{
@@ -69,32 +69,27 @@ function MachineContent({ machine }: { machine: Machine }) {
     setIsMachineModalOpen(false);
   };
 
-      const handleMachineSubmit = async (
-      updatedMachine: Machine | Omit<Machine, 'created_at' | 'updated_at'>
-    ) => {
-      try {
-        if (modalMode === 'edit' && machineToEdit) {
-          await MachineService.updateMachine(machineToEdit.serial_number, updatedMachine);
-        }
-
-        // Show loading indicator immediately after successful update
-        setIsUpdating(true);
-
-        // Force a hard page reload to ensure fresh data and prevent race conditions
-        window.location.href = `/machines/${machine.serial_number}`;
-      } catch (error) {
-        console.error('Failed to update machine:', error);
-        // Don't close modal or reload - let the modal handle the error
-        throw error;
-      }
-    };
+  const handleMachineSubmit = async (
+    updatedMachine: Machine | Omit<Machine, 'created_at' | 'updated_at'>
+  ) => {
+    if (modalMode !== 'edit' || !machineToEdit) {
+      const err = new Error('Cannot update machine: missing edit context.');
+      console.error(err.message);
+      throw err;
+    }
+    try {
+      await MachineService.updateMachine(machineToEdit.serial_number, updatedMachine);
+      setIsUpdating(true);
+      window.location.href = machineDetailHref(machine.serial_number);
+    } catch (error) {
+      console.error('Failed to update machine:', error);
+      throw error;
+    }
+  };
 
   return (
     <>
-      <LoadingOverlay
-        isVisible={isUpdating}
-        message={isUpdating ? 'Loading machine details...' : 'Loading...'}
-      />
+      <LoadingOverlay isVisible={isUpdating} message="Loading machine details..." />
 
       <Suspense
         fallback={<LoadingOverlay isVisible message="Loading maintenance..." />}
@@ -106,7 +101,7 @@ function MachineContent({ machine }: { machine: Machine }) {
         />
       </Suspense>
 
-        {/* Machine Modal (Edit) */}
+      {/* Machine Modal (Edit) */}
       <MachineModal
         isOpen={isMachineModalOpen}
         mode={modalMode}

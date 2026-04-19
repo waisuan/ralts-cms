@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { Machine } from '../types/machine';
 import { MachineFilters, MachineService } from '../services/machineService';
 import { useMachines } from '../hooks/useMachines';
@@ -12,7 +11,6 @@ import RecordCard from './RecordCard';
 import RecordsTable from './RecordsTable';
 import PaginationControls from './PaginationControls';
 import MachineModal from './MachineModal';
-import FullPageLoader from './FullPageLoader';
 import LoadingOverlay from './LoadingOverlay';
 import { DateRangeValue } from './DateRangePicker';
 import {
@@ -76,7 +74,6 @@ export default function RecordsList({
   onSearchLoadingChange,
   onTotalChange,
 }: RecordsListProps) {
-  const router = useRouter();
   const isMobile = useIsMobile();
   const [viewMode, setViewMode] = useState<ViewMode>(loadViewMode);
   const effectiveViewMode = isMobile ? 'cards' : viewMode;
@@ -85,7 +82,6 @@ export default function RecordsList({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [machineToDelete, setMachineToDelete] = useState<Machine | null>(null);
   const [machineToEdit, setMachineToEdit] = useState<Machine | null>(null);
-  const [isNavigating, setIsNavigating] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const hasDateFilters = !!(ppmDateRange.from || ppmDateRange.to || tncDateRange.from || tncDateRange.to);
@@ -145,11 +141,6 @@ export default function RecordsList({
       onTotalChange(total);
     }
   }, [total, onTotalChange]);
-
-  const handleView = (serial_number: string) => {
-    setIsNavigating(true);
-    router.push(`/machines/${encodeURIComponent(serial_number)}`);
-  };
 
   const handleEdit = (serial_number: string) => {
     const machine = machines.find((m) => m.serial_number === serial_number);
@@ -308,9 +299,7 @@ export default function RecordsList({
             ? 'Creating machine...'
             : isUpdatingMachine
               ? 'Updating machine...'
-              : isDeletingMachine
-                ? 'Deleting machine...'
-                : 'Loading...'
+              : 'Deleting machine...'
         }
       />
 
@@ -373,7 +362,6 @@ export default function RecordsList({
           onSortChange={handleTableSortChange}
           onPageChange={handlePageChange}
           onPageSizeChange={onLimitChange}
-          onView={handleView}
           onEdit={handleEdit}
           onDelete={handleDelete}
         />
@@ -398,7 +386,6 @@ export default function RecordsList({
               <RecordCard
                 key={machine.serial_number}
                 machine={machine}
-                onView={handleView}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
               />
@@ -449,7 +436,6 @@ export default function RecordsList({
         />
       )}
 
-      <FullPageLoader isVisible={isNavigating} message="Loading machine details..." />
     </div>
   );
 }

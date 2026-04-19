@@ -148,7 +148,6 @@ export default function MaintenanceHistory({
   return (
     <div className="min-h-screen bg-gray-50 py-4 md:py-8">
       <div className="container mx-auto px-4">
-        {/* Header */}
         <div className="mb-4 md:mb-8">
           <div className="hidden md:block">
             <MachineInfoCard machine={machine} onEdit={onEdit} onDelete={onDelete} />
@@ -181,7 +180,9 @@ export default function MaintenanceHistory({
               <div className="text-sm text-gray-600">Other</div>
             </div>
           </div>
+        </div>
 
+        <section aria-label="Maintenance history">
           {/* Mobile: Title + Sort + Add */}
           <div className="md:hidden mb-4">
             <div className="flex items-center justify-between">
@@ -238,7 +239,6 @@ export default function MaintenanceHistory({
           <div className="hidden md:block mb-6">
             <h2 className="text-xl font-semibold text-gray-900">Maintenance History</h2>
           </div>
-        </div>
 
         {/* Search Bar */}
         <div className="flex justify-center mb-6">
@@ -336,6 +336,7 @@ export default function MaintenanceHistory({
             onDelete={handleOpenDelete}
           />
         )}
+        </section>
       </div>
 
       {/* Modals */}

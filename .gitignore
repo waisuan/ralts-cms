@@ -25,7 +25,7 @@ ui/.vscode/
 ui/playwright-report/
 ui/test-results/
 ui/blob-report/
-# Local register route writes users.txt under ui/ when cwd is the app root
+# Stray file if ever created by old local tooling (legacy register route removed)
 ui/users.txt
 
 bin/

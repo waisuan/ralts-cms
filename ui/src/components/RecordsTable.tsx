@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useEffect, useMemo, useCallback, Fragment } from 'react';
 import {
   useReactTable,
@@ -17,6 +18,7 @@ import { Machine } from '../types/machine';
 import { PPM_STATUSES, PPM_STATUS_COLORS } from '../utils/constants';
 import { AttachmentService } from '../services/attachmentService';
 import { formatDate, formatDateTime } from '../utils/formatters';
+import { machineDetailHref } from '../utils/machineRoutes';
 import PaginationControls from './PaginationControls';
 
 interface RecordsTableProps {
@@ -30,7 +32,6 @@ interface RecordsTableProps {
   onSortChange: (sortBy: string) => void;
   onPageChange: (page: number) => void;
   onPageSizeChange: (size: number) => void;
-  onView: (serialNumber: string) => void;
   onEdit: (serialNumber: string) => void;
   onDelete: (serialNumber: string) => void;
 }
@@ -125,12 +126,10 @@ function MachineAttachmentIcon({ machine }: { machine: Machine }) {
 
 function ActionMenu({
   serial,
-  onView,
   onEdit,
   onDelete,
 }: {
   serial: string;
-  onView: (s: string) => void;
   onEdit: (s: string) => void;
   onDelete: (s: string) => void;
 }) {
@@ -165,12 +164,14 @@ function ActionMenu({
         <>
           <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setIsOpen(false); }} />
           <div className="absolute right-0 z-20 mt-1 w-36 bg-white border border-gray-200 rounded-lg shadow-lg py-1">
-            <button
-              onClick={(e) => { e.stopPropagation(); setIsOpen(false); onView(serial); }}
-              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            <Link
+              href={machineDetailHref(serial)}
+              prefetch={false}
+              onClick={(e) => { e.stopPropagation(); setIsOpen(false); }}
+              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
             >
               View Details
-            </button>
+            </Link>
             <button
               onClick={(e) => { e.stopPropagation(); setIsOpen(false); onEdit(serial); }}
               className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -190,13 +191,7 @@ function ActionMenu({
   );
 }
 
-function ExpandedRowDetail({
-  machine,
-  onView,
-}: {
-  machine: Machine;
-  onView: (serialNumber: string) => void;
-}) {
+function ExpandedRowDetail({ machine }: { machine: Machine }) {
   return (
     <div className="p-4 bg-gray-50 text-sm">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -244,17 +239,18 @@ function ExpandedRowDetail({
         )}
       </div>
       <div className="mt-3 pt-3 border-t border-gray-200 flex items-center gap-3">
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); onView(machine.serial_number); }}
+        <Link
+          href={machineDetailHref(machine.serial_number)}
+          prefetch={false}
+          onClick={(e) => e.stopPropagation()}
           className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors"
         >
-          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
           </svg>
           View Details & Maintenance History
-        </button>
+        </Link>
       </div>
     </div>
   );
@@ -337,7 +333,6 @@ export default function RecordsTable({
   onSortChange,
   onPageChange,
   onPageSizeChange,
-  onView,
   onEdit,
   onDelete,
 }: RecordsTableProps) {
@@ -415,17 +410,17 @@ export default function RecordsTable({
         cell: (info) => {
           const value = info.getValue();
           return (
-            <button
-              type="button"
+            <Link
+              href={machineDetailHref(value)}
+              prefetch={false}
               onClick={(e) => {
                 e.stopPropagation();
-                onView(value);
               }}
               className="font-medium text-blue-600 hover:text-blue-800 hover:underline truncate block text-left w-full"
               title={value}
             >
               {value}
-            </button>
+            </Link>
           );
         },
         enableSorting: false,
@@ -574,7 +569,6 @@ export default function RecordsTable({
         cell: ({ row }) => (
           <ActionMenu
             serial={row.original.serial_number}
-            onView={onView}
             onEdit={onEdit}
             onDelete={onDelete}
           />
@@ -583,7 +577,7 @@ export default function RecordsTable({
         enableSorting: false,
       },
     ],
-    [onView, onEdit, onDelete]
+    [onEdit, onDelete]
   );
 
   const table = useReactTable({
@@ -739,7 +733,7 @@ export default function RecordsTable({
                     {row.getIsExpanded() && (
                       <tr>
                         <td colSpan={row.getVisibleCells().length}>
-                          <ExpandedRowDetail machine={row.original} onView={onView} />
+                          <ExpandedRowDetail machine={row.original} />
                         </td>
                       </tr>
                     )}

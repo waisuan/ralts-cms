@@ -1,15 +1,16 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { Machine } from '../types/machine';
 import { AttachmentService } from '../services/attachmentService';
 import { formatDate, formatDateTime } from '../utils/formatters';
 import { getPPMStatusDisplay } from '../utils/ppmUtils';
 import { useIsMobile } from '../hooks/useMediaQuery';
+import { machineDetailHref } from '../utils/machineRoutes';
 
 interface RecordCardProps {
   machine: Machine;
-  onView: (serial_number: string) => void;
   onEdit: (serial_number: string) => void;
   onDelete: (serial_number: string) => void;
 }
@@ -23,13 +24,41 @@ function DetailField({ label, value }: { label: string; value: string }) {
   );
 }
 
-export default function RecordCard({ machine, onView, onEdit, onDelete }: RecordCardProps) {
+function maintenanceRecordCountLabel(count: number) {
+  return `${count} record${count !== 1 ? 's' : ''}`;
+}
+
+function MachineDetailLink({
+  machine,
+  className,
+  title,
+  children,
+}: {
+  machine: Machine;
+  className: string;
+  title?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={machineDetailHref(machine.serial_number)}
+      prefetch={false}
+      className={className}
+      title={title}
+    >
+      {children}
+    </Link>
+  );
+}
+
+export default function RecordCard({ machine, onEdit, onDelete }: RecordCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [showNotesModal, setShowNotesModal] = useState(false);
   const isMobile = useIsMobile();
   const status = getPPMStatusDisplay(machine.ppm_status);
   const maintenanceCount = machine.maintenance_count ?? 0;
+  const maintenanceLabel = maintenanceRecordCountLabel(maintenanceCount);
 
   const handleDownloadAttachment = async () => {
     if (!machine.attachment || downloading) return;
@@ -55,13 +84,6 @@ export default function RecordCard({ machine, onView, onEdit, onDelete }: Record
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      setIsExpanded(!isExpanded);
-    }
-  };
-
   const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) setShowNotesModal(false);
   };
@@ -78,15 +100,14 @@ export default function RecordCard({ machine, onView, onEdit, onDelete }: Record
   if (isMobile) {
     return (
       <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-        <div
-          role="button"
-          tabIndex={0}
-          aria-expanded={isExpanded}
-          onClick={() => setIsExpanded(!isExpanded)}
-          onKeyDown={handleKeyDown}
-          className="p-4 cursor-pointer hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
-        >
-          <div className="flex items-start justify-between gap-2">
+        <div className="p-4">
+          <button
+            type="button"
+            aria-expanded={isExpanded}
+            aria-label={`${isExpanded ? 'Collapse' : 'Expand'} details for ${machine.serial_number}`}
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="w-full flex items-start justify-between gap-2 text-left cursor-pointer hover:bg-gray-50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
+          >
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-semibold text-gray-900 text-sm truncate">
@@ -102,15 +123,6 @@ export default function RecordCard({ machine, onView, onEdit, onDelete }: Record
               <p className="text-xs text-gray-500 mt-1">
                 {machine.customer} &middot; {machine.state}
               </p>
-              {!isExpanded && (
-                <p className="text-xs text-gray-500 mt-1">
-                  TNC: {machine.tnc_date ? formatDate(machine.tnc_date) : '-'}
-                  {' · '}
-                  PPM: {machine.ppm_date ? formatDate(machine.ppm_date) : '-'}
-                  {' · '}
-                  {maintenanceCount} record{maintenanceCount !== 1 ? 's' : ''}
-                </p>
-              )}
             </div>
             <svg
               className={`h-5 w-5 text-gray-400 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
@@ -118,7 +130,21 @@ export default function RecordCard({ machine, onView, onEdit, onDelete }: Record
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
-          </div>
+          </button>
+          {!isExpanded && (
+            <p className="text-xs text-gray-500 mt-1">
+              TNC: {machine.tnc_date ? formatDate(machine.tnc_date) : '-'}
+              {' · '}
+              PPM: {machine.ppm_date ? formatDate(machine.ppm_date) : '-'}
+              {' · '}
+              <MachineDetailLink
+                machine={machine}
+                className="text-blue-600 hover:text-blue-800 underline-offset-2 hover:underline"
+              >
+                {maintenanceLabel}
+              </MachineDetailLink>
+            </p>
+          )}
         </div>
 
         {isExpanded && (
@@ -133,10 +159,17 @@ export default function RecordCard({ machine, onView, onEdit, onDelete }: Record
               <DetailField label="Account Type" value={machine.account_type || '-'} />
               <DetailField label="Person In Charge" value={machine.person_in_charge || '-'} />
               <DetailField label="Reported By" value={machine.reported_by || '-'} />
-              <DetailField
-                label="Maintenance"
-                value={`${maintenanceCount} record${maintenanceCount !== 1 ? 's' : ''}`}
-              />
+              <div>
+                <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Maintenance</span>
+                <p className="text-gray-900 mt-0.5">
+                  <MachineDetailLink
+                    machine={machine}
+                    className="text-blue-600 hover:text-blue-800 underline-offset-2 hover:underline"
+                  >
+                    {maintenanceLabel}
+                  </MachineDetailLink>
+                </p>
+              </div>
               <DetailField label="Created" value={formatDateTime(machine.created_at)} />
               <DetailField label="Updated" value={formatDateTime(machine.updated_at)} />
             </div>
@@ -165,7 +198,14 @@ export default function RecordCard({ machine, onView, onEdit, onDelete }: Record
             )}
 
             <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
-              <button onClick={(e) => { e.stopPropagation(); onView(machine.serial_number); }} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">View</button>
+              <Link
+                href={machineDetailHref(machine.serial_number)}
+                prefetch={false}
+                onClick={(e) => { e.stopPropagation(); }}
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors text-center"
+              >
+                View
+              </Link>
               <button onClick={(e) => { e.stopPropagation(); onEdit(machine.serial_number); }} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-yellow-700 bg-yellow-50 hover:bg-yellow-100 rounded-lg transition-colors">Edit</button>
               <button onClick={(e) => { e.stopPropagation(); onDelete(machine.serial_number); }} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors">Delete</button>
             </div>
@@ -191,17 +231,16 @@ export default function RecordCard({ machine, onView, onEdit, onDelete }: Record
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                type="button"
+              <MachineDetailLink
+                machine={machine}
                 className="flex items-center gap-1 bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full text-xs font-medium hover:bg-indigo-200 transition-colors"
                 title={`${maintenanceCount} maintenance record${maintenanceCount !== 1 ? 's' : ''}`}
-                onClick={() => onView(machine.serial_number)}
               >
-                <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                 </svg>
                 <span>{maintenanceCount}</span>
-              </button>
+              </MachineDetailLink>
               {machine.attachment && (
                 <button
                   type="button"
@@ -263,7 +302,13 @@ export default function RecordCard({ machine, onView, onEdit, onDelete }: Record
           </div>
 
           <div className="flex gap-2">
-            <button onClick={() => onView(machine.serial_number)} className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-md text-sm font-medium transition-colors">View</button>
+            <Link
+              href={machineDetailHref(machine.serial_number)}
+              prefetch={false}
+              className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-md text-sm font-medium transition-colors text-center"
+            >
+              View
+            </Link>
             <button onClick={() => onEdit(machine.serial_number)} className="flex-1 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 px-3 py-2 rounded-md text-sm font-medium transition-colors">Edit</button>
             <button onClick={() => onDelete(machine.serial_number)} className="flex-1 bg-red-50 hover:bg-red-100 text-red-700 px-3 py-2 rounded-md text-sm font-medium transition-colors">Delete</button>
           </div>

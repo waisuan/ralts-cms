@@ -24,7 +24,6 @@ describe('RecordCard', () => {
     maintenance_count: 2,
   };
 
-  const mockOnView = jest.fn();
   const mockOnEdit = jest.fn();
   const mockOnDelete = jest.fn();
 
@@ -34,7 +33,7 @@ describe('RecordCard', () => {
 
   it('renders collapsed card with key fields visible', () => {
     render(
-      <RecordCard machine={baseMachine} onView={mockOnView} onEdit={mockOnEdit} onDelete={mockOnDelete} />
+      <RecordCard machine={baseMachine} onEdit={mockOnEdit} onDelete={mockOnDelete} />
     );
 
     expect(screen.getByText('SN-TEST')).toBeInTheDocument();
@@ -50,7 +49,7 @@ describe('RecordCard', () => {
 
   it('hides detail fields and action buttons when collapsed', () => {
     render(
-      <RecordCard machine={baseMachine} onView={mockOnView} onEdit={mockOnEdit} onDelete={mockOnDelete} />
+      <RecordCard machine={baseMachine} onEdit={mockOnEdit} onDelete={mockOnDelete} />
     );
 
     expect(screen.queryByText('View')).not.toBeInTheDocument();
@@ -61,7 +60,7 @@ describe('RecordCard', () => {
 
   it('shows detail fields and action buttons when expanded', () => {
     render(
-      <RecordCard machine={baseMachine} onView={mockOnView} onEdit={mockOnEdit} onDelete={mockOnDelete} />
+      <RecordCard machine={baseMachine} onEdit={mockOnEdit} onDelete={mockOnDelete} />
     );
 
     const toggle = screen.getByRole('button', { expanded: false });
@@ -83,7 +82,7 @@ describe('RecordCard', () => {
   it('omits model when not present', () => {
     const machineNoModel = { ...baseMachine, model: '' };
     render(
-      <RecordCard machine={machineNoModel} onView={mockOnView} onEdit={mockOnEdit} onDelete={mockOnDelete} />
+      <RecordCard machine={machineNoModel} onEdit={mockOnEdit} onDelete={mockOnDelete} />
     );
 
     expect(screen.getByText('SN-TEST')).toBeInTheDocument();
@@ -92,14 +91,13 @@ describe('RecordCard', () => {
 
   it('calls action handlers with correct serial number', () => {
     render(
-      <RecordCard machine={baseMachine} onView={mockOnView} onEdit={mockOnEdit} onDelete={mockOnDelete} />
+      <RecordCard machine={baseMachine} onEdit={mockOnEdit} onDelete={mockOnDelete} />
     );
 
     const toggle = screen.getByRole('button', { expanded: false });
     fireEvent.click(toggle);
 
-    fireEvent.click(screen.getByText('View'));
-    expect(mockOnView).toHaveBeenCalledWith('SN-TEST');
+    expect(screen.getByRole('link', { name: 'View' })).toHaveAttribute('href', '/machines/SN-TEST');
 
     fireEvent.click(screen.getByText('Edit'));
     expect(mockOnEdit).toHaveBeenCalledWith('SN-TEST');
@@ -110,17 +108,17 @@ describe('RecordCard', () => {
 
   it('displays PPM status badges correctly', () => {
     const { rerender } = render(
-      <RecordCard machine={{ ...baseMachine, ppm_status: 'due' }} onView={mockOnView} onEdit={mockOnEdit} onDelete={mockOnDelete} />
+      <RecordCard machine={{ ...baseMachine, ppm_status: 'due' }} onEdit={mockOnEdit} onDelete={mockOnDelete} />
     );
     expect(screen.getByText('Due')).toBeInTheDocument();
 
     rerender(
-      <RecordCard machine={{ ...baseMachine, ppm_status: 'almost_due' }} onView={mockOnView} onEdit={mockOnEdit} onDelete={mockOnDelete} />
+      <RecordCard machine={{ ...baseMachine, ppm_status: 'almost_due' }} onEdit={mockOnEdit} onDelete={mockOnDelete} />
     );
     expect(screen.getByText('Upcoming')).toBeInTheDocument();
 
     rerender(
-      <RecordCard machine={{ ...baseMachine, ppm_status: '' }} onView={mockOnView} onEdit={mockOnEdit} onDelete={mockOnDelete} />
+      <RecordCard machine={{ ...baseMachine, ppm_status: '' }} onEdit={mockOnEdit} onDelete={mockOnDelete} />
     );
     expect(screen.queryByText('Overdue')).not.toBeInTheDocument();
     expect(screen.queryByText('Due')).not.toBeInTheDocument();
