@@ -251,8 +251,16 @@ export default function MachineInfoCard({ machine, onEdit, onDelete }: MachineIn
               </div>
               <div>
                 <span className="text-sm text-gray-500">PPM Date:</span>
-                <div className="font-medium text-gray-900 flex items-center gap-2 flex-wrap">
-                  <span className={ppmDisplay.isUnset ? machineDateUnsetClassName : ''}>{ppmDisplay.text}</span>
+                <div
+                  className={
+                    ppmDisplay.isUnset
+                      ? 'flex items-center gap-2 flex-wrap'
+                      : 'font-medium text-gray-900 flex items-center gap-2 flex-wrap'
+                  }
+                >
+                  <span className={ppmDisplay.isUnset ? machineDateUnsetClassName : 'text-gray-900'}>
+                    {ppmDisplay.text}
+                  </span>
                   {showPpmServerPill && (
                     <span
                       className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${ppmStatus.color}`}
