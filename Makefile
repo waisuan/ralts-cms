@@ -2,7 +2,7 @@
 	db-dev-up db-dev-down db-test-up db-test-down db-clean \
 	test-with-db dev-with-db db-status db-logs \
 	migrate-dev migrate-test migrate-up migrate-down lint \
-	server client ui-dev
+	server client ui-dev legacy-redirect-dev
 
 generate:
 	go generate ./...
@@ -36,6 +36,17 @@ ui-dev:
 		cd ui && npm install; \
 	fi
 	cd ui && npm run dev
+
+# Legacy domain redirect (redirect-legacy/). Default PORT=3099; use localhost in the browser (not 127.0.0.1 on WSL/Windows).
+legacy-redirect-dev:
+	@if [ ! -d redirect-legacy/node_modules ]; then \
+		echo "Installing redirect-legacy dependencies..."; \
+		cd redirect-legacy && npm install; \
+	fi
+	@echo ""
+	@echo "→ Open in browser: http://localhost:$(or $(PORT),3099)/"
+	@echo ""
+	cd redirect-legacy && PORT=$(or $(PORT),3099) npm start
 
 test:
 	APP_ENV=test go test ./...

@@ -1,0 +1,16 @@
+# Legacy domain countdown + redirect (Node/Express).
+# Railway: New Service → same repo → Root Directory: redirect-legacy
+# Config file path: /redirect-legacy/railway.toml
+#
+# Custom domains: add clown-cms.com and www.clown-cms.com on this service (HTTPS auto).
+# Env: TARGET_ORIGIN, REDIRECT_DELAY — see .env.example
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+watchPatterns = ["**"]
+
+[deploy]
+restartPolicyType = "ON_FAILURE"
+healthcheckPath = "/health"
+healthcheckTimeout = 30

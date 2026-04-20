@@ -1,6 +1,8 @@
 .idea/
 vendor/
 .env.*
+!.env.example
+!**/.env.example
 bootstrap
 *.zip
 tmp/
@@ -8,6 +10,8 @@ tmp/
 # Frontend (Next.js) - ui/
 ui/tsconfig.tsbuildinfo
 ui/node_modules/
+redirect-legacy/node_modules/
+redirect-legacy/.env
 ui/.next/
 ui/out/
 ui/.env
