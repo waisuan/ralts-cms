@@ -88,36 +88,11 @@ export default function MachineInfoCard({ machine, onEdit, onDelete }: MachineIn
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border mb-6">
+    <div className="mb-6 overflow-hidden rounded-lg border bg-white shadow-sm">
       <div className="p-6 pb-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <h1 className="text-2xl font-bold leading-tight text-gray-900">Machine Information</h1>
-              <button
-                type="button"
-                id="machine-info-toggle"
-                aria-expanded={expanded}
-                aria-controls="machine-info-details"
-                aria-label={expanded ? 'Hide machine details' : 'Show machine details'}
-                onClick={toggleExpanded}
-                title={expanded ? 'Hide details' : 'Show details'}
-                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-gray-50 text-gray-600 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-              >
-                <svg
-                  className={`h-5 w-5 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                  aria-hidden
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M5.22 8.22a.75.75 0 011.06 0L10 11.94l3.72-3.72a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.22 9.28a.75.75 0 010-1.06z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </button>
-            </div>
+            <h1 className="text-2xl font-bold leading-tight text-gray-900">Machine Information</h1>
             {!expanded && (
               <div className="mt-3 min-w-0">
                 <p className="text-sm leading-snug text-gray-800">
@@ -384,6 +359,31 @@ export default function MachineInfoCard({ machine, onEdit, onDelete }: MachineIn
             </div>
           )}
       </div>
+
+      <button
+        type="button"
+        id="machine-info-toggle"
+        aria-expanded={expanded}
+        aria-controls="machine-info-details"
+        aria-label={expanded ? 'Hide machine details' : 'Show machine details'}
+        onClick={toggleExpanded}
+        title={expanded ? 'Hide details' : 'Show details'}
+        className="flex w-full items-center justify-center gap-2 border-t border-gray-200 bg-gray-50/90 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500"
+      >
+        <svg
+          className={`h-4 w-4 shrink-0 transition-transform duration-200 ${expanded ? 'rotate-180' : ''}`}
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          aria-hidden
+        >
+          <path
+            fillRule="evenodd"
+            d="M5.22 8.22a.75.75 0 011.06 0L10 11.94l3.72-3.72a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.22 9.28a.75.75 0 010-1.06z"
+            clipRule="evenodd"
+          />
+        </svg>
+        <span>{expanded ? 'Hide details' : 'Show details'}</span>
+      </button>
     </div>
   );
 }
