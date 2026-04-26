@@ -4,14 +4,15 @@ set -euo pipefail
 # Railway Postgres (optional Railway bucket) → Cloudflare R2. Env vars: railway-cron.toml
 # Set BACKUP_DEBUG=1 for bash trace (xtrace). OOM kills leave no log — check deployment exit code (137).
 
-log()  { echo "[$(date -u '+%Y-%m-%d %H:%M:%S UTC')] $*" >&2; }
-die()  { log "ERROR: $*"; exit 1; }
+# stdout → platform "info" (Railway colors stderr as errors)
+log() { echo "[$(date -u '+%Y-%m-%d %H:%M:%S UTC')] $*"; }
+die() { echo "[$(date -u '+%Y-%m-%d %H:%M:%S UTC')] ERROR: $*" >&2; exit 1; }
 
 [[ "${BACKUP_DEBUG:-0}" == "1" ]] && set -x
 
 err_trap() {
   local s=$?
-  log "ERROR: command failed (exit $s) at line ${BASH_LINENO[0]}"
+  echo "[$(date -u '+%Y-%m-%d %H:%M:%S UTC')] ERROR: command failed (exit $s) at line ${BASH_LINENO[0]}" >&2
   exit "$s"
 }
 trap err_trap ERR
