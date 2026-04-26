@@ -6,8 +6,8 @@ RUN apk add --no-cache \
     bash \
     coreutils
 
-COPY scripts/migrate-data.sh /app/migrate-data.sh
-RUN chmod +x /app/migrate-data.sh
+COPY scripts/backup-to-r2.sh /app/backup-to-r2.sh
+RUN chmod +x /app/backup-to-r2.sh
 
 WORKDIR /app
-CMD ["./migrate-data.sh", "sync"]
+CMD ["./backup-to-r2.sh"]

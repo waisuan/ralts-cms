@@ -1,16 +1,22 @@
-# Cron sync service – weekly Postgres + S3 sync from legacy roti to Railway.
-# In Railway: create a new service in the project, set Config File Path to
-# /railway-cron.toml, Root Directory to / (default).
+# Cron backup service – weekly Railway Postgres (and optional Railway bucket)
+# to Cloudflare R2. In Railway: set Config File Path to /railway-cron.toml.
 #
-# Required env vars (set in Railway dashboard):
-#   SOURCE_DATABASE_URL, TARGET_DATABASE_URL (Postgres)
-#   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_DEFAULT_REGION (legacy AWS)
-#   SOURCE_S3_BUCKET, TARGET_S3_BUCKET, TARGET_S3_ENDPOINT,
-#   TARGET_S3_ACCESS_KEY_ID, TARGET_S3_SECRET_ACCESS_KEY (S3 sync)
+# Required:
+#   BACKUP_R2_BUCKET, BACKUP_R2_ENDPOINT (R2 S3 API URL)
+#   BACKUP_R2_ACCESS_KEY_ID, BACKUP_R2_SECRET_ACCESS_KEY
+#   One of: DATABASE_URL, BACKUP_DATABASE_URL, TARGET_DATABASE_URL
+#
+# Optional:
+#   BACKUP_PREFIX              e.g. prod — keys become prod/postgres/...
+#   BACKUP_SKIP_OBJECT_STORAGE=1 to skip bucket mirror
+#   TARGET_S3_BUCKET, TARGET_S3_ENDPOINT, TARGET_S3_ACCESS_KEY_ID,
+#   TARGET_S3_SECRET_ACCESS_KEY — same as app; enables object backup to R2
+#
+# R2 lifecycle rules can expire prefixes like postgres/ and objects/ automatically.
 
 [build]
 dockerfilePath = "Dockerfile.migrate"
-watchPatterns = ["scripts/migrate-data.sh", "Dockerfile.migrate", "railway-cron.toml"]
+watchPatterns = ["scripts/backup-to-r2.sh", "Dockerfile.migrate", "railway-cron.toml"]
 
 [deploy]
 cronSchedule = "0 2 * * 1"

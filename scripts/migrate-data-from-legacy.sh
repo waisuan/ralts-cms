@@ -2,12 +2,12 @@
 set -euo pipefail
 
 # ---------------------------------------------------------------------------
-# migrate-data.sh -- Migrate Postgres data and S3 attachments from legacy
-# roti to Ralts-CMS (Railway).
+# migrate-data-from-legacy.sh -- Migrate Postgres data and S3 attachments
+# from legacy roti to Ralts-CMS (Railway).
 #
 # Usage:
-#   ./scripts/migrate-data.sh initial   # Full load (first time)
-#   ./scripts/migrate-data.sh sync      # Incremental sync (daily cron)
+#   ./scripts/migrate-data-from-legacy.sh initial   # Full load (first time)
+#   ./scripts/migrate-data-from-legacy.sh sync      # Incremental sync (cron)
 #
 # Required environment variables:
 #   SOURCE_DATABASE_URL        -- legacy Postgres connection string
