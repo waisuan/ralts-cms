@@ -103,7 +103,8 @@ maybe_backup_object_storage() {
   log "  Staged $src_count files"
 
   local dest_prefix="${BACKUP_PREFIX:+$BACKUP_PREFIX/}objects"
-  r2_aws s3 sync "$s3_work" "s3://$BACKUP_R2_BUCKET/$dest_prefix" --only-show-errors
+  # Mirror live bucket: keys gone from Railway are removed from R2 under this prefix.
+  r2_aws s3 sync "$s3_work" "s3://$BACKUP_R2_BUCKET/$dest_prefix" --delete --only-show-errors
   log "Object storage backup complete"
 }
 

@@ -11,7 +11,8 @@
 #   BACKUP_PREFIX              e.g. prod — keys become prod/postgres/...
 #   BACKUP_SKIP_OBJECT_STORAGE=1 to skip bucket mirror
 #   TARGET_S3_BUCKET, TARGET_S3_ENDPOINT, TARGET_S3_ACCESS_KEY_ID,
-#   TARGET_S3_SECRET_ACCESS_KEY — same as app; enables object backup to R2
+#   TARGET_S3_SECRET_ACCESS_KEY — same as app; object backup syncs to R2 with --delete
+#   (mirror). If the source lists 0 objects, upload is skipped so R2 is not wiped.
 #
 # R2 lifecycle rules can expire prefixes like postgres/ and objects/ automatically.
 
