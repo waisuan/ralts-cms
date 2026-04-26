@@ -1,7 +1,8 @@
-FROM alpine:3.20
+# pg_dump major must be >= server major (e.g. PG 18 on Railway needs client 18).
+FROM alpine:3.23
 
 RUN apk add --no-cache \
-    postgresql16-client \
+    postgresql18-client \
     aws-cli \
     bash \
     coreutils
