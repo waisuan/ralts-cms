@@ -10,6 +10,7 @@ import (
 	"ralts-cms/internal/audit"
 	"ralts-cms/internal/machines"
 	"ralts-cms/internal/maintenance"
+	"ralts-cms/internal/refreshtokens"
 	"ralts-cms/internal/users"
 
 	pkgs3 "ralts-cms/pkg/s3"
@@ -29,8 +30,9 @@ type Dependencies struct {
 	// Repositories
 	MachinesRepository    machines.Repository
 	MaintenanceRepository maintenance.Repository
-	UsersRepository       users.Repository
-	AuditRepository       audit.Repository
+	UsersRepository         users.Repository
+	RefreshTokenRepository  refreshtokens.Repository
+	AuditRepository         audit.Repository
 
 	// Services
 	AttachmentService attachments.AttachmentService
@@ -69,6 +71,7 @@ func Initialise() *Dependencies {
 	machinesRepo := machines.NewRepository(pgClient)
 	maintenanceRepo := maintenance.NewRepository(pgClient)
 	usersRepo := users.NewRepository(pgClient)
+	refreshTokenRepo := refreshtokens.NewRepository(pgClient)
 	auditRepo := audit.NewRepository(pgClient)
 
 	// Initialize services
@@ -90,8 +93,9 @@ func Initialise() *Dependencies {
 		S3Client:              s3Client,
 		MachinesRepository:    machinesRepo,
 		MaintenanceRepository: maintenanceRepo,
-		UsersRepository:       usersRepo,
-		AuditRepository:       auditRepo,
+		UsersRepository:         usersRepo,
+		RefreshTokenRepository:  refreshTokenRepo,
+		AuditRepository:         auditRepo,
 		AttachmentService:     attachmentService,
 		AuditService:          auditService,
 	}

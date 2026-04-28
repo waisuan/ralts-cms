@@ -1,5 +1,32 @@
 import { apiClient, ApiResponse } from '../utils/api';
+import { getAccessToken, getRefreshToken, refreshAccessToken } from '../utils/tokens';
 import { Machine } from '../types/machine';
+
+function apiBase(): string {
+  return typeof window !== 'undefined'
+    ? ''
+    : process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
+}
+
+async function fetchWithTokenRefresh(path: string, init: RequestInit): Promise<Response> {
+  const run = (access: string | null) => {
+    const headers = new Headers(init.headers);
+    if (access) {
+      headers.set('Authorization', `Bearer ${access}`);
+    } else {
+      headers.delete('Authorization');
+    }
+    return fetch(path, { ...init, headers });
+  };
+  let res = await run(getAccessToken());
+  if (res.status === 401 && getRefreshToken()) {
+    const next = await refreshAccessToken(apiBase);
+    if (next) {
+      res = await run(next);
+    }
+  }
+  return res;
+}
 
 export interface MachineFilters {
   limit?: number;
@@ -177,13 +204,7 @@ export class MachineService {
 }
 
 async function downloadCSV(path: string, fallbackFilename: string): Promise<void> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('ralts_token') : null;
-
-  const resp = await fetch(path, {
-    headers: {
-      ...(token && { Authorization: `Bearer ${token}` }),
-    },
-  });
+  const resp = await fetchWithTokenRefresh(path, {});
 
   if (!resp.ok) {
     throw new Error(`CSV export failed: ${resp.status}`);

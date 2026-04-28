@@ -5,6 +5,31 @@ import (
 	"testing"
 )
 
+func TestConfig_RefreshPepper(t *testing.T) {
+	t.Parallel()
+	t.Run("dedicated pepper when set", func(t *testing.T) {
+		t.Parallel()
+		c := &Config{RefreshTokenPepper: "only-refresh", JWTSecret: "jwt"}
+		if c.RefreshPepper() != "only-refresh" {
+			t.Fatalf("expected dedicated pepper")
+		}
+	})
+	t.Run("derived when empty", func(t *testing.T) {
+		t.Parallel()
+		c := &Config{JWTSecret: "abc"}
+		if c.RefreshPepper() != "abc:ralts-refresh" {
+			t.Fatalf("unexpected: %q", c.RefreshPepper())
+		}
+	})
+	t.Run("nil config", func(t *testing.T) {
+		t.Parallel()
+		var c *Config
+		if c.RefreshPepper() != "" {
+			t.Fatalf("expected empty")
+		}
+	})
+}
+
 func TestValidateConfig_JWTSecret(t *testing.T) {
 	t.Parallel()
 

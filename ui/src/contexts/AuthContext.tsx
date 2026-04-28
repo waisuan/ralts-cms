@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { UserService } from '../services/userService';
 import { isAuthError } from '../utils/auth';
+import { setSessionTokens, clearSessionAuthKeys } from '../utils/tokens';
 
 interface AuthUser {
   id: number;
@@ -61,7 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         setUser(userData);
         localStorage.setItem('ralts_user', JSON.stringify(userData));
-        localStorage.setItem('ralts_token', response.data.token);
+        setSessionTokens(response.data.token, response.data.refresh_token);
         return { success: true };
       }
       
@@ -95,8 +96,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     setUser(null);
+    const refreshToken =
+      typeof window !== 'undefined' ? localStorage.getItem('ralts_refresh') : null;
     localStorage.removeItem('ralts_user');
-    localStorage.removeItem('ralts_token');
+    clearSessionAuthKeys();
+    if (typeof window !== 'undefined' && refreshToken) {
+      void fetch('/api/v1/auth/logout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
+    }
   };
 
   const value: AuthContextType = {

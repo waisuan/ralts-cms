@@ -1,4 +1,4 @@
-.PHONY: generate fmt build run test integration-test clean setup-env dev \
+.PHONY: generate fmt build run test integration-test ui-test clean setup-env dev \
 	db-dev-up db-dev-down db-test-up db-test-down db-clean \
 	test-with-db dev-with-db db-status db-logs \
 	migrate-dev migrate-test migrate-up migrate-down lint \
@@ -50,6 +50,14 @@ legacy-redirect-dev:
 
 test:
 	APP_ENV=test go test ./...
+
+# Jest unit tests in ui/ (installs ui/node_modules if missing)
+ui-test:
+	@if [ ! -d ui/node_modules ]; then \
+		echo "Installing UI dependencies..."; \
+		cd ui && npm install; \
+	fi
+	cd ui && npm test
 
 # Full HTTP stack against Postgres + LocalStack (requires Docker). Not tagged on default `make test`.
 integration-test:

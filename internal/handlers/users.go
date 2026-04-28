@@ -11,6 +11,7 @@ import (
 	"ralts-cms/pkg/auth"
 	"ralts-cms/pkg/pgxutil"
 	"strconv"
+	"time"
 
 	"github.com/gorilla/mux"
 )
@@ -140,8 +141,7 @@ func (h *UsersHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate JWT token with user role
-	tokenString, err := auth.GenerateJWTToken(int(user.ID), user.Role, h.deps.Config.JWTSecret)
+	access, err := auth.GenerateAccessToken(int(user.ID), user.Role, h.deps.Config.JWTSecret, h.deps.Config.AccessTokenLifetime)
 	if err != nil {
 		h.deps.Logger.Error("Failed to generate JWT token",
 			"error", err,
@@ -150,13 +150,30 @@ func (h *UsersHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create response with user data and token
+	rawRefresh, err := auth.GenerateRawRefreshToken()
+	if err != nil {
+		h.deps.Logger.Error("Failed to generate refresh token", "error", err, "user_id", user.ID)
+		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
+		return
+	}
+	pepper := h.deps.Config.RefreshPepper()
+	refreshHash := auth.HashRefreshToken(rawRefresh, pepper)
+	refreshExp := time.Now().UTC().Add(h.deps.Config.RefreshTokenLifetime)
+	if err := h.deps.RefreshTokenRepository.Create(r.Context(), user.ID, refreshHash, refreshExp); err != nil {
+		h.deps.Logger.Error("Failed to persist refresh token", "error", err, "user_id", user.ID)
+		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
+		return
+	}
+
+	// Create response with user data and tokens
 	response := struct {
-		User  *users.User `json:"user"`
-		Token string      `json:"token"`
+		User          *users.User `json:"user"`
+		Token         string      `json:"token"`
+		RefreshToken  string      `json:"refresh_token"`
 	}{
-		User:  user,
-		Token: tokenString,
+		User:         user,
+		Token:        access,
+		RefreshToken: rawRefresh,
 	}
 
 	// Log successful login
@@ -399,6 +416,13 @@ func (h *UsersHandler) UpdatePassword(w http.ResponseWriter, r *http.Request) {
 			"user_id", userCtx.UserID)
 		http.Error(w, "Failed to update password", http.StatusInternalServerError)
 		return
+	}
+
+	if err := h.deps.RefreshTokenRepository.RevokeAllForUser(r.Context(), userCtx.UserID); err != nil {
+		h.deps.Logger.Error("Failed to revoke refresh sessions after password change",
+			"error", err,
+			"user_id", userCtx.UserID)
+		// Still return success for password update; client must re-login with new password
 	}
 
 	// Log successful password update

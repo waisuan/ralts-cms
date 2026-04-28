@@ -19,6 +19,27 @@ export type ChangelogEntry = {
 
 const changelogEntries: ChangelogEntry[] = [
   {
+    date: '2026-04-26',
+    title: 'Smoother sessions and sign-in security',
+    summary:
+      'The app now keeps you signed in more naturally while you use it, and uses a shorter-lived access token behind the scenes. If you stay idle for a long time, you may be asked to sign in again.',
+    sections: [
+      {
+        heading: 'Sessions',
+        items: [
+          'You get a short-lived access token plus a separate refresh token — you will not notice the difference day to day; the app refreshes your session when needed.',
+          'Changing your password signs out other refresh-based sessions tied to your account (as stored on the server).',
+        ],
+      },
+      {
+        heading: 'What you might see',
+        items: [
+          'If you open the app after a very long break, you may need to sign in again — that is expected when the refresh period has ended.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-04-19',
     title: 'Ralts CMS replaces clown-cms',
     summary:

@@ -37,6 +37,8 @@ The UI calls the API at `http://localhost:8080` by default. Override with `NEXT_
 ## Tests
 
 ```bash
+make test              # Go unit tests
+make ui-test           # Jest (UI) — installs npm deps in ui/ if needed
 make test-with-db
 ```
 
@@ -46,6 +48,7 @@ make test-with-db
 |--------|----------------|
 | `make run` / `make server` | Start API (`APP_ENV=development`) |
 | `make ui-dev` | `npm install` in `ui/` if needed, then `npm run dev` |
+| `make ui-test` | `npm install` in `ui/` if needed, then `npm test` (Jest) |
 | `make client` | `npm run dev` in `ui/` only |
 | `make dev-with-db` | Wait for dev DB, then `make run` |
 | `make db-dev-up` / `db-dev-down` | Dev Postgres only |

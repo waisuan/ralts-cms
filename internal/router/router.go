@@ -31,9 +31,14 @@ func NewRouter(deps *deps.Dependencies) http.Handler {
 		w.WriteHeader(http.StatusOK)
 	})
 
+	usersHandler := handlers.NewUsersHandler(deps)
+	authHandler := handlers.NewAuthHandler(deps)
+
 	// Public endpoints (no auth required)
-	r.HandleFunc("/api/v1/users/login", handlers.NewUsersHandler(deps).Login).Methods(http.MethodPost)
-	r.HandleFunc("/api/v1/users", handlers.NewUsersHandler(deps).CreateUser).Methods(http.MethodPost)
+	r.HandleFunc("/api/v1/users/login", usersHandler.Login).Methods(http.MethodPost)
+	r.HandleFunc("/api/v1/users", usersHandler.CreateUser).Methods(http.MethodPost)
+	r.HandleFunc("/api/v1/auth/refresh", authHandler.Refresh).Methods(http.MethodPost)
+	r.HandleFunc("/api/v1/auth/logout", authHandler.Logout).Methods(http.MethodPost)
 
 	// Subrouter for protected endpoints
 	api := r.PathPrefix("/api/v1/").Subrouter()
@@ -71,7 +76,7 @@ func NewRouter(deps *deps.Dependencies) http.Handler {
 	api.HandleFunc("/machines/{serial_number}/maintenance/{work_order_number}/attachments/{attachment_name}", handlers.NewAttachmentHandler(deps).DeleteMaintenanceAttachment).Methods(http.MethodDelete)
 
 	// User self-service endpoints (protected)
-	api.HandleFunc("/users/password", handlers.NewUsersHandler(deps).UpdatePassword).Methods(http.MethodPut)
+	api.HandleFunc("/users/password", usersHandler.UpdatePassword).Methods(http.MethodPut)
 
 	// Apply middleware to protected endpoints only
 	api.Use(middlewares.AuthenticationMiddleware(deps.Config.JWTSecret))
@@ -80,9 +85,9 @@ func NewRouter(deps *deps.Dependencies) http.Handler {
 	adminAPI := r.PathPrefix("/api/v1/admin/").Subrouter()
 
 	// Admin user management endpoints (protected by both auth and admin middleware)
-	adminAPI.HandleFunc("/users", handlers.NewUsersHandler(deps).ListUsers).Methods(http.MethodGet)
-	adminAPI.HandleFunc("/users/{id:[0-9]+}/status", handlers.NewUsersHandler(deps).UpdateUserStatus).Methods(http.MethodPut)
-	adminAPI.HandleFunc("/users/bulk-status", handlers.NewUsersHandler(deps).BulkUpdateStatus).Methods(http.MethodPut)
+	adminAPI.HandleFunc("/users", usersHandler.ListUsers).Methods(http.MethodGet)
+	adminAPI.HandleFunc("/users/{id:[0-9]+}/status", usersHandler.UpdateUserStatus).Methods(http.MethodPut)
+	adminAPI.HandleFunc("/users/bulk-status", usersHandler.BulkUpdateStatus).Methods(http.MethodPut)
 
 	// Admin audit endpoints
 	adminAPI.HandleFunc("/audit/events", handlers.NewAuditHandler(deps).ListAuditEvents).Methods(http.MethodGet)

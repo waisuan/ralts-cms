@@ -81,13 +81,18 @@ func isLegacyBcryptSalt(salt string) bool {
 	return strings.HasPrefix(salt, "$2a$") || strings.HasPrefix(salt, "$2b$")
 }
 
-// GenerateJWTToken creates a new JWT token for the given entity ID and role with the provided secret
-func GenerateJWTToken(entityID int, role, secret string) (string, error) {
+// GenerateAccessToken creates a new JWT (access token) for the given entity,
+// with an explicit time-to-live.
+func GenerateAccessToken(entityID int, role, secret string, ttl time.Duration) (string, error) {
+	if ttl <= 0 {
+		return "", fmt.Errorf("ttl must be positive")
+	}
+	now := time.Now()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"entity_id": strconv.Itoa(entityID),
 		"role":      role,
-		"exp":       time.Now().Add(24 * time.Hour).Unix(), // Token expires in 24 hours
-		"iat":       time.Now().Unix(),
+		"exp":       now.Add(ttl).Unix(),
+		"iat":       now.Unix(),
 	})
 
 	tokenString, err := token.SignedString([]byte(secret))
@@ -96,6 +101,14 @@ func GenerateJWTToken(entityID int, role, secret string) (string, error) {
 	}
 
 	return tokenString, nil
+}
+
+// GenerateJWTToken creates a new JWT token for the given entity ID and role
+// with a 24-hour lifetime. Tests and call sites that do not use refresh
+// flows may use this; application login should prefer GenerateAccessToken with
+// a short TTL from configuration.
+func GenerateJWTToken(entityID int, role, secret string) (string, error) {
+	return GenerateAccessToken(entityID, role, secret, 24*time.Hour)
 }
 
 // ValidateJWTToken validates a JWT token and returns the claims

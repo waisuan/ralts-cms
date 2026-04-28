@@ -37,6 +37,13 @@ type Config struct {
 
 	// Authentication
 	JWTSecret string `env:"JWT_SECRET" envDefault:"your-jwt-secret-key"`
+	// AccessTokenLifetime is the JWT (Bearer) time-to-live for API requests.
+	AccessTokenLifetime time.Duration `env:"ACCESS_TOKEN_LIFETIME" envDefault:"1h"`
+	// RefreshTokenLifetime is how long a refresh token row remains valid; it is
+	// reset on each successful refresh (sliding window).
+	RefreshTokenLifetime time.Duration `env:"REFRESH_TOKEN_LIFETIME" envDefault:"168h"`
+	// RefreshTokenPepper is used when hashing raw refresh tokens; if empty, a value derived from JWTSecret is used.
+	RefreshTokenPepper string `env:"REFRESH_TOKEN_PEPPER" envDefault:""`
 
 	// API Configuration
 	DefaultMachinesLimit    int32 `env:"DEFAULT_MACHINE_LIMIT" envDefault:"50"`
@@ -78,6 +85,18 @@ func LoadConfig() (*Config, error) {
 	}
 
 	return &cfg, nil
+}
+
+// RefreshPepper returns the secret material used to hash raw refresh tokens.
+// Prefer setting REFRESH_TOKEN_PEPPER in non-development environments.
+func (c *Config) RefreshPepper() string {
+	if c == nil {
+		return ""
+	}
+	if c.RefreshTokenPepper != "" {
+		return c.RefreshTokenPepper
+	}
+	return c.JWTSecret + ":ralts-refresh"
 }
 
 func validateConfig(cfg *Config) error {

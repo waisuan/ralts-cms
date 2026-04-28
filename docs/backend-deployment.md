@@ -8,6 +8,9 @@ Configuration is loaded from the process environment (`github.com/caarlos0/env`)
 |----------|--------|
 | `APP_ENV` | `development` and `test` allow the default JWT placeholder; **production/staging must set a strong `JWT_SECRET`**. |
 | `JWT_SECRET` | Required to be non-empty and **not** the dev default when `APP_ENV` is neither `development` nor `test`. |
+| `ACCESS_TOKEN_LIFETIME` | Access JWT TTL (default `1h`). |
+| `REFRESH_TOKEN_LIFETIME` | Refresh row sliding window (default `168h`). See [auth-refresh-tokens.md](./auth-refresh-tokens.md). |
+| `REFRESH_TOKEN_PEPPER` | Optional secret for hashing opaque refresh tokens; if unset, derived from `JWT_SECRET`. |
 | `DATABASE_URL` | Required for PostgreSQL (`internal/deps/pg.go` fails fast if empty). Use TLS query params for managed databases in production. |
 | `PORT` | Listen address port (default `8080`). The binary serves **plain HTTP**; terminate TLS at a load balancer or reverse proxy. |
 | `HTTP_READ_TIMEOUT`, `HTTP_WRITE_TIMEOUT`, `HTTP_IDLE_TIMEOUT` | Server timeouts (defaults in `Config`). |
@@ -31,4 +34,5 @@ See also: `env.example` at the repo root.
 
 ## Related
 
+- [auth-refresh-tokens.md](./auth-refresh-tokens.md) — access/refresh token model and API
 - [backend-production-readiness-review.md](./backend-production-readiness-review.md)

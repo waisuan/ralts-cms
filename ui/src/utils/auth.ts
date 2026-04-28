@@ -1,4 +1,5 @@
 // Authentication utilities
+import { clearSessionAuthKeys } from './tokens';
 
 /**
  * Redirects the user to the login page and clears authentication data
@@ -7,7 +8,7 @@ export function redirectToLogin(): void {
   // Clear authentication data
   if (typeof window !== 'undefined') {
     localStorage.removeItem('ralts_user');
-    localStorage.removeItem('ralts_token');
+    clearSessionAuthKeys();
   }
   
   // Redirect to login page

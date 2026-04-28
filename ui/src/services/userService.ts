@@ -30,6 +30,7 @@ export interface LoginRequest {
 export interface LoginResponse {
   user: User;
   token: string;
+  refresh_token: string;
 }
 
 export interface UpdatePasswordRequest {

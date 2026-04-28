@@ -1,5 +1,12 @@
 // API client utilities for making HTTP requests to the backend
 import { redirectToLogin, isAuthError } from './auth';
+import {
+  getAccessToken,
+  getRefreshToken,
+  isPublicAuthPath,
+  refreshAccessToken,
+  shouldSuppressAuthRedirectOn401,
+} from './tokens';
 
 export interface ApiResponse<T> {
   data?: T;
@@ -18,6 +25,50 @@ export class ApiError extends Error {
   }
 }
 
+/** Parse JSON error body, else response text, for a failed fetch Response. */
+async function readHttpErrorPayload(response: Response): Promise<{
+  errorData: Record<string, unknown>;
+  fromBody: string;
+}> {
+  let errorData: Record<string, unknown> = {};
+  let fromBody = '';
+  try {
+    errorData = await response.json();
+    fromBody = (errorData.message as string) || '';
+  } catch {
+    try {
+      fromBody = await response.text();
+    } catch {
+      fromBody = '';
+    }
+  }
+  return { errorData, fromBody };
+}
+
+function userFacingHttpMessage(status: number, fromBody: string): string {
+  if (fromBody) {
+    return fromBody;
+  }
+  switch (status) {
+    case 501:
+      return 'This feature is not yet implemented on the server.';
+    case 404:
+      return 'The requested resource was not found.';
+    case 400:
+      return 'Invalid request. Please check your input.';
+    case 401:
+      return 'Authentication required. Please log in again.';
+    case 403:
+      return 'You do not have permission to perform this action.';
+    case 409:
+      return 'The resource already exists or there is a conflict.';
+    case 500:
+      return 'Server error. Please try again later.';
+    default:
+      return `HTTP error! status: ${status}`;
+  }
+}
+
 export class ApiClient {
   private baseURL: string;
 
@@ -27,75 +78,71 @@ export class ApiClient {
       : process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080');
   }
 
+  private async fetchWithAuth(
+    fullUrl: string,
+    init: RequestInit,
+    endpoint: string
+  ): Promise<Response> {
+    const run = (bearer: string | null) => {
+      const headers = new Headers();
+      const src = init.headers;
+      if (src instanceof Headers) {
+        src.forEach((v, k) => {
+          headers.set(k, v);
+        });
+      } else if (src && typeof src === 'object' && !Array.isArray(src)) {
+        for (const [k, v] of Object.entries(src as Record<string, string>)) {
+          if (typeof v === 'string') {
+            headers.set(k, v);
+          }
+        }
+      } else if (Array.isArray(src)) {
+        for (const [k, v] of src) {
+          headers.set(k, v);
+        }
+      }
+      if (bearer) {
+        headers.set('Authorization', `Bearer ${bearer}`);
+      }
+      return fetch(fullUrl, { ...init, headers });
+    };
+    let res = await run(getAccessToken());
+    if (
+      res.status === 401 &&
+      !isPublicAuthPath(endpoint) &&
+      getRefreshToken()
+    ) {
+      const next = await refreshAccessToken(() => this.baseURL);
+      if (next) {
+        res = await run(next);
+      }
+    }
+    return res;
+  }
+
   private async request<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
     const url = `${this.baseURL}${endpoint}`;
-    
-    // Get JWT token from localStorage if available
-    const token = typeof window !== 'undefined' ? localStorage.getItem('ralts_token') : null;
-    
-    const config: RequestInit = {
+
+    const access = getAccessToken();
+    const init: RequestInit = {
+      ...options,
       headers: {
         'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` }),
+        ...(access && { 'Authorization': `Bearer ${access}` }),
         ...options.headers,
       },
-      ...options,
     };
 
     try {
-      const response = await fetch(url, config);
+      const response = await this.fetchWithAuth(url, init, endpoint);
       
       if (!response.ok) {
-        // Try to parse as JSON first, fallback to text
-        let errorData: Record<string, unknown> = {};
-        let errorMessage = '';
-        
-        try {
-          errorData = await response.json();
-          errorMessage = (errorData.message as string) || '';
-        } catch {
-          // If JSON parsing fails, try to get the text content
-          try {
-            errorMessage = await response.text();
-          } catch {
-            errorMessage = '';
-          }
-        }
-        
-        // Provide user-friendly messages for specific status codes if no message from server
-        if (!errorMessage) {
-          switch (response.status) {
-            case 501:
-              errorMessage = 'This feature is not yet implemented on the server.';
-              break;
-            case 404:
-              errorMessage = 'The requested resource was not found.';
-              break;
-            case 400:
-              errorMessage = 'Invalid request. Please check your input.';
-              break;
-            case 401:
-              errorMessage = 'Authentication required. Please log in again.';
-              break;
-            case 403:
-              errorMessage = 'You do not have permission to perform this action.';
-              break;
-            case 409:
-              errorMessage = 'The resource already exists or there is a conflict.';
-              break;
-            case 500:
-              errorMessage = 'Server error. Please try again later.';
-              break;
-            default:
-              errorMessage = `HTTP error! status: ${response.status}`;
-          }
-        }
-        
+        const { errorData, fromBody } = await readHttpErrorPayload(response);
         throw new ApiError(
-          errorMessage,
+          userFacingHttpMessage(response.status, fromBody),
           response.status,
           errorData
         );
@@ -134,9 +181,7 @@ export class ApiClient {
       if (error instanceof ApiError) {
         // Check if this is a 401 authentication error
         if (isAuthError(error)) {
-          // Don't redirect for login-related endpoints since user is already on login page
-          const isLoginEndpoint = endpoint.includes('/login') || endpoint.includes('/users');
-          if (!isLoginEndpoint) {
+          if (!shouldSuppressAuthRedirectOn401(endpoint)) {
             console.log('🔐 Authentication error detected, redirecting to login');
             redirectToLogin();
             // Don't throw the error since we're redirecting
@@ -184,82 +229,42 @@ export class ApiClient {
     });
   }
 
-  async postFormData<T>(endpoint: string, formData: FormData): Promise<ApiResponse<T>> {
-    // Get JWT token from localStorage if available
-    const token = typeof window !== 'undefined' ? localStorage.getItem('ralts_token') : null;
-    
-    const config: RequestInit = {
-      method: 'POST',
+  private async formDataRequest<T>(
+    method: 'POST' | 'PUT',
+    endpoint: string,
+    formData: FormData
+  ): Promise<ApiResponse<T>> {
+    const access = getAccessToken();
+    const init: RequestInit = {
+      method,
+      // Omit Content-Type so the browser sets multipart boundary.
       headers: {
-        // Don't set Content-Type for FormData - let browser set it with boundary
-        ...(token && { 'Authorization': `Bearer ${token}` }),
+        ...(access && { 'Authorization': `Bearer ${access}` }),
       },
       body: formData,
     };
-
     const url = `${this.baseURL}${endpoint}`;
-    
+
     try {
-      const response = await fetch(url, config);
-      
+      const response = await this.fetchWithAuth(url, init, endpoint);
+
       if (!response.ok) {
-        // Try to parse as JSON first, fallback to text
-        let errorData: Record<string, unknown> = {};
-        let errorMessage = '';
-        
-        try {
-          errorData = await response.json();
-          errorMessage = (errorData.message as string) || '';
-        } catch {
-          // If JSON parsing fails, try to get the text content
-          try {
-            errorMessage = await response.text();
-          } catch {
-            errorMessage = '';
-          }
+        if (response.status === 401 && !shouldSuppressAuthRedirectOn401(endpoint)) {
+          console.log('🔐 Authentication error detected, redirecting to login');
+          redirectToLogin();
+          throw new ApiError('Redirecting to login...', 401);
         }
-        
-        if (!errorMessage) {
-          switch (response.status) {
-            case 501:
-              errorMessage = 'This feature is not yet implemented on the server.';
-              break;
-            case 404:
-              errorMessage = 'The requested resource was not found.';
-              break;
-            case 400:
-              errorMessage = 'Invalid request. Please check your input.';
-              break;
-            case 401:
-              errorMessage = 'Authentication required. Please log in again.';
-              break;
-            case 403:
-              errorMessage = 'You do not have permission to perform this action.';
-              break;
-            case 409:
-              errorMessage = 'The resource already exists or there is a conflict.';
-              break;
-            case 500:
-              errorMessage = 'Server error. Please try again later.';
-              break;
-            default:
-              errorMessage = `HTTP error! status: ${response.status}`;
-          }
-        }
-        
+        const { errorData, fromBody } = await readHttpErrorPayload(response);
         throw new ApiError(
-          errorMessage,
+          userFacingHttpMessage(response.status, fromBody),
           response.status,
           errorData
         );
       }
 
-      // Handle responses with no body (like 201 Created with no content)
       if (response.status === 204 || response.headers.get('content-length') === '0') {
         return { data: undefined as T };
       }
-
-      // For successful responses, don't try to parse JSON if status is 2xx and no content
       if (response.status >= 200 && response.status < 300) {
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
@@ -267,24 +272,18 @@ export class ApiClient {
         }
       }
 
-      // Try to parse JSON response
       const responseData = await response.json().catch(() => null);
-      
       if (responseData === null) {
         return { data: undefined as T };
       }
-      
-      // Handle both wrapped and unwrapped responses
       if (responseData.data !== undefined) {
         return responseData;
-      } else {
-        return { data: responseData };
       }
+      return { data: responseData };
     } catch (error) {
       if (error instanceof ApiError) {
         throw error;
       }
-      
       throw new ApiError(
         error instanceof Error ? error.message : 'Network error occurred',
         0,
@@ -293,110 +292,12 @@ export class ApiClient {
     }
   }
 
+  async postFormData<T>(endpoint: string, formData: FormData): Promise<ApiResponse<T>> {
+    return this.formDataRequest<T>('POST', endpoint, formData);
+  }
+
   async putFormData<T>(endpoint: string, formData: FormData): Promise<ApiResponse<T>> {
-    // Get JWT token from localStorage if available
-    const token = typeof window !== 'undefined' ? localStorage.getItem('ralts_token') : null;
-    
-    const config: RequestInit = {
-      method: 'PUT',
-      headers: {
-        // Don't set Content-Type for FormData - let browser set it with boundary
-        ...(token && { 'Authorization': `Bearer ${token}` }),
-      },
-      body: formData,
-    };
-
-    const url = `${this.baseURL}${endpoint}`;
-    
-    try {
-      const response = await fetch(url, config);
-      
-      if (!response.ok) {
-        // Try to parse as JSON first, fallback to text
-        let errorData: Record<string, unknown> = {};
-        let errorMessage = '';
-        
-        try {
-          errorData = await response.json();
-          errorMessage = (errorData.message as string) || '';
-        } catch {
-          // If JSON parsing fails, try to get the text content
-          try {
-            errorMessage = await response.text();
-          } catch {
-            errorMessage = '';
-          }
-        }
-        
-        if (!errorMessage) {
-          switch (response.status) {
-            case 501:
-              errorMessage = 'This feature is not yet implemented on the server.';
-              break;
-            case 404:
-              errorMessage = 'The requested resource was not found.';
-              break;
-            case 400:
-              errorMessage = 'Invalid request. Please check your input.';
-              break;
-            case 401:
-              errorMessage = 'Authentication required. Please log in again.';
-              break;
-            case 403:
-              errorMessage = 'You do not have permission to perform this action.';
-              break;
-            case 409:
-              errorMessage = 'The resource already exists or there is a conflict.';
-              break;
-            case 500:
-              errorMessage = 'Server error. Please try again later.';
-              break;
-            default:
-              errorMessage = `HTTP error! status: ${response.status}`;
-          }
-        }
-        
-        throw new ApiError(
-          errorMessage,
-          response.status,
-          errorData
-        );
-      }
-
-      // Handle responses with no body
-      if (response.status === 204 || response.headers.get('content-length') === '0') {
-        return { data: undefined as T };
-      }
-
-      if (response.status >= 200 && response.status < 300) {
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          return { data: undefined as T };
-        }
-      }
-
-      const responseData = await response.json().catch(() => null);
-      
-      if (responseData === null) {
-        return { data: undefined as T };
-      }
-      
-      if (responseData.data !== undefined) {
-        return responseData;
-      } else {
-        return { data: responseData };
-      }
-    } catch (error) {
-      if (error instanceof ApiError) {
-        throw error;
-      }
-      
-      throw new ApiError(
-        error instanceof Error ? error.message : 'Network error occurred',
-        0,
-        error
-      );
-    }
+    return this.formDataRequest<T>('PUT', endpoint, formData);
   }
 
   async getBlob(endpoint: string, params?: Record<string, string>): Promise<Blob> {
@@ -408,18 +309,21 @@ export class ApiClient {
 
     const url = `${this.baseURL}${path}`;
 
-    const token = typeof window !== 'undefined' ? localStorage.getItem('ralts_token') : null;
-
-    const config: RequestInit = {
+    const access = getAccessToken();
+    const init: RequestInit = {
       headers: {
-        ...(token && { 'Authorization': `Bearer ${token}` }),
+        ...(access && { 'Authorization': `Bearer ${access}` }),
       },
     };
 
     try {
-      const response = await fetch(url, config);
+      const response = await this.fetchWithAuth(url, init, path);
 
       if (!response.ok) {
+        if (response.status === 401 && !shouldSuppressAuthRedirectOn401(path)) {
+          redirectToLogin();
+          throw new ApiError('Redirecting to login...', 401);
+        }
         const errorText = await response.text();
         throw new ApiError(
           `Request failed: ${errorText || response.statusText}`,

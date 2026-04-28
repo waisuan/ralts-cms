@@ -22,6 +22,7 @@ import (
 	"ralts-cms/internal/deps"
 	"ralts-cms/internal/machines"
 	"ralts-cms/internal/maintenance"
+	"ralts-cms/internal/refreshtokens"
 	"ralts-cms/internal/router"
 	"ralts-cms/internal/testutils"
 	"ralts-cms/internal/users"
@@ -70,6 +71,8 @@ func (s *IntegrationSuite) SetupSuite() {
 		Env:                     "test",
 		DatabaseURL:             db.ConnStr,
 		JWTSecret:               s.jwtSecret,
+		AccessTokenLifetime:     15 * time.Minute,
+		RefreshTokenLifetime:    7 * 24 * time.Hour,
 		AWSS3BucketName:            integrationS3Bucket,
 		AWSAccessKeyID:          "test",
 		AWSSecretAccessKey:      "test",
@@ -97,6 +100,7 @@ func (s *IntegrationSuite) SetupSuite() {
 	machinesRepo := machines.NewRepository(db.PostgresClient)
 	maintenanceRepo := maintenance.NewRepository(db.PostgresClient)
 	usersRepo := users.NewRepository(db.PostgresClient)
+	refreshRepo := refreshtokens.NewRepository(db.PostgresClient)
 	auditRepo := audit.NewRepository(db.PostgresClient)
 
 	auditSvc := audit.NewServiceWithConfig(auditRepo, logger, audit.ServiceConfig{
@@ -110,16 +114,17 @@ func (s *IntegrationSuite) SetupSuite() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError})))
 
 	s.deps = &deps.Dependencies{
-		Config:                cfg,
-		Logger:                logger,
-		PostgresClient:        nil,
-		S3Client:              s3Client,
-		MachinesRepository:    machinesRepo,
-		MaintenanceRepository: maintenanceRepo,
-		UsersRepository:       usersRepo,
-		AuditRepository:       auditRepo,
-		AttachmentService:     attachments.NewService(s3Client, cfg.AWSS3BucketName),
-		AuditService:          auditSvc,
+		Config:                 cfg,
+		Logger:                 logger,
+		PostgresClient:         nil,
+		S3Client:               s3Client,
+		MachinesRepository:     machinesRepo,
+		MaintenanceRepository:  maintenanceRepo,
+		UsersRepository:        usersRepo,
+		RefreshTokenRepository: refreshRepo,
+		AuditRepository:        auditRepo,
+		AttachmentService:      attachments.NewService(s3Client, cfg.AWSS3BucketName),
+		AuditService:           auditSvc,
 	}
 
 	s.server = httptest.NewServer(router.NewRouter(s.deps))
@@ -244,10 +249,12 @@ func (s *IntegrationSuite) login(username, password string) string {
 	s.Require().NoError(err)
 	s.Require().Equal(http.StatusOK, resp.StatusCode, string(raw))
 	var out struct {
-		Token string `json:"token"`
+		Token        string `json:"token"`
+		RefreshToken string `json:"refresh_token"`
 	}
 	s.Require().NoError(json.Unmarshal(raw, &out))
 	s.Require().NotEmpty(out.Token)
+	s.Require().NotEmpty(out.RefreshToken)
 	return out.Token
 }
 

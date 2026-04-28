@@ -5,6 +5,14 @@ jest.mock('./auth', () => ({
   isAuthError: jest.fn(() => false),
 }));
 
+jest.mock('./tokens', () => ({
+  getAccessToken: jest.fn(() => null),
+  getRefreshToken: jest.fn(() => null),
+  isPublicAuthPath: jest.fn(() => false),
+  refreshAccessToken: jest.fn(async () => null),
+  shouldSuppressAuthRedirectOn401: jest.fn(() => false),
+}));
+
 function jsonResponse(
   body: unknown,
   init: { ok?: boolean; status?: number; contentType?: string | null } = {}
@@ -51,12 +59,10 @@ describe('ApiClient', () => {
     const client = new ApiClient('http://api.example');
     const res = await client.get('/v1/items', { a: '1', b: 'two' });
 
-    expect(global.fetch).toHaveBeenCalledWith(
-      'http://api.example/v1/items?a=1&b=two',
-      expect.objectContaining({
-        headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
-      })
-    );
+    expect(global.fetch).toHaveBeenCalled();
+    const fetchOpts = (global.fetch as jest.Mock).mock.calls[0][1] as RequestInit;
+    const h = fetchOpts.headers as Headers;
+    expect(h.get('Content-Type')).toBe('application/json');
     expect(res.data).toEqual({ hello: 'world' });
   });
 

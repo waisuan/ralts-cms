@@ -9,10 +9,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"time"
 	"ralts-cms/internal/audit"
 	"ralts-cms/internal/deps"
 	"ralts-cms/internal/handlers"
 	"ralts-cms/internal/middlewares"
+	"ralts-cms/internal/refreshtokens"
 	"ralts-cms/internal/users"
 	"ralts-cms/pkg/auth"
 	"testing"
@@ -27,16 +29,18 @@ import (
 type UsersHandlerTestSuite struct {
 	suite.Suite
 
-	handler          *handlers.UsersHandler
-	mockRepo         *users.MockRepository
-	mockAuditService *audit.MockAuditService
-	ctrl             *gomock.Controller
+	handler            *handlers.UsersHandler
+	mockRepo           *users.MockRepository
+	mockRefreshTokens  *refreshtokens.MockRepository
+	mockAuditService   *audit.MockAuditService
+	ctrl               *gomock.Controller
 }
 
 // SetupTest sets up each test
 func (suite *UsersHandlerTestSuite) SetupTest() {
 	suite.ctrl = gomock.NewController(suite.T())
 	suite.mockRepo = users.NewMockRepository(suite.ctrl)
+	suite.mockRefreshTokens = refreshtokens.NewMockRepository(suite.ctrl)
 	suite.mockAuditService = audit.NewMockAuditService(suite.ctrl)
 
 	// Allow any audit events to be logged
@@ -44,11 +48,14 @@ func (suite *UsersHandlerTestSuite) SetupTest() {
 
 	deps := &deps.Dependencies{
 		Config: &deps.Config{
-			JWTSecret: "your-jwt-secret-key",
+			JWTSecret:               "your-jwt-secret-key",
+			AccessTokenLifetime:  15 * time.Minute,
+			RefreshTokenLifetime: 7 * 24 * time.Hour,
 		},
-		Logger:          slog.New(slog.NewTextHandler(os.Stdout, nil)),
-		UsersRepository: suite.mockRepo,
-		AuditService:    suite.mockAuditService,
+		Logger:                 slog.New(slog.NewTextHandler(os.Stdout, nil)),
+		UsersRepository:        suite.mockRepo,
+		RefreshTokenRepository:   suite.mockRefreshTokens,
+		AuditService:             suite.mockAuditService,
 	}
 	suite.handler = handlers.NewUsersHandler(deps)
 }
@@ -180,6 +187,7 @@ func (suite *UsersHandlerTestSuite) TestLogin() {
 		}
 
 		suite.mockRepo.EXPECT().Login(gomock.Any(), "test", "mypassword123").Return(expectedUser, nil)
+		suite.mockRefreshTokens.EXPECT().Create(gomock.Any(), int64(1), gomock.Any(), gomock.Any()).Return(nil)
 
 		body, _ := json.Marshal(loginRequest)
 		req := httptest.NewRequest("POST", "/users/login", bytes.NewBuffer(body))
@@ -192,8 +200,9 @@ func (suite *UsersHandlerTestSuite) TestLogin() {
 		suite.Assert().Equal("application/json", w.Header().Get("Content-Type"))
 
 		var response struct {
-			User  *users.User `json:"user"`
-			Token string      `json:"token"`
+			User         *users.User `json:"user"`
+			Token        string      `json:"token"`
+			RefreshToken string      `json:"refresh_token"`
 		}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
 		suite.Require().NoError(err)
@@ -212,6 +221,7 @@ func (suite *UsersHandlerTestSuite) TestLogin() {
 
 		// Verify token is present
 		suite.Assert().NotEmpty(response.Token)
+		suite.Assert().NotEmpty(response.RefreshToken)
 	})
 
 	suite.Run("should return 400 when request body is invalid", func() {
@@ -655,6 +665,7 @@ func (suite *UsersHandlerTestSuite) TestUpdatePassword() {
 		suite.mockRepo.EXPECT().
 			UpdatePassword(gomock.Any(), int64(1), "newpassword123").
 			Return(nil)
+		suite.mockRefreshTokens.EXPECT().RevokeAllForUser(gomock.Any(), int64(1)).Return(nil)
 
 		// Create request body
 		requestBody := handlers.UpdatePasswordRequest{
