@@ -15,7 +15,7 @@ import {
   PaginationState,
 } from '@tanstack/react-table';
 import { Machine } from '../types/machine';
-import { PPM_STATUSES, PPM_STATUS_COLORS } from '../utils/constants';
+import { PPM_STATUSES, PPM_STATUS_TEXT_COLORS } from '../utils/constants';
 import { AttachmentService } from '../services/attachmentService';
 import {
   formatDate,
@@ -23,7 +23,6 @@ import {
   formatMachineDateDisplay,
   machineDateUnsetClassName,
 } from '../utils/formatters';
-import { isMachineDateUnset } from '../utils/dateUtils';
 import { machineDetailHref } from '../utils/machineRoutes';
 import PaginationControls from './PaginationControls';
 
@@ -44,15 +43,15 @@ interface RecordsTableProps {
 
 const columnHelper = createColumnHelper<Machine>();
 
-function getPPMStatusDisplay(ppmStatus: string) {
+function getPPMStatusInfo(ppmStatus: string) {
   if (!ppmStatus) return null;
   switch (ppmStatus) {
     case 'overdue':
-      return { label: 'Overdue', color: PPM_STATUS_COLORS[PPM_STATUSES.OVERDUE] };
+      return { label: 'Overdue', textClass: PPM_STATUS_TEXT_COLORS[PPM_STATUSES.OVERDUE] };
     case 'due':
-      return { label: 'Due', color: PPM_STATUS_COLORS[PPM_STATUSES.DUE] };
+      return { label: 'Due', textClass: PPM_STATUS_TEXT_COLORS[PPM_STATUSES.DUE] };
     case 'almost_due':
-      return { label: 'Upcoming', color: PPM_STATUS_COLORS[PPM_STATUSES.ALMOST_DUE] };
+      return { label: 'Upcoming', textClass: PPM_STATUS_TEXT_COLORS[PPM_STATUSES.ALMOST_DUE] };
     default:
       return null;
   }
@@ -198,9 +197,16 @@ function ActionMenu({
 }
 
 function ExpandedRowDetail({ machine }: { machine: Machine }) {
+  const ppmStatus = getPPMStatusInfo(machine.ppm_status);
   return (
     <div className="p-4 bg-gray-50 text-sm">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {ppmStatus && (
+          <div>
+            <span className="font-medium text-gray-500">PPM Status</span>
+            <p className={ppmStatus.textClass}>{ppmStatus.label}</p>
+          </div>
+        )}
         <div>
           <span className="font-medium text-gray-500">Model</span>
           <p className="text-gray-900">{machine.model || '-'}</p>
@@ -503,22 +509,23 @@ export default function RecordsTable({
       }),
       columnHelper.accessor('ppm_date', {
         header: 'PPM Date',
-        size: 145,
+        size: 95,
         cell: ({ row }) => {
-          const status = getPPMStatusDisplay(row.original.ppm_status);
+          const status = getPPMStatusInfo(row.original.ppm_status);
           const ppmDisp = formatMachineDateDisplay(row.original.ppm_date);
-          const showPpmPill = status && !isMachineDateUnset(row.original.ppm_date);
+          const highlight = status && !ppmDisp.isUnset;
+          const className = ppmDisp.isUnset
+            ? machineDateUnsetClassName
+            : highlight
+              ? status.textClass
+              : 'text-gray-700';
           return (
-            <div className="flex items-center gap-1.5 overflow-hidden whitespace-nowrap">
-              <span className={ppmDisp.isUnset ? machineDateUnsetClassName : 'text-gray-700'}>
-                {ppmDisp.text}
-              </span>
-              {showPpmPill && (
-                <span className={`px-1.5 py-0.5 text-xs font-medium rounded-full shrink-0 ${status.color}`}>
-                  {status.label}
-                </span>
-              )}
-            </div>
+            <span
+              className={`whitespace-nowrap ${className}`}
+              title={highlight ? status.label : undefined}
+            >
+              {ppmDisp.text}
+            </span>
           );
         },
         enableSorting: true,

@@ -26,6 +26,13 @@ export const PPM_STATUS_COLORS = {
   [PPM_STATUSES.ALMOST_DUE]: 'bg-yellow-100 text-yellow-800',
 } as const;
 
+/** Text-only (no background) treatment for surfaces where a full pill would be too wide, e.g. dense table cells. */
+export const PPM_STATUS_TEXT_COLORS = {
+  [PPM_STATUSES.OVERDUE]: 'text-red-600',
+  [PPM_STATUSES.DUE]: 'text-orange-600',
+  [PPM_STATUSES.ALMOST_DUE]: 'text-yellow-700',
+} as const;
+
 // Available PPM statuses for search (only ones that actually appear in the UI)
 export const SEARCHABLE_PPM_STATUSES = [
   { value: PPM_STATUSES.OVERDUE, label: 'Overdue' },

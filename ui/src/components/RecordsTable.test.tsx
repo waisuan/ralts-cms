@@ -102,7 +102,7 @@ describe('RecordsTable', () => {
       expect(longSerial).toHaveClass('truncate', 'block');
     });
 
-    it('renders PPM status badges alongside dates', () => {
+    it('colors the PPM date text by status instead of showing a pill', () => {
       render(
         <RecordsTable
           {...defaultProps}
@@ -111,14 +111,42 @@ describe('RecordsTable', () => {
         />
       );
 
-      const overdueBadges = screen.getAllByText('Overdue');
-      expect(overdueBadges.length).toBeGreaterThan(0);
+      // No pill badges in the collapsed row anymore.
+      expect(screen.queryByText('Overdue')).not.toBeInTheDocument();
+      expect(screen.queryByText('Upcoming')).not.toBeInTheDocument();
+      expect(screen.queryByText('Due')).not.toBeInTheDocument();
 
-      const upcomingBadges = screen.getAllByText('Upcoming');
-      expect(upcomingBadges).toHaveLength(1);
+      const overdueDates = screen.getAllByTitle('Overdue');
+      expect(overdueDates.length).toBeGreaterThan(0);
+      overdueDates.forEach((el) => expect(el).toHaveClass('text-red-600'));
 
-      const dueBadges = screen.getAllByText('Due');
-      expect(dueBadges).toHaveLength(1);
+      const upcomingDates = screen.getAllByTitle('Upcoming');
+      expect(upcomingDates).toHaveLength(1);
+      upcomingDates.forEach((el) => expect(el).toHaveClass('text-yellow-700'));
+
+      const dueDates = screen.getAllByTitle('Due');
+      expect(dueDates).toHaveLength(1);
+      dueDates.forEach((el) => expect(el).toHaveClass('text-orange-600'));
+    });
+
+    it('surfaces the PPM status label in the expanded row detail', async () => {
+      const user = userEvent.setup();
+      render(
+        <RecordsTable
+          {...defaultProps}
+          machines={FIXTURE_MACHINES}
+          total={FIXTURE_MACHINES.length}
+        />
+      );
+
+      // First fixture row is overdue but has a sentinel ppm_date, so the
+      // collapsed cell shows "-" with no title; status should still surface
+      // once expanded.
+      const expandButtons = screen.getAllByLabelText('Toggle row details');
+      await user.click(expandButtons[0]);
+
+      expect(screen.getByText('PPM Status')).toBeInTheDocument();
+      expect(screen.getAllByText('Overdue').length).toBeGreaterThan(0);
     });
 
     it('does not set title attribute on cells with empty values', () => {
