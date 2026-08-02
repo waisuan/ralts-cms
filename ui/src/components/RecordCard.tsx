@@ -258,13 +258,11 @@ export default function RecordCard({ machine, onEdit, onDelete }: RecordCardProp
           <div className="flex justify-between items-start mb-4">
             <div className="flex-1 min-w-0">
               <h3 className="text-lg font-semibold text-gray-900 truncate" title={machine.serial_number}>
-                {machine.serial_number}
+                {machine.serial_number}{' '}
+                {machine.model && !isModelLong && (
+                  <span className="text-xs text-gray-500">({machine.model})</span>
+                )}
               </h3>
-              {machine.model && !isModelLong && (
-                <p className="text-xs text-gray-500 truncate" title={machine.model}>
-                  {machine.model}
-                </p>
-              )}
               <div className="text-xs text-gray-500 mt-1">
                 {machine.brand ? `${machine.brand} · ` : ''}{machine.district ? `${machine.district}, ` : ''}{machine.state}
               </div>
