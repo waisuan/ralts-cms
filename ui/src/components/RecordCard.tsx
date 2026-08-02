@@ -251,8 +251,11 @@ export default function RecordCard({ machine, onEdit, onDelete }: RecordCardProp
       <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 overflow-hidden">
         <div className="p-6">
           <div className="flex justify-between items-start mb-4">
-            <div className="flex-1">
-              <h3 className="text-lg font-semibold text-gray-900 truncate" title={machine.serial_number}>
+            <div className="flex-1 min-w-0">
+              <h3
+                className="text-lg font-semibold text-gray-900 truncate"
+                title={machine.model ? `${machine.serial_number} (${machine.model})` : machine.serial_number}
+              >
                 {machine.serial_number}{' '}
                 {machine.model && <span className="text-xs text-gray-500">({machine.model})</span>}
               </h3>
