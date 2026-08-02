@@ -558,6 +558,96 @@ func (suite *UserRepositoryTestSuite) TestUpdateMultipleStatuses() {
 	})
 }
 
+func (suite *UserRepositoryTestSuite) TestDelete() {
+	ctx := context.Background()
+
+	suite.Run("should delete user successfully", func() {
+		user := testutils.CreateUser("deleteuser", "password123")
+		err := suite.repo.Create(ctx, user)
+		suite.Require().NoError(err)
+
+		err = suite.repo.Delete(ctx, user.ID)
+		suite.Require().NoError(err)
+
+		_, err = suite.repo.GetByID(ctx, user.ID)
+		suite.Require().Error(err)
+		suite.Assert().Contains(err.Error(), "not found")
+	})
+
+	suite.Run("should fail with invalid user ID", func() {
+		err := suite.repo.Delete(ctx, 0)
+		suite.Assert().Error(err)
+		suite.Assert().Contains(err.Error(), "user ID must be positive")
+
+		err = suite.repo.Delete(ctx, -1)
+		suite.Assert().Error(err)
+		suite.Assert().Contains(err.Error(), "user ID must be positive")
+	})
+
+	suite.Run("should fail for non-existent user", func() {
+		err := suite.repo.Delete(ctx, 999999)
+		suite.Assert().Error(err)
+		suite.Assert().Contains(err.Error(), "user with ID 999999 not found")
+	})
+}
+
+func (suite *UserRepositoryTestSuite) TestDeleteMultiple() {
+	ctx := context.Background()
+
+	suite.Run("should delete multiple users successfully", func() {
+		user1 := testutils.CreateUser("bulkdelete1", "password123")
+		user2 := testutils.CreateUser("bulkdelete2", "password123")
+		user3 := testutils.CreateUser("bulkdelete3", "password123")
+
+		err := suite.repo.Create(ctx, user1)
+		suite.Require().NoError(err)
+		err = suite.repo.Create(ctx, user2)
+		suite.Require().NoError(err)
+		err = suite.repo.Create(ctx, user3)
+		suite.Require().NoError(err)
+
+		userIDs := []int64{user1.ID, user2.ID, user3.ID}
+
+		err = suite.repo.DeleteMultiple(ctx, userIDs)
+		suite.Require().NoError(err)
+
+		for _, userID := range userIDs {
+			_, err := suite.repo.GetByID(ctx, userID)
+			suite.Require().Error(err)
+			suite.Assert().Contains(err.Error(), "not found")
+		}
+	})
+
+	suite.Run("should validate user IDs", func() {
+		err := suite.repo.DeleteMultiple(ctx, []int64{})
+		suite.Assert().Error(err)
+		suite.Assert().Contains(err.Error(), "userIDs cannot be empty")
+
+		err = suite.repo.DeleteMultiple(ctx, []int64{1, 0, 3})
+		suite.Assert().Error(err)
+		suite.Assert().Contains(err.Error(), "all user IDs must be positive")
+
+		err = suite.repo.DeleteMultiple(ctx, []int64{1, -2, 3})
+		suite.Assert().Error(err)
+		suite.Assert().Contains(err.Error(), "all user IDs must be positive")
+	})
+
+	suite.Run("should fail and roll back when some users do not exist", func() {
+		user := testutils.CreateUser("bulkdelete4", "password123")
+		err := suite.repo.Create(ctx, user)
+		suite.Require().NoError(err)
+
+		err = suite.repo.DeleteMultiple(ctx, []int64{user.ID, 999999})
+		suite.Assert().Error(err)
+		suite.Assert().Contains(err.Error(), "expected to delete 2 users, but deleted 1")
+
+		// The valid user should NOT have been deleted since the transaction rolled back
+		existingUser, err := suite.repo.GetByID(ctx, user.ID)
+		suite.Require().NoError(err)
+		suite.Assert().Equal(user.ID, existingUser.ID)
+	})
+}
+
 func (suite *UserRepositoryTestSuite) TestUpdatePassword() {
 	ctx := context.Background()
 

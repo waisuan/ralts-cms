@@ -30,15 +30,25 @@ export interface BulkUpdateStatusResponse {
   affected_users: number[];
 }
 
-// User status constants - must match backend constants
+// User status constants - must match backend constants.
+// Note: REJECTED is not a status that gets persisted on a user - setting a
+// user's status to "rejected" causes the backend to permanently delete the
+// user record instead.
 export const USER_STATUS = {
   PENDING_APPROVAL: 'pending_approval',
   APPROVED: 'approved',
   SUSPENDED: 'suspended',
   INACTIVE: 'inactive',
+  REJECTED: 'rejected',
 } as const;
 
 export type UserStatus = typeof USER_STATUS[keyof typeof USER_STATUS];
+
+// Statuses that can be selected to permanently delete the affected user(s)
+// instead of merely updating their status.
+export function isDestructiveStatus(status: UserStatus): boolean {
+  return status === USER_STATUS.REJECTED;
+}
 
 // User role constants - must match backend constants
 export const USER_ROLE = {
@@ -82,7 +92,9 @@ export class AdminUserService {
   }
 
   /**
-   * Update the status of a single user
+   * Update the status of a single user.
+   * Note: passing USER_STATUS.REJECTED permanently deletes the user instead
+   * of updating their status.
    * @param userId - ID of the user to update
    * @param status - New status for the user
    */
@@ -109,7 +121,9 @@ export class AdminUserService {
   }
 
   /**
-   * Update the status of multiple users in bulk
+   * Update the status of multiple users in bulk.
+   * Note: passing USER_STATUS.REJECTED permanently deletes the users instead
+   * of updating their status.
    * @param userIds - Array of user IDs to update (max 100)
    * @param status - New status for all users
    */
@@ -173,6 +187,8 @@ export class AdminUserService {
         return 'Suspended';
       case USER_STATUS.INACTIVE:
         return 'Inactive';
+      case USER_STATUS.REJECTED:
+        return 'Reject (Delete)';
       default:
         return 'Unknown';
     }
@@ -192,6 +208,8 @@ export class AdminUserService {
         return 'status-suspended';
       case USER_STATUS.INACTIVE:
         return 'status-inactive';
+      case USER_STATUS.REJECTED:
+        return 'status-rejected';
       default:
         return 'status-unknown';
     }

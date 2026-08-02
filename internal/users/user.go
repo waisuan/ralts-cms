@@ -12,6 +12,10 @@ const (
 	StatusApproved        = "approved"
 	StatusSuspended       = "suspended"
 	StatusInactive        = "inactive"
+	// StatusRejected is not persisted on a user row. Setting a user's status to
+	// "rejected" (via UpdateStatus/UpdateMultipleStatuses) results in the user
+	// being permanently deleted from the database instead of updated.
+	StatusRejected = "rejected"
 )
 
 // User role constants
@@ -122,7 +126,7 @@ func (u *User) IsStatusActive() bool {
 
 // ValidateStatusValue validates that the status is one of the allowed constants
 func ValidateStatusValue(status string) error {
-	validStatuses := []string{StatusPendingApproval, StatusApproved, StatusSuspended, StatusInactive}
+	validStatuses := []string{StatusPendingApproval, StatusApproved, StatusSuspended, StatusInactive, StatusRejected}
 	for _, validStatus := range validStatuses {
 		if status == validStatus {
 			return nil

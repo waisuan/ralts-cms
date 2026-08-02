@@ -508,6 +508,62 @@ func (suite *UsersHandlerTestSuite) TestUpdateUserStatus() {
 		suite.Equal(http.StatusInternalServerError, rr.Code)
 		suite.Contains(rr.Body.String(), "Failed to update user status")
 	})
+
+	suite.Run("should delete the user when status is rejected", func() {
+		suite.mockRepo.EXPECT().
+			Delete(gomock.Any(), int64(2)).
+			Return(nil)
+
+		requestBody := handlers.UpdateUserStatusRequest{
+			Status: users.StatusRejected,
+		}
+		bodyBytes, _ := json.Marshal(requestBody)
+
+		req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/users/2/status", bytes.NewReader(bodyBytes))
+		req = mux.SetURLVars(req, map[string]string{"id": "2"})
+		req = req.WithContext(context.WithValue(req.Context(), middlewares.UserContextKey, &middlewares.UserContext{
+			UserID: 1,
+			Role:   users.RoleAdmin,
+		}))
+		req.Header.Set("Content-Type", "application/json")
+
+		rr := httptest.NewRecorder()
+		suite.handler.UpdateUserStatus(rr, req)
+
+		suite.Equal(http.StatusOK, rr.Code)
+
+		var response map[string]interface{}
+		err := json.Unmarshal(rr.Body.Bytes(), &response)
+		suite.NoError(err)
+
+		suite.Equal("User rejected and removed successfully", response["message"])
+		suite.Equal(float64(2), response["user_id"])
+		suite.Equal(users.StatusRejected, response["status"])
+	})
+
+	suite.Run("should return 500 when deleting a rejected user fails", func() {
+		suite.mockRepo.EXPECT().
+			Delete(gomock.Any(), int64(999)).
+			Return(fmt.Errorf("user with ID 999 not found"))
+
+		requestBody := handlers.UpdateUserStatusRequest{
+			Status: users.StatusRejected,
+		}
+		bodyBytes, _ := json.Marshal(requestBody)
+
+		req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/users/999/status", bytes.NewReader(bodyBytes))
+		req = mux.SetURLVars(req, map[string]string{"id": "999"})
+		req = req.WithContext(context.WithValue(req.Context(), middlewares.UserContextKey, &middlewares.UserContext{
+			UserID: 1,
+			Role:   users.RoleAdmin,
+		}))
+
+		rr := httptest.NewRecorder()
+		suite.handler.UpdateUserStatus(rr, req)
+
+		suite.Equal(http.StatusInternalServerError, rr.Code)
+		suite.Contains(rr.Body.String(), "Failed to reject user")
+	})
 }
 
 // TestBulkUpdateStatus tests the admin BulkUpdateStatus endpoint
@@ -637,6 +693,66 @@ func (suite *UsersHandlerTestSuite) TestBulkUpdateStatus() {
 
 		suite.Equal(http.StatusBadRequest, rr.Code)
 		suite.Contains(rr.Body.String(), "Invalid status")
+	})
+
+	suite.Run("should delete the users when status is rejected", func() {
+		userIDs := []int64{2, 3, 4}
+
+		suite.mockRepo.EXPECT().
+			DeleteMultiple(gomock.Any(), userIDs).
+			Return(nil)
+
+		requestBody := handlers.BulkUpdateStatusRequest{
+			UserIDs: userIDs,
+			Status:  users.StatusRejected,
+		}
+		bodyBytes, _ := json.Marshal(requestBody)
+
+		req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/users/bulk-status", bytes.NewReader(bodyBytes))
+		req = req.WithContext(context.WithValue(req.Context(), middlewares.UserContextKey, &middlewares.UserContext{
+			UserID: 1,
+			Role:   users.RoleAdmin,
+		}))
+		req.Header.Set("Content-Type", "application/json")
+
+		rr := httptest.NewRecorder()
+		suite.handler.BulkUpdateStatus(rr, req)
+
+		suite.Equal(http.StatusOK, rr.Code)
+
+		var response map[string]interface{}
+		err := json.Unmarshal(rr.Body.Bytes(), &response)
+		suite.NoError(err)
+
+		suite.Equal("Users rejected and removed successfully", response["message"])
+		suite.Equal(float64(3), response["updated_count"])
+		suite.Equal(users.StatusRejected, response["status"])
+	})
+
+	suite.Run("should return 500 when bulk rejecting users fails", func() {
+		userIDs := []int64{2, 3}
+
+		suite.mockRepo.EXPECT().
+			DeleteMultiple(gomock.Any(), userIDs).
+			Return(fmt.Errorf("expected to delete 2 users, but deleted 1"))
+
+		requestBody := handlers.BulkUpdateStatusRequest{
+			UserIDs: userIDs,
+			Status:  users.StatusRejected,
+		}
+		bodyBytes, _ := json.Marshal(requestBody)
+
+		req := httptest.NewRequest(http.MethodPut, "/api/v1/admin/users/bulk-status", bytes.NewReader(bodyBytes))
+		req = req.WithContext(context.WithValue(req.Context(), middlewares.UserContextKey, &middlewares.UserContext{
+			UserID: 1,
+			Role:   users.RoleAdmin,
+		}))
+
+		rr := httptest.NewRecorder()
+		suite.handler.BulkUpdateStatus(rr, req)
+
+		suite.Equal(http.StatusInternalServerError, rr.Code)
+		suite.Contains(rr.Body.String(), "Failed to reject users")
 	})
 }
 

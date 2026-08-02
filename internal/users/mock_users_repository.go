@@ -48,6 +48,34 @@ func (mr *MockRepositoryMockRecorder) Create(ctx, user interface{}) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockRepository)(nil).Create), ctx, user)
 }
 
+// Delete mocks base method.
+func (m *MockRepository) Delete(ctx context.Context, userID int64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Delete", ctx, userID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Delete indicates an expected call of Delete.
+func (mr *MockRepositoryMockRecorder) Delete(ctx, userID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockRepository)(nil).Delete), ctx, userID)
+}
+
+// DeleteMultiple mocks base method.
+func (m *MockRepository) DeleteMultiple(ctx context.Context, userIDs []int64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteMultiple", ctx, userIDs)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteMultiple indicates an expected call of DeleteMultiple.
+func (mr *MockRepositoryMockRecorder) DeleteMultiple(ctx, userIDs interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteMultiple", reflect.TypeOf((*MockRepository)(nil).DeleteMultiple), ctx, userIDs)
+}
+
 // GetByID mocks base method.
 func (m *MockRepository) GetByID(ctx context.Context, id int64) (*User, error) {
 	m.ctrl.T.Helper()

@@ -285,6 +285,30 @@ func (h *UsersHandler) UpdateUserStatus(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Rejecting a user permanently deletes their account rather than updating its status
+	if updateRequest.Status == users.StatusRejected {
+		if err := h.deps.UsersRepository.Delete(r.Context(), userID); err != nil {
+			http.Error(w, fmt.Sprintf("Failed to reject user: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		// Audit: Log user rejection/deletion
+		h.deps.AuditService.LogEvent(audit.NewEvent(r, audit.ActionDeleted, audit.ResourceUser, fmt.Sprintf("%d", userID), map[string]any{
+			"reason": "rejected",
+		}))
+
+		response := map[string]interface{}{
+			"message": "User rejected and removed successfully",
+			"user_id": userID,
+			"status":  updateRequest.Status,
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
 	// Update user status
 	if err := h.deps.UsersRepository.UpdateStatus(r.Context(), userID, updateRequest.Status); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to update user status: %v", err), http.StatusInternalServerError)
@@ -339,6 +363,33 @@ func (h *UsersHandler) BulkUpdateStatus(w http.ResponseWriter, r *http.Request) 
 	// Validate status value
 	if err := users.ValidateStatusValue(bulkRequest.Status); err != nil {
 		http.Error(w, fmt.Sprintf("Invalid status: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	// Rejecting users permanently deletes their accounts rather than updating their status
+	if bulkRequest.Status == users.StatusRejected {
+		if err := h.deps.UsersRepository.DeleteMultiple(r.Context(), bulkRequest.UserIDs); err != nil {
+			http.Error(w, fmt.Sprintf("Failed to reject users: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		// Audit: Log bulk user rejection/deletion
+		h.deps.AuditService.LogEvent(audit.NewEvent(r, audit.ActionDeleted, audit.ResourceUser, "bulk", map[string]any{
+			"user_ids": bulkRequest.UserIDs,
+			"reason":   "rejected",
+			"count":    len(bulkRequest.UserIDs),
+		}))
+
+		response := map[string]interface{}{
+			"message":        "Users rejected and removed successfully",
+			"updated_count":  len(bulkRequest.UserIDs),
+			"status":         bulkRequest.Status,
+			"affected_users": bulkRequest.UserIDs,
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(response)
 		return
 	}
 

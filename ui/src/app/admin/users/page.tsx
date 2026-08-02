@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { AdminUserService, USER_ROLE, UserStatus } from '@/services/adminUserService';
+import { AdminUserService, USER_ROLE, USER_STATUS, UserStatus, isDestructiveStatus } from '@/services/adminUserService';
 import { User } from '@/services/userService';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import UserList from '@/components/admin/UserList';
@@ -48,11 +48,18 @@ export default function AdminUsersPage() {
   const handleBulkStatusUpdate = async (userIds: number[], status: UserStatus) => {
     try {
       await AdminUserService.updateMultipleUserStatuses(userIds, status);
-      
+
+      if (isDestructiveStatus(status)) {
+        // Rejected users are permanently deleted server-side; remove them locally too
+        setUsers(prevUsers => prevUsers.filter(u => !userIds.includes(u.id)));
+        setTotalCount(prevCount => Math.max(0, prevCount - userIds.length));
+        return;
+      }
+
       // Update local state optimistically
       setUsers(prevUsers => 
         prevUsers.map(u => 
-          userIds.includes(u.id) ? { ...u, status, approved: status === 'approved' } : u
+          userIds.includes(u.id) ? { ...u, status, approved: status === USER_STATUS.APPROVED } : u
         )
       );
     } catch (err) {

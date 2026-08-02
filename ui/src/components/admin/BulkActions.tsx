@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { UserStatus, USER_STATUS } from '@/services/adminUserService';
+import { UserStatus, USER_STATUS, isDestructiveStatus } from '@/services/adminUserService';
 import StatusBadge from './StatusBadge';
 
 interface BulkActionsProps {
@@ -120,7 +120,9 @@ export default function BulkActions({
                       <button
                         key={status}
                         onClick={() => handleStatusSelect(status)}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 focus:outline-none focus:bg-gray-100"
+                        className={`block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 focus:outline-none focus:bg-gray-100 ${
+                          isDestructiveStatus(status) ? 'border-t border-gray-100 mt-1 pt-2' : ''
+                        }`}
                       >
                         <StatusBadge status={status} />
                       </button>
@@ -148,19 +150,30 @@ export default function BulkActions({
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
           <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
             <div className="mt-3">
-              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100">
-                <svg className="h-6 w-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className={`mx-auto flex items-center justify-center h-12 w-12 rounded-full ${
+                isDestructiveStatus(selectedStatus) ? 'bg-red-100' : 'bg-yellow-100'
+              }`}>
+                <svg className={`h-6 w-6 ${isDestructiveStatus(selectedStatus) ? 'text-red-600' : 'text-yellow-600'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
                 </svg>
               </div>
               <div className="mt-2 text-center">
-                <h3 className="text-lg leading-6 font-medium text-gray-900">Confirm Bulk Status Update</h3>
+                <h3 className="text-lg leading-6 font-medium text-gray-900">
+                  {isDestructiveStatus(selectedStatus) ? 'Confirm User Rejection' : 'Confirm Bulk Status Update'}
+                </h3>
                 <div className="mt-2">
-                  <p className="text-sm text-gray-500">
-                    Are you sure you want to update <span className="font-medium">{selectedUserIds.length}</span> user
-                    {selectedUserIds.length !== 1 ? 's' : ''} to{' '}
-                    <StatusBadge status={selectedStatus} className="mx-1" />?
-                  </p>
+                  {isDestructiveStatus(selectedStatus) ? (
+                    <p className="text-sm text-gray-500">
+                      Are you sure you want to reject <span className="font-medium">{selectedUserIds.length}</span> user
+                      {selectedUserIds.length !== 1 ? 's' : ''}? This will <span className="font-semibold text-red-600">permanently delete</span> their account{selectedUserIds.length !== 1 ? 's' : ''} from the system.
+                    </p>
+                  ) : (
+                    <p className="text-sm text-gray-500">
+                      Are you sure you want to update <span className="font-medium">{selectedUserIds.length}</span> user
+                      {selectedUserIds.length !== 1 ? 's' : ''} to{' '}
+                      <StatusBadge status={selectedStatus} className="mx-1" />?
+                    </p>
+                  )}
                   <p className="text-xs text-gray-400 mt-2">
                     This action cannot be undone.
                   </p>
@@ -177,9 +190,13 @@ export default function BulkActions({
                 </button>
                 <button
                   onClick={handleConfirmUpdate}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white text-base font-medium rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                  className={`flex-1 px-4 py-2 text-white text-base font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 ${
+                    isDestructiveStatus(selectedStatus)
+                      ? 'bg-red-600 hover:bg-red-700 focus:ring-red-300'
+                      : 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-300'
+                  }`}
                 >
-                  Confirm Update
+                  {isDestructiveStatus(selectedStatus) ? 'Reject & Delete' : 'Confirm Update'}
                 </button>
               </div>
             </div>

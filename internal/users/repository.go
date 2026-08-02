@@ -24,6 +24,8 @@ type Repository interface {
 	UpdateStatus(ctx context.Context, userID int64, status string) error
 	UpdateMultipleStatuses(ctx context.Context, userIDs []int64, status string) error
 	UpdatePassword(ctx context.Context, userID int64, password string) error
+	Delete(ctx context.Context, userID int64) error
+	DeleteMultiple(ctx context.Context, userIDs []int64) error
 }
 
 type db struct {
@@ -294,6 +296,62 @@ func (r *db) UpdateMultipleStatuses(ctx context.Context, userIDs []int64, status
 
 	if totalRowsAffected != int64(len(userIDs)) {
 		return fmt.Errorf("expected to update %d users, but updated %d", len(userIDs), totalRowsAffected)
+	}
+
+	return nil
+}
+
+// Delete permanently removes a single user from the database.
+// This is used to remove rejected user registrations.
+func (r *db) Delete(ctx context.Context, userID int64) error {
+	if userID <= 0 {
+		return fmt.Errorf("user ID must be positive")
+	}
+
+	query := `DELETE FROM users WHERE id = $1`
+	result, err := r.client.Exec(ctx, query, userID)
+	if err != nil {
+		return fmt.Errorf("failed to delete user: %w", err)
+	}
+
+	if result.RowsAffected() == 0 {
+		return fmt.Errorf("user with ID %d not found", userID)
+	}
+
+	return nil
+}
+
+// DeleteMultiple permanently removes multiple users from the database in a single transaction.
+// This is used to remove rejected user registrations in bulk.
+func (r *db) DeleteMultiple(ctx context.Context, userIDs []int64) error {
+	if len(userIDs) == 0 {
+		return fmt.Errorf("userIDs cannot be empty")
+	}
+
+	for _, userID := range userIDs {
+		if userID <= 0 {
+			return fmt.Errorf("all user IDs must be positive")
+		}
+	}
+
+	tx, err := r.client.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	query := `DELETE FROM users WHERE id = ANY($1)`
+	result, err := tx.Exec(ctx, query, userIDs)
+	if err != nil {
+		return fmt.Errorf("failed to delete users: %w", err)
+	}
+
+	if result.RowsAffected() != int64(len(userIDs)) {
+		return fmt.Errorf("expected to delete %d users, but deleted %d", len(userIDs), result.RowsAffected())
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return nil

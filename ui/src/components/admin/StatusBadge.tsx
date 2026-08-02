@@ -18,6 +18,7 @@ export default function StatusBadge({ status, className = '' }: StatusBadgeProps
     'status-approved': 'bg-green-100 text-green-800 border-green-200',
     'status-suspended': 'bg-red-100 text-red-800 border-red-200',
     'status-inactive': 'bg-gray-100 text-gray-800 border-gray-200',
+    'status-rejected': 'bg-red-900 text-red-100 border-red-950',
     'status-unknown': 'bg-gray-100 text-gray-800 border-gray-200',
   };
 

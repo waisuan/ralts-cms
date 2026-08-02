@@ -25,7 +25,7 @@ export default function AdminEventsPage() {
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(25);
+  const [pageSize, setPageSize] = useState(25);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -73,15 +73,16 @@ export default function AdminEventsPage() {
   }, [dateRange, resourceType, action]);
 
   // Load events data
-  const loadEvents = useCallback(async (page: number = currentPage, overrideFilters?: AuditFilters) => {
+  const loadEvents = useCallback(async (page: number = currentPage, overrideFilters?: AuditFilters, overridePageSize?: number) => {
     setIsLoadingEvents(true);
     setError(null);
     
     try {
-      const offset = (page - 1) * pageSize;
+      const effectivePageSize = overridePageSize !== undefined ? overridePageSize : pageSize;
+      const offset = (page - 1) * effectivePageSize;
       // Use override filters if provided, otherwise build from state
       const filters = overrideFilters !== undefined ? overrideFilters : buildFilters();
-      const response = await AuditService.getEvents(pageSize, offset, filters);
+      const response = await AuditService.getEvents(effectivePageSize, offset, filters);
       
       if (response.data) {
         setEvents(response.data.events || []);
@@ -99,6 +100,13 @@ export default function AdminEventsPage() {
   // Handle page change
   const handlePageChange = (page: number) => {
     loadEvents(page);
+  };
+
+  // Handle page size change - reset to first page with the new page size
+  const handlePageSizeChange = (newPageSize: number) => {
+    setPageSize(newPageSize);
+    setCurrentPage(1);
+    loadEvents(1, undefined, newPageSize);
   };
 
   // Handle filter change
@@ -579,6 +587,7 @@ export default function AdminEventsPage() {
         currentPage={currentPage}
         pageSize={pageSize}
         onPageChange={handlePageChange}
+        onPageSizeChange={handlePageSizeChange}
         isLoading={isLoadingEvents}
         error={error}
         newEventIds={newEventIds}

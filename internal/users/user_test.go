@@ -461,6 +461,11 @@ func (suite *UserTestSuite) TestValidateStatusValue() {
 			expectError: false,
 		},
 		{
+			name:        "should accept rejected status",
+			status:      users.StatusRejected,
+			expectError: false,
+		},
+		{
 			name:        "should reject invalid status",
 			status:      "invalid_status",
 			expectError: true,
