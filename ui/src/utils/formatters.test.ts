@@ -31,6 +31,7 @@ describe('work order type helpers', () => {
       attachment: null,
       created_at: '',
       updated_at: '',
+      updated_by: '',
     };
     expect(isCustomWorkOrderType(standardFlag)).toBe(false);
     expect(workOrderTypePillLabel(standardFlag)).toBe('Anything');

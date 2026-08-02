@@ -1,0 +1,2 @@
+ALTER TABLE machines DROP COLUMN IF EXISTS "updatedBy";
+ALTER TABLE maintenance DROP COLUMN IF EXISTS "updatedBy";

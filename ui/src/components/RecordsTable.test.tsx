@@ -29,6 +29,7 @@ function baseMachine(overrides: Partial<Machine> = {}): Machine {
     ppm_date: '2024-02-01',
     created_at: '',
     updated_at: '2024-06-01',
+    updated_by: '',
     ...overrides,
   };
 }
@@ -147,6 +148,27 @@ describe('RecordsTable', () => {
 
       expect(screen.getByText('PPM Status')).toBeInTheDocument();
       expect(screen.getAllByText('Overdue').length).toBeGreaterThan(0);
+    });
+
+    it('shows Updated By in the expanded row detail when present', async () => {
+      const user = userEvent.setup();
+      render(
+        <RecordsTable
+          {...defaultProps}
+          machines={FIXTURE_MACHINES}
+          total={FIXTURE_MACHINES.length}
+        />
+      );
+
+      const machineWithEditor = FIXTURE_MACHINES.find((m) => m.updated_by);
+      expect(machineWithEditor).toBeDefined();
+
+      const expandButtons = screen.getAllByLabelText('Toggle row details');
+      const rowIndex = FIXTURE_MACHINES.indexOf(machineWithEditor!);
+      await user.click(expandButtons[rowIndex]);
+
+      expect(screen.getByText('Updated By')).toBeInTheDocument();
+      expect(screen.getByText(machineWithEditor!.updated_by)).toBeInTheDocument();
     });
 
     it('does not set title attribute on cells with empty values', () => {

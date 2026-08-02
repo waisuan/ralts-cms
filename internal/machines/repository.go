@@ -196,7 +196,8 @@ func (r *db) GetBySerialNumber(ctx context.Context, serialNumber string) (*Machi
 		       COALESCE(model, ''), COALESCE(status, ''), COALESCE(brand, ''), 
 		       COALESCE(district, ''), COALESCE("personInCharge", ''), COALESCE("reportedBy", ''), 
 		       COALESCE("additionalNotes", ''), COALESCE(attachment, ''), 
-		       COALESCE("tncDate", '0001-01-01'::date), COALESCE("ppmDate", '0001-01-01'::date), "createdAt", "updatedAt"
+		       COALESCE("tncDate", '0001-01-01'::date), COALESCE("ppmDate", '0001-01-01'::date), "createdAt", "updatedAt",
+		       COALESCE("updatedBy", '')
 		FROM machines 
 		WHERE "serialNumber" = $1
 	`
@@ -208,6 +209,7 @@ func (r *db) GetBySerialNumber(ctx context.Context, serialNumber string) (*Machi
 		&machine.District, &machine.PersonInCharge, &machine.ReportedBy,
 		&machine.AdditionalNotes, &machine.Attachment,
 		&machine.TncDate, &machine.PpmDate, &machine.CreatedAt, &machine.UpdatedAt,
+		&machine.UpdatedBy,
 	)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -244,7 +246,8 @@ func (r *db) List(ctx context.Context, options *ListOptions) ([]*Machine, error)
 		       COALESCE(model, ''), COALESCE(status, ''), COALESCE(brand, ''), 
 		       COALESCE(district, ''), COALESCE("personInCharge", ''), COALESCE("reportedBy", ''), 
 		       COALESCE("additionalNotes", ''), COALESCE(attachment, ''), 
-		       COALESCE("tncDate", '0001-01-01'::date), COALESCE("ppmDate", '0001-01-01'::date), "createdAt", "updatedAt"
+		       COALESCE("tncDate", '0001-01-01'::date), COALESCE("ppmDate", '0001-01-01'::date), "createdAt", "updatedAt",
+		       COALESCE("updatedBy", '')
 		FROM machines 
 		%s
 		%s
@@ -269,6 +272,7 @@ func (r *db) List(ctx context.Context, options *ListOptions) ([]*Machine, error)
 			&machine.District, &machine.PersonInCharge, &machine.ReportedBy,
 			&machine.AdditionalNotes, &machine.Attachment,
 			&machine.TncDate, &machine.PpmDate, &machine.CreatedAt, &machine.UpdatedAt,
+			&machine.UpdatedBy,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan machine: %w", err)
@@ -293,9 +297,9 @@ func (r *db) Create(ctx context.Context, machine *Machine) error {
 		INSERT INTO machines (
 			"serialNumber", customer, state, "accountType", model, status, brand,
 			district, "personInCharge", "reportedBy", "additionalNotes", attachment,
-			"tncDate", "ppmDate", "createdAt", "updatedAt"
+			"tncDate", "ppmDate", "createdAt", "updatedAt", "updatedBy"
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
 		) RETURNING id
 	`
 
@@ -304,7 +308,7 @@ func (r *db) Create(ctx context.Context, machine *Machine) error {
 		machine.Model, machine.Status, machine.Brand, machine.District,
 		machine.PersonInCharge, machine.ReportedBy, machine.AdditionalNotes,
 		machine.Attachment, machine.TncDate, machine.PpmDate,
-		machine.CreatedAt, machine.UpdatedAt,
+		machine.CreatedAt, machine.UpdatedAt, machine.UpdatedBy,
 	).Scan(&machine.ID)
 
 	if err != nil {
@@ -322,15 +326,15 @@ func (r *db) Update(ctx context.Context, machine *Machine) error {
 			customer = $1, state = $2, "accountType" = $3, model = $4, status = $5,
 			brand = $6, district = $7, "personInCharge" = $8, "reportedBy" = $9,
 			"additionalNotes" = $10, attachment = $11,
-			"tncDate" = $12, "ppmDate" = $13, "updatedAt" = $14
-		WHERE "serialNumber" = $15
+			"tncDate" = $12, "ppmDate" = $13, "updatedAt" = $14, "updatedBy" = $15
+		WHERE "serialNumber" = $16
 	`
 
 	result, err := r.client.Exec(ctx, query,
 		machine.Customer, machine.State, machine.AccountType, machine.Model,
 		machine.Status, machine.Brand, machine.District, machine.PersonInCharge,
 		machine.ReportedBy, machine.AdditionalNotes, machine.Attachment,
-		machine.TncDate, machine.PpmDate, machine.UpdatedAt,
+		machine.TncDate, machine.PpmDate, machine.UpdatedAt, machine.UpdatedBy,
 		machine.SerialNumber,
 	)
 	if err != nil {
@@ -412,6 +416,7 @@ func (r *db) Search(ctx context.Context, query string, options *ListOptions) ([]
 		       COALESCE(district, ''), COALESCE("personInCharge", ''), COALESCE("reportedBy", ''), 
 		       COALESCE("additionalNotes", ''), COALESCE(attachment, ''), 
 		       COALESCE("tncDate", '0001-01-01'::date), COALESCE("ppmDate", '0001-01-01'::date), "createdAt", "updatedAt",
+		       COALESCE("updatedBy", ''),
 		       word_similarity($1, search_text) as rank
 		FROM machines 
 		WHERE $1 <% search_text
@@ -451,6 +456,7 @@ func (r *db) Search(ctx context.Context, query string, options *ListOptions) ([]
 			&machine.District, &machine.PersonInCharge, &machine.ReportedBy,
 			&machine.AdditionalNotes, &machine.Attachment,
 			&machine.TncDate, &machine.PpmDate, &machine.CreatedAt, &machine.UpdatedAt,
+			&machine.UpdatedBy,
 			&rank,
 		)
 		if err != nil {

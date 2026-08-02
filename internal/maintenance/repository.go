@@ -72,7 +72,7 @@ func (r *db) GetByWorkOrder(ctx context.Context, machineSerialNumber, workOrderN
 	query := `
 		SELECT id, "serialNumber", "workOrderNumber", COALESCE("workOrderDate", '0001-01-01'::date), 
 		       COALESCE("actionTaken", ''), COALESCE("reportedBy", ''), COALESCE("workOrderType", ''), 
-		       attachment, "createdAt", "updatedAt"
+		       attachment, "createdAt", "updatedAt", COALESCE("updatedBy", '')
 		FROM maintenance 
 		WHERE "serialNumber" = $1 AND "workOrderNumber" = $2
 	`
@@ -82,6 +82,7 @@ func (r *db) GetByWorkOrder(ctx context.Context, machineSerialNumber, workOrderN
 		&maintenance.ID, &maintenance.MachineSerialNumber, &maintenance.WorkOrderNumber,
 		&maintenance.WorkOrderDate, &maintenance.ActionTaken, &maintenance.ReportedBy,
 		&maintenance.WorkOrderType, &maintenance.Attachment, &maintenance.CreatedAt, &maintenance.UpdatedAt,
+		&maintenance.UpdatedBy,
 	)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -117,7 +118,7 @@ func (r *db) ListByMachine(ctx context.Context, machineSerialNumber string, opti
 	query := fmt.Sprintf(`
 		SELECT id, "serialNumber", "workOrderNumber", COALESCE("workOrderDate", '0001-01-01'::date), 
 		       COALESCE("actionTaken", ''), COALESCE("reportedBy", ''), COALESCE("workOrderType", ''), 
-		       attachment, "createdAt", "updatedAt"
+		       attachment, "createdAt", "updatedAt", COALESCE("updatedBy", '')
 		FROM maintenance 
 		WHERE "serialNumber" = $1
 		%s
@@ -137,6 +138,7 @@ func (r *db) ListByMachine(ctx context.Context, machineSerialNumber string, opti
 			&maintenance.ID, &maintenance.MachineSerialNumber, &maintenance.WorkOrderNumber,
 			&maintenance.WorkOrderDate, &maintenance.ActionTaken, &maintenance.ReportedBy,
 			&maintenance.WorkOrderType, &maintenance.Attachment, &maintenance.CreatedAt, &maintenance.UpdatedAt,
+			&maintenance.UpdatedBy,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan maintenance: %w", err)
@@ -157,16 +159,16 @@ func (r *db) Create(ctx context.Context, maintenance *Maintenance) error {
 	query := `
 		INSERT INTO maintenance (
 			"serialNumber", "workOrderNumber", "workOrderDate", "actionTaken",
-			"reportedBy", "workOrderType", attachment, "createdAt", "updatedAt"
+			"reportedBy", "workOrderType", attachment, "createdAt", "updatedAt", "updatedBy"
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10
 		) RETURNING id
 	`
 
 	err := r.client.QueryRow(ctx, query,
 		maintenance.MachineSerialNumber, maintenance.WorkOrderNumber, maintenance.WorkOrderDate,
 		maintenance.ActionTaken, maintenance.ReportedBy, maintenance.WorkOrderType,
-		maintenance.Attachment, maintenance.CreatedAt, maintenance.UpdatedAt,
+		maintenance.Attachment, maintenance.CreatedAt, maintenance.UpdatedAt, maintenance.UpdatedBy,
 	).Scan(&maintenance.ID)
 
 	if err != nil {
@@ -182,13 +184,13 @@ func (r *db) Update(ctx context.Context, maintenance *Maintenance) error {
 	query := `
 		UPDATE maintenance SET
 			"workOrderDate" = $1, "actionTaken" = $2, "reportedBy" = $3,
-			"workOrderType" = $4, attachment = $5, "updatedAt" = $6
-		WHERE "serialNumber" = $7 AND "workOrderNumber" = $8
+			"workOrderType" = $4, attachment = $5, "updatedAt" = $6, "updatedBy" = $7
+		WHERE "serialNumber" = $8 AND "workOrderNumber" = $9
 	`
 
 	result, err := r.client.Exec(ctx, query,
 		maintenance.WorkOrderDate, maintenance.ActionTaken, maintenance.ReportedBy,
-		maintenance.WorkOrderType, maintenance.Attachment, maintenance.UpdatedAt,
+		maintenance.WorkOrderType, maintenance.Attachment, maintenance.UpdatedAt, maintenance.UpdatedBy,
 		maintenance.MachineSerialNumber, maintenance.WorkOrderNumber,
 	)
 	if err != nil {
@@ -300,7 +302,7 @@ func (r *db) SearchByMachine(ctx context.Context, machineSerialNumber, query str
 	baseQuery := `
 		SELECT id, "serialNumber", "workOrderNumber", COALESCE("workOrderDate", '0001-01-01'::date), 
 		       COALESCE("actionTaken", ''), COALESCE("reportedBy", ''), COALESCE("workOrderType", ''), 
-		       attachment, "createdAt", "updatedAt",
+		       attachment, "createdAt", "updatedAt", COALESCE("updatedBy", ''),
 		       word_similarity($2, search_text) as rank
 		FROM maintenance 
 		WHERE "serialNumber" = $1 AND $2 <% search_text
@@ -338,6 +340,7 @@ func (r *db) SearchByMachine(ctx context.Context, machineSerialNumber, query str
 			&maintenance.ID, &maintenance.MachineSerialNumber, &maintenance.WorkOrderNumber,
 			&maintenance.WorkOrderDate, &maintenance.ActionTaken, &maintenance.ReportedBy,
 			&maintenance.WorkOrderType, &maintenance.Attachment, &maintenance.CreatedAt, &maintenance.UpdatedAt,
+			&maintenance.UpdatedBy,
 			&rank,
 		)
 		if err != nil {

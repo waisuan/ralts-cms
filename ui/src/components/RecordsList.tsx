@@ -237,7 +237,9 @@ export default function RecordsList({
     setIsMachineModalOpen(false);
   };
 
-  const handleMachineSubmit = async (machine: Machine | Omit<Machine, 'created_at' | 'updated_at'>) => {
+  const handleMachineSubmit = async (
+    machine: Machine | Omit<Machine, 'created_at' | 'updated_at' | 'updated_by'>
+  ) => {
     if (modalMode === 'add') {
       await handleAddMachine(machine as Omit<Machine, 'created_at' | 'updated_at'>);
     } else {

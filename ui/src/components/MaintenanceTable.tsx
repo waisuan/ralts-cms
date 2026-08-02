@@ -236,6 +236,12 @@ function MaintenanceExpandedRow({
           <span className="font-medium text-gray-500">Last Updated</span>
           <p className="text-gray-900">{formatDateTime(record.updated_at)}</p>
         </div>
+        {record.updated_by && (
+          <div>
+            <span className="font-medium text-gray-500">Updated By</span>
+            <p className="text-gray-900">{record.updated_by}</p>
+          </div>
+        )}
       </div>
       {isCustomWorkOrderType(record) && (
         <div className="mt-3 pt-3 border-t border-gray-200">

@@ -275,6 +275,9 @@ func (h *MachinesHandler) CreateMachine(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// updated_by reflects the authenticated user, never client-supplied input.
+	machine.UpdatedBy = resolveUpdatedByUsername(r.Context(), h.deps)
+
 	err := h.deps.MachinesRepository.Create(r.Context(), &machine)
 	if err != nil {
 		if pgxutil.IsUniqueViolation(err) {
@@ -327,6 +330,9 @@ func (h *MachinesHandler) UpdateMachine(w http.ResponseWriter, r *http.Request) 
 		http.Error(w, fmt.Sprintf("Failed to check machine existence: %v", err), http.StatusInternalServerError)
 		return
 	}
+
+	// updated_by reflects the authenticated user, never client-supplied input.
+	machine.UpdatedBy = resolveUpdatedByUsername(r.Context(), h.deps)
 
 	err = h.deps.MachinesRepository.Update(r.Context(), &machine)
 	if err != nil {

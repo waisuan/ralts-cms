@@ -11,6 +11,7 @@ import (
 	"ralts-cms/internal/deps"
 	"ralts-cms/internal/handlers"
 	"ralts-cms/internal/maintenance"
+	"ralts-cms/internal/users"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -25,6 +26,7 @@ type MaintenanceHandlerTestSuite struct {
 
 	handler          *handlers.MaintenanceHandler
 	mockRepo         *maintenance.MockRepository
+	mockUsersRepo    *users.MockRepository
 	mockAuditService *audit.MockAuditService
 	ctrl             *gomock.Controller
 }
@@ -34,6 +36,7 @@ func (suite *MaintenanceHandlerTestSuite) SetupTest() {
 	suite.ctrl = gomock.NewController(suite.T())
 
 	suite.mockRepo = maintenance.NewMockRepository(suite.ctrl)
+	suite.mockUsersRepo = users.NewMockRepository(suite.ctrl)
 	suite.mockAuditService = audit.NewMockAuditService(suite.ctrl)
 
 	// Allow any audit events to be logged
@@ -45,6 +48,7 @@ func (suite *MaintenanceHandlerTestSuite) SetupTest() {
 			MaxMaintenanceLimit:     100,
 		},
 		MaintenanceRepository: suite.mockRepo,
+		UsersRepository:       suite.mockUsersRepo,
 		AuditService:          suite.mockAuditService,
 	}
 	suite.handler = handlers.NewMaintenanceHandler(deps)
@@ -672,6 +676,38 @@ func (suite *MaintenanceHandlerTestSuite) TestCreateMaintenance() {
 		suite.Assert().Equal("Routine maintenance", response.ActionTaken)
 	})
 
+	suite.Run("should stamp updated_by from the authenticated user, ignoring client-supplied value", func() {
+		maintenanceData := maintenance.Maintenance{
+			MachineSerialNumber: "MACHINE123",
+			WorkOrderNumber:     "WO002",
+			ActionTaken:         "Routine maintenance",
+			UpdatedBy:           "spoofed.user",
+		}
+
+		suite.mockUsersRepo.EXPECT().GetByID(gomock.Any(), int64(9)).Return(&users.User{ID: 9, Username: "real.user"}, nil)
+		suite.mockRepo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, m *maintenance.Maintenance) error {
+			suite.Assert().Equal("real.user", m.UpdatedBy)
+			return nil
+		})
+
+		body, _ := json.Marshal(maintenanceData)
+		req := httptest.NewRequest("POST", "/machines/MACHINE123/maintenance", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		req = withAuthenticatedUser(req, 9)
+		w := httptest.NewRecorder()
+
+		router := mux.NewRouter()
+		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.CreateMaintenance)
+		router.ServeHTTP(w, req)
+
+		suite.Assert().Equal(http.StatusCreated, w.Code)
+
+		var response maintenance.Maintenance
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		suite.Require().NoError(err)
+		suite.Assert().Equal("real.user", response.UpdatedBy)
+	})
+
 	suite.Run("should return 400 when work order number is missing", func() {
 		maintenanceData := maintenance.Maintenance{
 			MachineSerialNumber: "MACHINE123",
@@ -786,6 +822,39 @@ func (suite *MaintenanceHandlerTestSuite) TestUpdateMaintenance() {
 		suite.Assert().Equal("MACHINE123", response.MachineSerialNumber)
 		suite.Assert().Equal("WO001", response.WorkOrderNumber)
 		suite.Assert().Equal("Updated maintenance", response.ActionTaken)
+	})
+
+	suite.Run("should stamp updated_by from the authenticated user, ignoring client-supplied value", func() {
+		maintenanceData := maintenance.Maintenance{
+			MachineSerialNumber: "MACHINE123",
+			WorkOrderNumber:     "WO001",
+			ActionTaken:         "Updated maintenance",
+			UpdatedBy:           "spoofed.user",
+		}
+
+		suite.mockRepo.EXPECT().GetByWorkOrder(gomock.Any(), "MACHINE123", "WO001").Return(&maintenance.Maintenance{WorkOrderNumber: "WO001"}, nil)
+		suite.mockUsersRepo.EXPECT().GetByID(gomock.Any(), int64(11)).Return(&users.User{ID: 11, Username: "real.editor"}, nil)
+		suite.mockRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, m *maintenance.Maintenance) error {
+			suite.Assert().Equal("real.editor", m.UpdatedBy)
+			return nil
+		})
+
+		body, _ := json.Marshal(maintenanceData)
+		req := httptest.NewRequest("PUT", "/machines/MACHINE123/maintenance", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		req = withAuthenticatedUser(req, 11)
+		w := httptest.NewRecorder()
+
+		router := mux.NewRouter()
+		router.HandleFunc("/machines/{serial_number}/maintenance", suite.handler.UpdateMaintenance)
+		router.ServeHTTP(w, req)
+
+		suite.Assert().Equal(http.StatusOK, w.Code)
+
+		var response maintenance.Maintenance
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		suite.Require().NoError(err)
+		suite.Assert().Equal("real.editor", response.UpdatedBy)
 	})
 
 	suite.Run("should return 400 when work order number is missing", func() {

@@ -129,6 +129,12 @@ export default function MaintenanceCard({
               <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Updated</span>
               <p className="text-gray-900 mt-0.5">{formatDateTime(record.updated_at)}</p>
             </div>
+            {record.updated_by && (
+              <div>
+                <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Updated By</span>
+                <p className="text-gray-900 mt-0.5">{record.updated_by}</p>
+              </div>
+            )}
           </div>
 
           {record.attachment && (

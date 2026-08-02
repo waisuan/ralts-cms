@@ -14,7 +14,7 @@ interface MachineModalProps {
   mode: MachineModalMode;
   machine?: Machine | null; // Required for edit mode, optional for add mode
   onClose: () => void;
-  onSubmit: (machine: Machine | Omit<Machine, 'created_at' | 'updated_at'>) => Promise<void>;
+  onSubmit: (machine: Machine | Omit<Machine, 'created_at' | 'updated_at' | 'updated_by'>) => Promise<void>;
 }
 
 /** Edit mode: API sent a sentinel date (shown as empty in the date input) — border highlight until user picks a date. */
@@ -247,22 +247,25 @@ export default function MachineModal({
       let savedMachine: Machine;
 
       if (mode === 'edit' && machine) {
-        // Create updated machine with existing timestamps
+        // Create updated machine with existing timestamps.
+        // updated_by is server-set on save; the real value is refreshed once the API responds.
         const updatedMachine: Machine = {
           ...submissionData,
           created_at: machine.created_at,
           updated_at: new Date().toISOString(),
+          updated_by: machine.updated_by,
         };
         await onSubmit(updatedMachine);
         savedMachine = updatedMachine;
       } else {
-        // Create new machine (timestamps will be added by parent)
+        // Create new machine (timestamps and updated_by will be added by the server)
         await onSubmit(submissionData);
         // For new machines, we need to use the submissionData with a serial number
         savedMachine = {
           ...submissionData,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
+          updated_by: '',
         } as Machine;
       }
 

@@ -24,6 +24,7 @@ const base: Machine = {
   ppm_date: '',
   created_at: '',
   updated_at: '',
+  updated_by: '',
 };
 
 function m(overrides: Partial<Machine>): Machine {
@@ -242,6 +243,7 @@ export const FIXTURE_MACHINES: Machine[] = [
     attachment: 'service_report_770234.pdf',
     maintenance_count: 5,
     updated_at: '2018-04-06T00:00:00Z',
+    updated_by: 'admin',
   }),
   // PPM "due" status (real calendar date so UI can show server pill; sentinel dates hide pills)
   m({

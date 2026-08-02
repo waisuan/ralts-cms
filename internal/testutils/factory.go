@@ -31,6 +31,7 @@ func CreateMachine(serialNumber string) *machines.Machine {
 		Attachment:      "test.pdf",
 		TncDate:         time.Now().UTC(),
 		PpmDate:         time.Now().AddDate(0, 1, 0).UTC(),
+		UpdatedBy:       "test.user",
 	}
 }
 
@@ -61,6 +62,7 @@ func CreateMaintenance(machineSerialNumber, workOrderNumber string) *maintenance
 		ReportedBy:          "John Doe",
 		WorkOrderType:       "Preventive",
 		Attachment:          StringPtr("maintenance.pdf"),
+		UpdatedBy:           "test.user",
 	}
 }
 

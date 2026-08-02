@@ -31,6 +31,7 @@ const mockApiResponse = (overrides: Record<string, unknown> = {}) => ({
         ppm_date: '2024-01-01',
         created_at: '',
         updated_at: '',
+        updated_by: '',
       },
     ],
     count: 42,

@@ -159,6 +159,7 @@ func (suite *MaintenanceRepositoryTestSuite) TestGetByWorkOrder() {
 		suite.Assert().Equal("John Doe", retrieved.ReportedBy)
 		suite.Assert().False(retrieved.CreatedAt.IsZero())
 		suite.Assert().False(retrieved.UpdatedAt.IsZero())
+		suite.Assert().Equal("test.user", retrieved.UpdatedBy)
 	})
 
 	suite.Run("should return error for non-existent maintenance", func() {
@@ -211,6 +212,7 @@ func (suite *MaintenanceRepositoryTestSuite) TestGetByWorkOrder() {
 		suite.Assert().Equal(time.Time{}, maintenance.WorkOrderDate)
 		// attachment should be nil since it's a pointer type
 		suite.Assert().Nil(maintenance.Attachment)
+		suite.Assert().Equal("", maintenance.UpdatedBy)
 	})
 }
 
@@ -525,6 +527,7 @@ func (suite *MaintenanceRepositoryTestSuite) TestUpdate() {
 		maintenance.ReportedBy = "Jane Doe"
 		maintenance.WorkOrderType = "Corrective"
 		maintenance.Attachment = testutils.StringPtr("updated-maintenance.pdf")
+		maintenance.UpdatedBy = "editor.user"
 
 		err = suite.repo.Update(ctx, maintenance)
 		suite.Require().NoError(err)
@@ -537,6 +540,7 @@ func (suite *MaintenanceRepositoryTestSuite) TestUpdate() {
 		suite.Assert().Equal("Corrective", retrieved.WorkOrderType)
 		suite.Assert().NotNil(retrieved.Attachment)
 		suite.Assert().Equal("updated-maintenance.pdf", *retrieved.Attachment)
+		suite.Assert().Equal("editor.user", retrieved.UpdatedBy)
 		delta := retrieved.CreatedAt.Sub(originalCreatedAt)
 		suite.Assert().True(delta < 2*time.Millisecond && delta > -2*time.Millisecond, "CreatedAt should be nearly unchanged")
 		// UpdatedAt should be different or at least not older

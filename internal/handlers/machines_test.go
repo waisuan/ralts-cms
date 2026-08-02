@@ -8,10 +8,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"ralts-cms/internal/audit"
+	appctx "ralts-cms/internal/context"
 	"ralts-cms/internal/deps"
 	"ralts-cms/internal/handlers"
 	"ralts-cms/internal/machines"
 	"ralts-cms/internal/maintenance"
+	"ralts-cms/internal/users"
 	"testing"
 	"time"
 
@@ -28,6 +30,7 @@ type MachinesHandlerTestSuite struct {
 	handler             *handlers.MachinesHandler
 	mockMachinesRepo    *machines.MockRepository
 	mockMaintenanceRepo *maintenance.MockRepository
+	mockUsersRepo       *users.MockRepository
 	mockAuditService    *audit.MockAuditService
 	ctrl                *gomock.Controller
 }
@@ -37,6 +40,7 @@ func (suite *MachinesHandlerTestSuite) SetupTest() {
 	suite.ctrl = gomock.NewController(suite.T())
 	suite.mockMachinesRepo = machines.NewMockRepository(suite.ctrl)
 	suite.mockMaintenanceRepo = maintenance.NewMockRepository(suite.ctrl)
+	suite.mockUsersRepo = users.NewMockRepository(suite.ctrl)
 	suite.mockAuditService = audit.NewMockAuditService(suite.ctrl)
 
 	// Allow any audit events to be logged
@@ -45,6 +49,7 @@ func (suite *MachinesHandlerTestSuite) SetupTest() {
 	deps := &deps.Dependencies{
 		MachinesRepository:    suite.mockMachinesRepo,
 		MaintenanceRepository: suite.mockMaintenanceRepo,
+		UsersRepository:       suite.mockUsersRepo,
 		AuditService:          suite.mockAuditService,
 		Config: &deps.Config{
 			DefaultMachinesLimit: 50,
@@ -52,6 +57,12 @@ func (suite *MachinesHandlerTestSuite) SetupTest() {
 		},
 	}
 	suite.handler = handlers.NewMachinesHandler(deps)
+}
+
+// withAuthenticatedUser attaches an authenticated UserContext to the request.
+func withAuthenticatedUser(req *http.Request, userID int64) *http.Request {
+	userCtx := &appctx.UserContext{UserID: userID, EntityID: fmt.Sprintf("%d", userID), Role: users.RoleNonAdmin}
+	return req.WithContext(appctx.WithUser(req.Context(), userCtx))
 }
 
 // TearDownTest cleans up after each test
@@ -138,6 +149,8 @@ func (suite *MachinesHandlerTestSuite) TestCreateMachine() {
 		suite.mockMachinesRepo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, m *machines.Machine) error {
 			suite.Assert().Equal("CREATE123", m.SerialNumber)
 			suite.Assert().Equal("Create Customer", m.Customer)
+			// No authenticated user in context, so updated_by should be left blank.
+			suite.Assert().Empty(m.UpdatedBy)
 			return nil
 		})
 
@@ -156,6 +169,35 @@ func (suite *MachinesHandlerTestSuite) TestCreateMachine() {
 		suite.Require().NoError(err)
 		suite.Assert().Equal("CREATE123", response.SerialNumber)
 		suite.Assert().Equal("Create Customer", response.Customer)
+	})
+
+	suite.Run("should stamp updated_by from the authenticated user, ignoring client-supplied value", func() {
+		machineData := machines.Machine{
+			SerialNumber: "CREATE124",
+			Customer:     "Create Customer",
+			UpdatedBy:    "spoofed.user",
+		}
+
+		suite.mockUsersRepo.EXPECT().GetByID(gomock.Any(), int64(42)).Return(&users.User{ID: 42, Username: "real.user"}, nil)
+		suite.mockMachinesRepo.EXPECT().Create(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, m *machines.Machine) error {
+			suite.Assert().Equal("real.user", m.UpdatedBy)
+			return nil
+		})
+
+		body, _ := json.Marshal(machineData)
+		req := httptest.NewRequest("POST", "/machines", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		req = withAuthenticatedUser(req, 42)
+		w := httptest.NewRecorder()
+
+		suite.handler.CreateMachine(w, req)
+
+		suite.Assert().Equal(http.StatusCreated, w.Code)
+
+		var response machines.Machine
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		suite.Require().NoError(err)
+		suite.Assert().Equal("real.user", response.UpdatedBy)
 	})
 
 	suite.Run("should return 400 when serial number is missing", func() {
@@ -259,6 +301,38 @@ func (suite *MachinesHandlerTestSuite) TestUpdateMachine() {
 		suite.Require().NoError(err)
 		suite.Assert().Equal("UPDATE123", response.SerialNumber)
 		suite.Assert().Equal("Updated Customer", response.Customer)
+	})
+
+	suite.Run("should stamp updated_by from the authenticated user, ignoring client-supplied value", func() {
+		machineData := machines.Machine{
+			SerialNumber: "UPDATE124",
+			Customer:     "Updated Customer",
+			UpdatedBy:    "spoofed.user",
+		}
+
+		suite.mockMachinesRepo.EXPECT().GetBySerialNumber(gomock.Any(), "UPDATE124").Return(&machines.Machine{SerialNumber: "UPDATE124"}, nil)
+		suite.mockUsersRepo.EXPECT().GetByID(gomock.Any(), int64(7)).Return(&users.User{ID: 7, Username: "real.editor"}, nil)
+		suite.mockMachinesRepo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(func(_ context.Context, m *machines.Machine) error {
+			suite.Assert().Equal("real.editor", m.UpdatedBy)
+			return nil
+		})
+
+		body, _ := json.Marshal(machineData)
+		req := httptest.NewRequest("PUT", "/machines/UPDATE124", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		req = withAuthenticatedUser(req, 7)
+		w := httptest.NewRecorder()
+
+		router := mux.NewRouter()
+		router.HandleFunc("/machines/{serial_number}", suite.handler.UpdateMachine)
+		router.ServeHTTP(w, req)
+
+		suite.Assert().Equal(http.StatusOK, w.Code)
+
+		var response machines.Machine
+		err := json.Unmarshal(w.Body.Bytes(), &response)
+		suite.Require().NoError(err)
+		suite.Assert().Equal("real.editor", response.UpdatedBy)
 	})
 
 	suite.Run("should return 400 when serial number in URL doesn't match request body", func() {

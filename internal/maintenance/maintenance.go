@@ -18,6 +18,7 @@ type Maintenance struct {
 	Attachment              *string   `json:"attachment" db:"attachment"`
 	CreatedAt               time.Time `json:"created_at" db:"createdAt"`
 	UpdatedAt               time.Time `json:"updated_at" db:"updatedAt"`
+	UpdatedBy               string    `json:"updated_by" db:"updatedBy"`
 }
 
 // SetTimestamps sets the CreatedAt and UpdatedAt timestamps

@@ -21,6 +21,7 @@ describe('RecordCard', () => {
     ppm_date: '2024-06-24',
     created_at: '2024-01-01',
     updated_at: '2024-06-01',
+    updated_by: 'admin',
     maintenance_count: 2,
   };
 
@@ -77,6 +78,20 @@ describe('RecordCard', () => {
     expect(screen.getByText('Test Reporter')).toBeInTheDocument();
     expect(screen.getByText('Test notes for the machine')).toBeInTheDocument();
     expect(screen.getByText('test_file.pdf')).toBeInTheDocument();
+    expect(screen.getByText('Updated By')).toBeInTheDocument();
+    expect(screen.getByText('admin')).toBeInTheDocument();
+  });
+
+  it('omits Updated By field when not present', () => {
+    const machineNoUpdatedBy = { ...baseMachine, updated_by: '' };
+    render(
+      <RecordCard machine={machineNoUpdatedBy} onEdit={mockOnEdit} onDelete={mockOnDelete} />
+    );
+
+    const toggle = screen.getByRole('button', { expanded: false });
+    fireEvent.click(toggle);
+
+    expect(screen.queryByText('Updated By')).not.toBeInTheDocument();
   });
 
   it('omits model when not present', () => {

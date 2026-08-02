@@ -21,6 +21,7 @@ const listPayload = {
       attachment: null,
       created_at: '',
       updated_at: '',
+      updated_by: '',
     },
   ],
   count: 1,

@@ -10,6 +10,7 @@ export interface Maintenance {
   attachment: string | null;
   created_at: string; // ISO 8601 format
   updated_at: string; // ISO 8601 format
+  updated_by: string; // username of the last authenticated user to save this record
 }
 
 export type MaintenanceOrderType = 'Preventive' | 'Corrective' | 'Emergency' | 'Inspection' | 'Other';

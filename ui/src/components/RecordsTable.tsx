@@ -239,6 +239,12 @@ function ExpandedRowDetail({ machine }: { machine: Machine }) {
           <span className="font-medium text-gray-500">Last Updated</span>
           <p className="text-gray-900">{formatDateTime(machine.updated_at)}</p>
         </div>
+        {machine.updated_by && (
+          <div>
+            <span className="font-medium text-gray-500">Updated By</span>
+            <p className="text-gray-900">{machine.updated_by}</p>
+          </div>
+        )}
         <div>
           <span className="font-medium text-gray-500">Maintenance Records</span>
           <p className="text-gray-900">{machine.maintenance_count ?? 0}</p>

@@ -229,6 +229,9 @@ func (h *MaintenanceHandler) CreateMaintenance(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	// updated_by reflects the authenticated user, never client-supplied input.
+	body.UpdatedBy = resolveUpdatedByUsername(r.Context(), h.deps)
+
 	err := h.deps.MaintenanceRepository.Create(r.Context(), &body)
 	if err != nil {
 		if pgxutil.IsUniqueViolation(err) {
@@ -287,6 +290,9 @@ func (h *MaintenanceHandler) UpdateMaintenance(w http.ResponseWriter, r *http.Re
 		http.Error(w, fmt.Sprintf("Failed to check maintenance existence: %v", err), http.StatusInternalServerError)
 		return
 	}
+
+	// updated_by reflects the authenticated user, never client-supplied input.
+	body.UpdatedBy = resolveUpdatedByUsername(r.Context(), h.deps)
 
 	err = h.deps.MaintenanceRepository.Update(r.Context(), &body)
 	if err != nil {

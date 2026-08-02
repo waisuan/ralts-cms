@@ -105,7 +105,7 @@ func (h *CSVExportHandler) ExportMachinesCSV(w http.ResponseWriter, r *http.Requ
 		"Serial Number", "Customer", "State", "District", "Model", "Brand",
 		"Status", "Account Type", "Person In Charge", "Reported By",
 		"TNC Date", "PPM Date", "PPM Status", "Additional Notes",
-		"Created At", "Updated At",
+		"Created At", "Updated At", "Updated By",
 	}
 	if err := writer.Write(header); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to write CSV header: %v", err), http.StatusInternalServerError)
@@ -130,6 +130,7 @@ func (h *CSVExportHandler) ExportMachinesCSV(w http.ResponseWriter, r *http.Requ
 			sanitizeCSVField(m.AdditionalNotes),
 			formatCSVTimestamp(m.CreatedAt),
 			formatCSVTimestamp(m.UpdatedAt),
+			sanitizeCSVField(m.UpdatedBy),
 		}
 		if err := writer.Write(row); err != nil {
 			return
@@ -187,7 +188,7 @@ func (h *CSVExportHandler) ExportMaintenanceCSV(w http.ResponseWriter, r *http.R
 	header := []string{
 		"Work Order Number", "Machine Serial Number", "Work Order Date",
 		"Work Order Type", "Action Taken", "Reported By",
-		"Created At", "Updated At",
+		"Created At", "Updated At", "Updated By",
 	}
 	if err := writer.Write(header); err != nil {
 		http.Error(w, fmt.Sprintf("Failed to write CSV header: %v", err), http.StatusInternalServerError)
@@ -204,6 +205,7 @@ func (h *CSVExportHandler) ExportMaintenanceCSV(w http.ResponseWriter, r *http.R
 			sanitizeCSVField(m.ReportedBy),
 			formatCSVTimestamp(m.CreatedAt),
 			formatCSVTimestamp(m.UpdatedAt),
+			sanitizeCSVField(m.UpdatedBy),
 		}
 		if err := writer.Write(row); err != nil {
 			return

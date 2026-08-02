@@ -188,6 +188,7 @@ export default function RecordCard({ machine, onEdit, onDelete }: RecordCardProp
               <DetailField label="Account Type" value={machine.account_type || '-'} />
               <DetailField label="Person In Charge" value={machine.person_in_charge || '-'} />
               <DetailField label="Reported By" value={machine.reported_by || '-'} />
+              {machine.updated_by && <DetailField label="Updated By" value={machine.updated_by} />}
               <div>
                 <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Maintenance</span>
                 <p className="text-gray-900 mt-0.5">
@@ -336,6 +337,11 @@ export default function RecordCard({ machine, onEdit, onDelete }: RecordCardProp
             <div className="text-gray-500">
               Reported By: <span className="text-gray-700">{machine.reported_by || 'Not specified'}</span>
             </div>
+            {machine.updated_by && (
+              <div className="text-gray-500">
+                Updated By: <span className="text-gray-700">{machine.updated_by}</span>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-2">

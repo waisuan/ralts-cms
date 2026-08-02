@@ -25,6 +25,7 @@ type Machine struct {
 	PpmDate          time.Time `json:"ppm_date" db:"ppmDate"`
 	CreatedAt        time.Time `json:"created_at" db:"createdAt"`
 	UpdatedAt        time.Time `json:"updated_at" db:"updatedAt"`
+	UpdatedBy        string    `json:"updated_by" db:"updatedBy"`
 	PpmStatus        string    `json:"ppm_status"`
 	MaintenanceCount int       `json:"maintenance_count"`
 }

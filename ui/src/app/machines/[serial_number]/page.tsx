@@ -70,7 +70,7 @@ function MachineContent({ machine }: { machine: Machine }) {
   };
 
   const handleMachineSubmit = async (
-    updatedMachine: Machine | Omit<Machine, 'created_at' | 'updated_at'>
+    updatedMachine: Machine | Omit<Machine, 'created_at' | 'updated_at' | 'updated_by'>
   ) => {
     if (modalMode !== 'edit' || !machineToEdit) {
       const err = new Error('Cannot update machine: missing edit context.');

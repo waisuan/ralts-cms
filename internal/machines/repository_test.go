@@ -113,6 +113,7 @@ func (suite *MachineRepositoryTestSuite) TestGetBySerialNumber() {
 		suite.Assert().Equal("Test Brand", retrieved.Brand)
 		suite.Assert().NotEmpty(retrieved.CreatedAt)
 		suite.Assert().NotEmpty(retrieved.UpdatedAt)
+		suite.Assert().Equal("test.user", retrieved.UpdatedBy)
 	})
 
 	suite.Run("should return machine with PPM status", func() {
@@ -174,6 +175,7 @@ func (suite *MachineRepositoryTestSuite) TestGetBySerialNumber() {
 		suite.Assert().Equal("", machine.Attachment)
 		suite.Assert().Equal(time.Time{}, machine.TncDate)
 		suite.Assert().Equal(time.Time{}, machine.PpmDate)
+		suite.Assert().Equal("", machine.UpdatedBy)
 	})
 }
 
@@ -196,6 +198,7 @@ func (suite *MachineRepositoryTestSuite) TestUpdate() {
 		machine.Status = "Under Maintenance"
 		machine.AdditionalNotes = "Updated notes"
 		machine.PersonInCharge = "Jane Doe"
+		machine.UpdatedBy = "editor.user"
 
 		err = suite.repo.Update(ctx, machine)
 		suite.Require().NoError(err)
@@ -207,6 +210,7 @@ func (suite *MachineRepositoryTestSuite) TestUpdate() {
 		suite.Assert().Equal("Under Maintenance", retrieved.Status)
 		suite.Assert().Equal("Updated notes", retrieved.AdditionalNotes)
 		suite.Assert().Equal("Jane Doe", retrieved.PersonInCharge)
+		suite.Assert().Equal("editor.user", retrieved.UpdatedBy)
 		suite.Assert().WithinDuration(originalCreatedAt, retrieved.CreatedAt, 1*time.Second)
 		// UpdatedAt should be different or at least not older
 		suite.Assert().True(retrieved.UpdatedAt.After(originalUpdatedAt))

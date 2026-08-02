@@ -19,6 +19,22 @@ export type ChangelogEntry = {
 
 const changelogEntries: ChangelogEntry[] = [
   {
+    date: '2026-08-02',
+    title: 'See who last updated a machine or maintenance record',
+    summary:
+      'Machine and maintenance records now show who last saved them, alongside the existing last-updated timestamp.',
+    sections: [
+      {
+        heading: 'Machines and maintenance',
+        items: [
+          'An "Updated By" field shows the username of whoever last saved the record — set automatically based on who is signed in, so it cannot be edited by hand.',
+          'Visible on machine cards, the machine detail page, and maintenance records once you expand their details.',
+          'Included as a column in CSV exports for machines and maintenance.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-04-26',
     title: 'Smoother sessions and sign-in security',
     summary:
