@@ -44,6 +44,10 @@ function maintenanceRecordCountLabel(count: number) {
 
 const MACHINE_NOTES_ICON_LABEL = 'View additional notes for this machine';
 
+// Long model names get demoted from the card header into the main body
+// (alongside Customer, Status, etc.) so they don't crowd the title row.
+const MODEL_INLINE_MAX_LENGTH = 20;
+
 function MachineDetailLink({
   machine,
   className,
@@ -78,6 +82,7 @@ export default function RecordCard({ machine, onEdit, onDelete }: RecordCardProp
   const ppmDisplay = formatMachineDateDisplay(machine.ppm_date);
   const maintenanceCount = machine.maintenance_count ?? 0;
   const maintenanceLabel = maintenanceRecordCountLabel(maintenanceCount);
+  const isModelLong = machine.model.length > MODEL_INLINE_MAX_LENGTH;
 
   const handleDownloadAttachment = async () => {
     if (!machine.attachment || downloading) return;
@@ -252,13 +257,14 @@ export default function RecordCard({ machine, onEdit, onDelete }: RecordCardProp
         <div className="p-6">
           <div className="flex justify-between items-start mb-4">
             <div className="flex-1 min-w-0">
-              <h3
-                className="text-lg font-semibold text-gray-900 truncate max-w-[50%]"
-                title={machine.model ? `${machine.serial_number} (${machine.model})` : machine.serial_number}
-              >
-                {machine.serial_number}{' '}
-                {machine.model && <span className="text-xs text-gray-500">({machine.model})</span>}
+              <h3 className="text-lg font-semibold text-gray-900 truncate" title={machine.serial_number}>
+                {machine.serial_number}
               </h3>
+              {machine.model && !isModelLong && (
+                <p className="text-xs text-gray-500 truncate" title={machine.model}>
+                  {machine.model}
+                </p>
+              )}
               <div className="text-xs text-gray-500 mt-1">
                 {machine.brand ? `${machine.brand} · ` : ''}{machine.district ? `${machine.district}, ` : ''}{machine.state}
               </div>
@@ -313,6 +319,11 @@ export default function RecordCard({ machine, onEdit, onDelete }: RecordCardProp
             <div className="text-sm text-gray-700 font-medium">
               Customer: <span className="font-normal">{machine.customer}</span>
             </div>
+            {isModelLong && (
+              <div className="text-sm text-gray-700 font-medium">
+                Model: <span className="font-normal">{machine.model}</span>
+              </div>
+            )}
             <div className="text-sm text-gray-700 font-medium">
               Status: <span className="font-normal">{machine.status || 'Not specified'}</span>
             </div>
