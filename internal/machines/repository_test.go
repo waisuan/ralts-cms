@@ -1456,6 +1456,80 @@ func (suite *MachineRepositoryTestSuite) TestSearch() {
 	})
 }
 
+// insertUserForAssignee inserts a user row so machines.assignedUserId FK can
+// be satisfied, and returns the generated user id.
+func (suite *MachineRepositoryTestSuite) insertUserForAssignee(ctx context.Context, username string) int64 {
+	var id int64
+	err := suite.db.PostgresClient.QueryRow(ctx, `
+		INSERT INTO users (username, email, password, salt, role, approved, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING id
+	`, username, username+"@example.com", "hash", "salt", "USER", true, time.Now()).Scan(&id)
+	suite.Require().NoError(err)
+	return id
+}
+
+func (suite *MachineRepositoryTestSuite) TestAssignedUser() {
+	ctx := context.Background()
+
+	suite.Run("Create + Get persist AssignedUserID and hydrate AssignedUser", func() {
+		userID := suite.insertUserForAssignee(ctx, "assignee_a")
+
+		machine := testutils.CreateMachine("ASSIGN-001")
+		machine.PersonInCharge = "assignee_a"
+		machine.AssignedUserID = &userID
+
+		err := suite.repo.Create(ctx, machine)
+		suite.Require().NoError(err)
+
+		got, err := suite.repo.GetBySerialNumber(ctx, "ASSIGN-001")
+		suite.Require().NoError(err)
+		suite.Require().NotNil(got.AssignedUserID)
+		suite.Assert().Equal(userID, *got.AssignedUserID)
+		suite.Require().NotNil(got.AssignedUser)
+		suite.Assert().Equal(userID, got.AssignedUser.ID)
+		suite.Assert().Equal("assignee_a", got.AssignedUser.Username)
+	})
+
+	suite.Run("Update can move AssignedUserID from one user to another", func() {
+		firstID := suite.insertUserForAssignee(ctx, "assignee_first")
+		secondID := suite.insertUserForAssignee(ctx, "assignee_second")
+
+		machine := testutils.CreateMachine("ASSIGN-002")
+		machine.PersonInCharge = "assignee_first"
+		machine.AssignedUserID = &firstID
+		suite.Require().NoError(suite.repo.Create(ctx, machine))
+
+		machine.AssignedUserID = &secondID
+		machine.PersonInCharge = "assignee_second"
+		suite.Require().NoError(suite.repo.Update(ctx, machine))
+
+		got, err := suite.repo.GetBySerialNumber(ctx, "ASSIGN-002")
+		suite.Require().NoError(err)
+		suite.Require().NotNil(got.AssignedUserID)
+		suite.Assert().Equal(secondID, *got.AssignedUserID)
+		suite.Require().NotNil(got.AssignedUser)
+		suite.Assert().Equal("assignee_second", got.AssignedUser.Username)
+	})
+
+	suite.Run("Update can clear AssignedUserID back to NULL", func() {
+		userID := suite.insertUserForAssignee(ctx, "assignee_clear")
+
+		machine := testutils.CreateMachine("ASSIGN-003")
+		machine.AssignedUserID = &userID
+		suite.Require().NoError(suite.repo.Create(ctx, machine))
+
+		machine.AssignedUserID = nil
+		machine.PersonInCharge = ""
+		suite.Require().NoError(suite.repo.Update(ctx, machine))
+
+		got, err := suite.repo.GetBySerialNumber(ctx, "ASSIGN-003")
+		suite.Require().NoError(err)
+		suite.Assert().Nil(got.AssignedUserID)
+		suite.Assert().Nil(got.AssignedUser)
+	})
+}
+
 // TestMachineRepositoryTestSuite runs the test suite
 func TestMachineRepositoryTestSuite(t *testing.T) {
 	suite.Run(t, new(MachineRepositoryTestSuite))

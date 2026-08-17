@@ -167,9 +167,9 @@ func (h *UsersHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	// Create response with user data and tokens
 	response := struct {
-		User          *users.User `json:"user"`
-		Token         string      `json:"token"`
-		RefreshToken  string      `json:"refresh_token"`
+		User         *users.User `json:"user"`
+		Token        string      `json:"token"`
+		RefreshToken string      `json:"refresh_token"`
 	}{
 		User:         user,
 		Token:        access,
@@ -197,6 +197,24 @@ func (h *UsersHandler) Login(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
+}
+
+// ListUserDirectory handles GET /api/v1/users/directory for listing approved users
+// as a lightweight assignee picker source. Available to any authenticated user.
+func (h *UsersHandler) ListUserDirectory(w http.ResponseWriter, r *http.Request) {
+	entries, err := h.deps.UsersRepository.ListDirectory(r.Context())
+	if err != nil {
+		http.Error(w, "Failed to retrieve user directory", http.StatusInternalServerError)
+		return
+	}
+
+	if entries == nil {
+		entries = []*users.DirectoryEntry{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]any{"users": entries})
 }
 
 // ListUsers handles GET /api/v1/admin/users for listing all users with pagination

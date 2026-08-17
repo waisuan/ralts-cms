@@ -63,6 +63,20 @@ func NewRouter(deps *deps.Dependencies) http.Handler {
 	api.HandleFunc("/machines/{serial_number}/maintenance", handlers.NewMaintenanceHandler(deps).UpdateMaintenance).Methods(http.MethodPut)
 	api.HandleFunc("/machines/{serial_number}/maintenance/{work_order_number}", handlers.NewMaintenanceHandler(deps).DeleteMaintenance).Methods(http.MethodDelete)
 
+	// Machine flag endpoints (protected). Create requires role=ADMIN and Resolve
+	// requires admin-or-assignee; both are enforced inside the handlers so we can
+	// keep the natural REST nesting under /machines/{serial_number}/flags.
+	flagsHandler := handlers.NewFlagsHandler(deps)
+	// Batch endpoint registered before parameterised /machines/{serial_number}
+	// to avoid collision with the static "flags" segment.
+	api.HandleFunc("/machines/flags/open-by-machine", flagsHandler.ListOpenByMachine).Methods(http.MethodGet)
+	api.HandleFunc("/machines/{serial_number}/flags", flagsHandler.ListForMachine).Methods(http.MethodGet)
+	api.HandleFunc("/machines/{serial_number}/flags", flagsHandler.Create).Methods(http.MethodPost)
+	api.HandleFunc("/machines/{serial_number}/flags/{id}/resolve", flagsHandler.Resolve).Methods(http.MethodPost)
+	// Cross-machine flagged-records listing. Admins see everything, everyone else
+	// only flags on machines assigned to them; scoping happens in the handler.
+	api.HandleFunc("/flags", flagsHandler.List).Methods(http.MethodGet)
+
 	// Machine attachment endpoints (protected)
 	api.HandleFunc("/machines/{serial_number}/attachments", handlers.NewAttachmentHandler(deps).CreateMachineAttachment).Methods(http.MethodPost)
 	api.HandleFunc("/machines/{serial_number}/attachments/{attachment_name}", handlers.NewAttachmentHandler(deps).GetMachineAttachment).Methods(http.MethodGet)
@@ -77,6 +91,16 @@ func NewRouter(deps *deps.Dependencies) http.Handler {
 
 	// User self-service endpoints (protected)
 	api.HandleFunc("/users/password", usersHandler.UpdatePassword).Methods(http.MethodPut)
+
+	// Assignee dropdown source (any authenticated user).
+	api.HandleFunc("/users/directory", usersHandler.ListUserDirectory).Methods(http.MethodGet)
+
+	// Notification inbox endpoints (protected, per-user).
+	notificationsHandler := handlers.NewNotificationsHandler(deps)
+	api.HandleFunc("/notifications", notificationsHandler.List).Methods(http.MethodGet)
+	api.HandleFunc("/notifications/unread-count", notificationsHandler.UnreadCount).Methods(http.MethodGet)
+	api.HandleFunc("/notifications/read-all", notificationsHandler.MarkAllRead).Methods(http.MethodPost)
+	api.HandleFunc("/notifications/{id}/read", notificationsHandler.MarkRead).Methods(http.MethodPost)
 
 	// Apply middleware to protected endpoints only
 	api.Use(middlewares.AuthenticationMiddleware(deps.Config.JWTSecret))

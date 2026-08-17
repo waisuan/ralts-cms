@@ -20,8 +20,10 @@ import (
 	"ralts-cms/internal/attachments"
 	"ralts-cms/internal/audit"
 	"ralts-cms/internal/deps"
+	"ralts-cms/internal/flags"
 	"ralts-cms/internal/machines"
 	"ralts-cms/internal/maintenance"
+	"ralts-cms/internal/notifications"
 	"ralts-cms/internal/refreshtokens"
 	"ralts-cms/internal/router"
 	"ralts-cms/internal/testutils"
@@ -29,6 +31,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -37,6 +40,9 @@ import (
 const (
 	integrationJWTSecret = "integration-test-jwt-secret-key-32chars-min"
 	integrationS3Bucket  = "integration-attachments"
+	// integrationPassword satisfies the API's minimum password length and is
+	// shared by every user these tests create.
+	integrationPassword = "pw12345678"
 )
 
 type IntegrationSuite struct {
@@ -73,7 +79,7 @@ func (s *IntegrationSuite) SetupSuite() {
 		JWTSecret:               s.jwtSecret,
 		AccessTokenLifetime:     15 * time.Minute,
 		RefreshTokenLifetime:    7 * 24 * time.Hour,
-		AWSS3BucketName:            integrationS3Bucket,
+		AWSS3BucketName:         integrationS3Bucket,
 		AWSAccessKeyID:          "test",
 		AWSSecretAccessKey:      "test",
 		AWSDefaultRegion:        "us-east-1",
@@ -102,6 +108,8 @@ func (s *IntegrationSuite) SetupSuite() {
 	usersRepo := users.NewRepository(db.PostgresClient)
 	refreshRepo := refreshtokens.NewRepository(db.PostgresClient)
 	auditRepo := audit.NewRepository(db.PostgresClient)
+	notificationRepo := notifications.NewRepository(db.PostgresClient)
+	flagsRepo := flags.NewRepository(db.PostgresClient)
 
 	auditSvc := audit.NewServiceWithConfig(auditRepo, logger, audit.ServiceConfig{
 		BufferSize:      128,
@@ -109,6 +117,9 @@ func (s *IntegrationSuite) SetupSuite() {
 		CleanupInterval: 24 * time.Hour,
 	})
 	auditSvc.Start()
+
+	notificationSvc := notifications.NewService(notificationRepo, logger)
+	flagsSvc := flags.NewService(flagsRepo, machinesRepo, notificationSvc, logger)
 
 	// Avoid global slog -> stdout from middleware during tests (keeps output small and deterministic).
 	slog.SetDefault(slog.New(slog.NewJSONHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError})))
@@ -123,8 +134,12 @@ func (s *IntegrationSuite) SetupSuite() {
 		UsersRepository:        usersRepo,
 		RefreshTokenRepository: refreshRepo,
 		AuditRepository:        auditRepo,
+		NotificationRepository: notificationRepo,
+		FlagsRepository:        flagsRepo,
 		AttachmentService:      attachments.NewService(s3Client, cfg.AWSS3BucketName),
 		AuditService:           auditSvc,
+		NotificationService:    notificationSvc,
+		FlagsService:           flagsSvc,
 	}
 
 	s.server = httptest.NewServer(router.NewRouter(s.deps))
@@ -256,6 +271,29 @@ func (s *IntegrationSuite) login(username, password string) string {
 	s.Require().NotEmpty(out.Token)
 	s.Require().NotEmpty(out.RefreshToken)
 	return out.Token
+}
+
+// newUser creates an approved user with a random username and returns the
+// username, its database id, and a fresh access token.
+func (s *IntegrationSuite) newUser(prefix, role string) (string, int64, string) {
+	s.T().Helper()
+	username := prefix + "_" + uuid.NewString()[:8]
+	s.createApprovedUser(username, integrationPassword, username+"@t.example", role)
+	return username, s.userIDByUsername(username), s.login(username, integrationPassword)
+}
+
+// expectJSON asserts the response status and, when out is non-nil, decodes the
+// JSON body into it. The response body is always closed. Failures include the
+// raw body so a mismatch points at the API error text.
+func (s *IntegrationSuite) expectJSON(resp *http.Response, wantStatus int, out any) {
+	s.T().Helper()
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(resp.Body)
+	s.Require().NoError(err)
+	s.Require().Equal(wantStatus, resp.StatusCode, string(raw))
+	if out != nil {
+		s.Require().NoError(json.Unmarshal(raw, out), string(raw))
+	}
 }
 
 func (s *IntegrationSuite) machineJSON(serial, customer string) map[string]any {

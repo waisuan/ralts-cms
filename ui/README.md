@@ -67,6 +67,8 @@ Open [http://localhost:3000](http://localhost:3000). Run the Go API on port 8080
 
 E2E uses Chromium by default; first run: `npx playwright install` (CI installs browsers in the workflow). Specs under `e2e/` seed `localStorage` for `ralts_user` and mock `**/api/v1/machines**` where needed so `/` is not stuck on `LoginPage`.
 
+`e2e/fixtures.ts` holds the signed-in-user helpers (`signInAs`, `ADMIN_USER`, `NON_ADMIN_USER`) for specs that depend on role, and `e2e/factories.ts` holds the response bodies (machines, flags, notifications, user directory) plus `fulfilJSON`/`fulfilNoContent`. Prefer routing on an exact `URL.pathname` predicate over a glob so sibling endpoints such as `/api/v1/notifications` and `/api/v1/notifications/unread-count` don't shadow each other.
+
 ## API surface (reference)
 
 Paths are relative to `NEXT_PUBLIC_API_BASE_URL`. The app uses `src/config/api.ts` and `src/services/*` (e.g. `machineService.ts`, `maintenanceService.ts`).

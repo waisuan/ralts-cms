@@ -106,6 +106,21 @@ func (mr *MockRepositoryMockRecorder) GetByUsername(ctx, username interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByUsername", reflect.TypeOf((*MockRepository)(nil).GetByUsername), ctx, username)
 }
 
+// ListDirectory mocks base method.
+func (m *MockRepository) ListDirectory(ctx context.Context) ([]*DirectoryEntry, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListDirectory", ctx)
+	ret0, _ := ret[0].([]*DirectoryEntry)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListDirectory indicates an expected call of ListDirectory.
+func (mr *MockRepositoryMockRecorder) ListDirectory(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListDirectory", reflect.TypeOf((*MockRepository)(nil).ListDirectory), ctx)
+}
+
 // ListUsers mocks base method.
 func (m *MockRepository) ListUsers(ctx context.Context, limit, offset int) ([]*User, int, error) {
 	m.ctrl.T.Helper()

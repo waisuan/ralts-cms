@@ -3,6 +3,7 @@
 import { notFound, useRouter } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import MaintenanceHistory from '@/components/MaintenanceHistory';
+import FlagMachineModal from '@/components/FlagMachineModal';
 import MachineModal from '@/components/MachineModal';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import RecordsListDeleteModal from '@/components/recordsList/RecordsListDeleteModal';
@@ -11,6 +12,8 @@ import { MachineService } from '@/services/machineService';
 import { handleApiError } from '@/utils/api';
 import { isAuthError } from '@/utils/auth';
 import { machineDetailHref } from '@/utils/machineRoutes';
+import { useOptionalAuth } from '@/contexts/AuthContext';
+import { USER_ROLE } from '@/services/adminUserService';
 
 interface MachinePageProps {
   params: Promise<{
@@ -20,7 +23,11 @@ interface MachinePageProps {
 
 function MachineContent({ machine }: { machine: Machine }) {
   const router = useRouter();
+  // Raising a flag is admin-only, so non-admins get no flag action at all.
+  const auth = useOptionalAuth();
+  const isAdmin = auth?.user?.role === USER_ROLE.ADMIN;
   const [isMachineModalOpen, setIsMachineModalOpen] = useState(false);
+  const [isFlagModalOpen, setIsFlagModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('edit');
   const [machineToEdit, setMachineToEdit] = useState<Machine | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -98,8 +105,15 @@ function MachineContent({ machine }: { machine: Machine }) {
           machine={machine}
           onEdit={handleEdit}
           onDelete={handleDelete}
+          onFlag={isAdmin ? () => setIsFlagModalOpen(true) : undefined}
         />
       </Suspense>
+
+      <FlagMachineModal
+        isOpen={isFlagModalOpen}
+        serialNumber={machine.serial_number}
+        onClose={() => setIsFlagModalOpen(false)}
+      />
 
       {/* Machine Modal (Edit) */}
       <MachineModal

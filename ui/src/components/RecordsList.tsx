@@ -11,7 +11,10 @@ import RecordCard from './RecordCard';
 import RecordsTable from './RecordsTable';
 import PaginationControls from './PaginationControls';
 import MachineModal from './MachineModal';
+import FlagMachineModal from './FlagMachineModal';
 import LoadingOverlay from './LoadingOverlay';
+import { useOptionalAuth } from '../contexts/AuthContext';
+import { USER_ROLE } from '../services/adminUserService';
 import { DateRangeValue } from './DateRangePicker';
 import {
   buildMachineListFilters,
@@ -83,6 +86,12 @@ export default function RecordsList({
   const [machineToDelete, setMachineToDelete] = useState<Machine | null>(null);
   const [machineToEdit, setMachineToEdit] = useState<Machine | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [serialToFlag, setSerialToFlag] = useState<string | null>(null);
+  const [flagsReloadToken, setFlagsReloadToken] = useState(0);
+
+  // Raising a flag is admin-only, so non-admins get no flag action at all.
+  const auth = useOptionalAuth();
+  const isAdmin = auth?.user?.role === USER_ROLE.ADMIN;
 
   const hasDateFilters = !!(ppmDateRange.from || ppmDateRange.to || tncDateRange.from || tncDateRange.to);
   const [showDateFilters, setShowDateFilters] = useState(hasDateFilters);
@@ -159,6 +168,10 @@ export default function RecordsList({
       setShowDeleteConfirm(true);
     }
   };
+
+  const handleFlag = useCallback((serial_number: string) => {
+    setSerialToFlag(serial_number);
+  }, []);
 
   const handleConfirmDelete = async () => {
     if (machineToDelete) {
@@ -366,6 +379,8 @@ export default function RecordsList({
           onPageSizeChange={onLimitChange}
           onEdit={handleEdit}
           onDelete={handleDelete}
+          onFlag={isAdmin ? handleFlag : undefined}
+          flagsReloadToken={flagsReloadToken}
         />
       ) : (
         <>
@@ -390,6 +405,8 @@ export default function RecordsList({
                 machine={machine}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
+                onFlag={isAdmin ? handleFlag : undefined}
+                flagsReloadToken={flagsReloadToken}
               />
             ))}
           </div>
@@ -426,6 +443,13 @@ export default function RecordsList({
         machine={machineToEdit}
         onClose={handleCloseMachineModal}
         onSubmit={handleMachineSubmit}
+      />
+
+      <FlagMachineModal
+        isOpen={serialToFlag !== null}
+        serialNumber={serialToFlag ?? ''}
+        onClose={() => setSerialToFlag(null)}
+        onCreated={() => setFlagsReloadToken((t) => t + 1)}
       />
 
       {showDeleteConfirm && machineToDelete && (

@@ -1,15 +1,20 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"ralts-cms/internal/audit"
+	appctx "ralts-cms/internal/context"
 	"ralts-cms/internal/deps"
 	"ralts-cms/internal/machines"
+	"ralts-cms/internal/notifications"
 	"ralts-cms/pkg/pgxutil"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -278,6 +283,13 @@ func (h *MachinesHandler) CreateMachine(w http.ResponseWriter, r *http.Request) 
 	// updated_by reflects the authenticated user, never client-supplied input.
 	machine.UpdatedBy = resolveUpdatedByUsername(r.Context(), h.deps)
 
+	// Resolve the assignee FK: look up the target user and derive personInCharge
+	// from their username so legacy readers (CSV, search_text) keep working.
+	if err := h.resolveAssignee(r.Context(), &machine, nil); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	err := h.deps.MachinesRepository.Create(r.Context(), &machine)
 	if err != nil {
 		if pgxutil.IsUniqueViolation(err) {
@@ -295,6 +307,9 @@ func (h *MachinesHandler) CreateMachine(w http.ResponseWriter, r *http.Request) 
 		"brand":    machine.Brand,
 	}))
 
+	// Notify the assignee if one was set on creation (skip self-assignment).
+	h.notifyAssignmentChange(r.Context(), nil, machine.AssignedUserID, machine.SerialNumber, machine.Customer)
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(machine)
@@ -309,8 +324,16 @@ func (h *MachinesHandler) UpdateMachine(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// The raw body is kept so we can tell an absent assignee from an explicitly
+	// cleared one, which decoding alone cannot express.
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxMachineBodyBytes))
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
+		return
+	}
+
 	var machine machines.Machine
-	if err := json.NewDecoder(r.Body).Decode(&machine); err != nil {
+	if err := json.Unmarshal(body, &machine); err != nil {
 		http.Error(w, fmt.Sprintf("Invalid request body: %v", err), http.StatusBadRequest)
 		return
 	}
@@ -320,8 +343,8 @@ func (h *MachinesHandler) UpdateMachine(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Check if machine exists
-	_, err := h.deps.MachinesRepository.GetBySerialNumber(r.Context(), serialNumber)
+	// Snapshot the previous assignee so we can detect a change post-update.
+	existing, err := h.deps.MachinesRepository.GetBySerialNumber(r.Context(), serialNumber)
 	if err != nil {
 		if errors.Is(err, machines.ErrNotFound) {
 			http.Error(w, "Machine not found", http.StatusNotFound)
@@ -331,8 +354,21 @@ func (h *MachinesHandler) UpdateMachine(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// updated_by reflects the authenticated user, never client-supplied input.
 	machine.UpdatedBy = resolveUpdatedByUsername(r.Context(), h.deps)
+
+	// A body that says nothing about the assignee leaves it as it was. Without
+	// this the missing assigned_user_id would read as a free-text assignee and
+	// unlink the user, taking their notifications and their right to resolve the
+	// machine's flags with it.
+	if !mentionsAssignee(body) {
+		machine.AssignedUserID = existing.AssignedUserID
+		machine.PersonInCharge = existing.PersonInCharge
+	}
+
+	if err := h.resolveAssignee(r.Context(), &machine, existing.AssignedUserID); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	err = h.deps.MachinesRepository.Update(r.Context(), &machine)
 	if err != nil {
@@ -340,15 +376,116 @@ func (h *MachinesHandler) UpdateMachine(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Audit: Log machine update
 	h.deps.AuditService.LogEvent(audit.NewEvent(r, audit.ActionUpdated, audit.ResourceMachine, machine.SerialNumber, map[string]any{
 		"customer": machine.Customer,
 		"model":    machine.Model,
 		"brand":    machine.Brand,
 	}))
 
+	h.notifyAssignmentChange(r.Context(), existing.AssignedUserID, machine.AssignedUserID, machine.SerialNumber, machine.Customer)
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(machine)
+}
+
+// maxPersonInChargeLen matches the width of the machines."personInCharge"
+// column, so an over-long free-text assignee is rejected with 400 rather than
+// failing at the database.
+const maxPersonInChargeLen = 200
+
+// maxMachineBodyBytes bounds an update body we buffer in full. A machine record
+// is a few hundred bytes of text; anything approaching this is not one.
+const maxMachineBodyBytes = 1 << 20
+
+// mentionsAssignee reports whether an update body says anything about who the
+// machine is assigned to. Either field counts, including as null or "", so
+// clearing an assignee still works — only saying nothing at all is treated as
+// "leave the assignee alone".
+func mentionsAssignee(body []byte) bool {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(body, &fields); err != nil {
+		return false
+	}
+	_, byID := fields["assigned_user_id"]
+	_, byName := fields["person_in_charge"]
+	return byID || byName
+}
+
+// resolveAssignee normalises the two ways a machine can be assigned:
+//
+//   - assigned_user_id set: the machine is assigned to a registered user.
+//     PersonInCharge is derived from that user's username so legacy consumers
+//     (CSV export, search_text) keep working, overwriting anything the client
+//     sent in person_in_charge.
+//   - assigned_user_id absent: person_in_charge is kept as free text, for a
+//     "ghost" assignee who has no account yet. They receive no notifications.
+//
+// previousAssigneeID is who the machine was assigned to before this request, or
+// nil on create. Naming a new assignee requires an account the assignee
+// dropdown would offer — approved and active, matching users.ListDirectory —
+// since anyone else cannot act on what they are sent. An unchanged assignment is
+// accepted as it stands, so editing a machine whose assignee has since been
+// suspended neither fails nor quietly unlinks them.
+func (h *MachinesHandler) resolveAssignee(ctx context.Context, machine *machines.Machine, previousAssigneeID *int64) error {
+	if machine.AssignedUserID == nil {
+		machine.PersonInCharge = strings.TrimSpace(machine.PersonInCharge)
+		if len(machine.PersonInCharge) > maxPersonInChargeLen {
+			return fmt.Errorf("person_in_charge must be at most %d characters", maxPersonInChargeLen)
+		}
+		machine.AssignedUser = nil
+		return nil
+	}
+	user, err := h.deps.UsersRepository.GetByID(ctx, *machine.AssignedUserID)
+	if err != nil || user == nil {
+		return fmt.Errorf("assigned_user_id %d does not resolve to a user", *machine.AssignedUserID)
+	}
+	unchanged := previousAssigneeID != nil && *previousAssigneeID == *machine.AssignedUserID
+	if !unchanged && !(user.Approved && user.IsStatusActive()) {
+		return fmt.Errorf("assigned_user_id %d is not an approved, active account", *machine.AssignedUserID)
+	}
+	machine.PersonInCharge = user.Username
+	machine.AssignedUser = &machines.AssignedUser{
+		ID:       user.ID,
+		Username: user.Username,
+		Email:    user.Email,
+	}
+	return nil
+}
+
+// notifyAssignmentChange emits an "assigned" notification when the assignee
+// changed. It skips the notification when the actor assigned the machine to
+// themselves or when there's no new assignee. Failures are non-fatal.
+func (h *MachinesHandler) notifyAssignmentChange(ctx context.Context, previous, next *int64, serialNumber, customer string) {
+	if next == nil {
+		return
+	}
+	if previous != nil && *previous == *next {
+		return
+	}
+	if h.deps.NotificationService == nil {
+		return
+	}
+
+	var actorID *int64
+	if userCtx, err := appctx.GetUserFromContext(ctx); err == nil && userCtx != nil {
+		id := userCtx.UserID
+		actorID = &id
+	}
+
+	title := fmt.Sprintf("You were assigned to machine %s", serialNumber)
+	body := ""
+	if customer != "" {
+		body = "Customer: " + customer
+	}
+
+	h.deps.NotificationService.Notify(ctx, notifications.Notification{
+		UserID:              *next,
+		Type:                notifications.TypeAssigned,
+		MachineSerialNumber: &serialNumber,
+		Title:               title,
+		Body:                body,
+		ActorUserID:         actorID,
+	})
 }
 
 // DeleteMachine handles DELETE /machines/{serial_number}

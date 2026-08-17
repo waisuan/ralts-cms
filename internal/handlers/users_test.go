@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"time"
 	"ralts-cms/internal/audit"
 	"ralts-cms/internal/deps"
 	"ralts-cms/internal/handlers"
@@ -18,6 +17,7 @@ import (
 	"ralts-cms/internal/users"
 	"ralts-cms/pkg/auth"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 	"github.com/gorilla/mux"
@@ -29,11 +29,11 @@ import (
 type UsersHandlerTestSuite struct {
 	suite.Suite
 
-	handler            *handlers.UsersHandler
-	mockRepo           *users.MockRepository
-	mockRefreshTokens  *refreshtokens.MockRepository
-	mockAuditService   *audit.MockAuditService
-	ctrl               *gomock.Controller
+	handler           *handlers.UsersHandler
+	mockRepo          *users.MockRepository
+	mockRefreshTokens *refreshtokens.MockRepository
+	mockAuditService  *audit.MockAuditService
+	ctrl              *gomock.Controller
 }
 
 // SetupTest sets up each test
@@ -48,14 +48,14 @@ func (suite *UsersHandlerTestSuite) SetupTest() {
 
 	deps := &deps.Dependencies{
 		Config: &deps.Config{
-			JWTSecret:               "your-jwt-secret-key",
+			JWTSecret:            "your-jwt-secret-key",
 			AccessTokenLifetime:  15 * time.Minute,
 			RefreshTokenLifetime: 7 * 24 * time.Hour,
 		},
 		Logger:                 slog.New(slog.NewTextHandler(os.Stdout, nil)),
 		UsersRepository:        suite.mockRepo,
-		RefreshTokenRepository:   suite.mockRefreshTokens,
-		AuditService:             suite.mockAuditService,
+		RefreshTokenRepository: suite.mockRefreshTokens,
+		AuditService:           suite.mockAuditService,
 	}
 	suite.handler = handlers.NewUsersHandler(deps)
 }

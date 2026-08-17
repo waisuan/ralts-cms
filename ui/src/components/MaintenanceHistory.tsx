@@ -23,12 +23,15 @@ interface MaintenanceHistoryProps {
   machine: Machine;
   onEdit?: () => void;
   onDelete?: () => void;
+  /** Only provided for admins, who are the only ones able to raise a flag. */
+  onFlag?: () => void;
 }
 
 export default function MaintenanceHistory({
   machine,
   onEdit,
   onDelete,
+  onFlag,
 }: MaintenanceHistoryProps) {
   const urlState = useUrlMaintenanceState();
   const { q, sort, page, limit, setSearchQuery, setSort, setPage, setLimit } = urlState;
@@ -150,7 +153,12 @@ export default function MaintenanceHistory({
       <div className="container mx-auto px-4">
         <div className="mb-4 md:mb-8">
           <div className="hidden md:block">
-            <MachineInfoCard machine={machine} onEdit={onEdit} onDelete={onDelete} />
+            <MachineInfoCard
+              machine={machine}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onFlag={onFlag}
+            />
           </div>
 
           {/* Summary Statistics (hidden on mobile) */}

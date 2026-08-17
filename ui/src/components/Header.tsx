@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import NotificationBell from './NotificationBell';
 import UserMenu from './UserMenu';
 
 export default function Header() {
@@ -20,7 +21,8 @@ export default function Header() {
             </span>
           </div>
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <NotificationBell />
             <UserMenu />
           </div>
         </div>

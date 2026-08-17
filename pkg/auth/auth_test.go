@@ -201,10 +201,10 @@ func TestVerifyPassword(t *testing.T) {
 
 func TestVerifyPassword_LegacyBcrypt(t *testing.T) {
 	tests := []struct {
-		name         string
-		password     string
-		wrongPass    string
-		bcryptCost   int
+		name       string
+		password   string
+		wrongPass  string
+		bcryptCost int
 	}{
 		{
 			name:       "should verify legacy plain bcrypt password",

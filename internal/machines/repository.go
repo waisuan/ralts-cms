@@ -74,37 +74,46 @@ type filterResult struct {
 // startIndex is the starting parameter index (e.g., 1 for List, 2 for Search which uses $1 for query)
 // Returns conditions slice, args slice, and the next available parameter index
 func buildFilterConditions(options *ListOptions, startIndex int) filterResult {
+	return buildFilterConditionsWithAlias(options, startIndex, "m")
+}
+
+// buildFilterConditionsWithAlias mirrors buildFilterConditions but prefixes
+// column references with the given table alias. Pass an empty string to omit
+// the prefix (e.g. for the un-aliased Count query).
+func buildFilterConditionsWithAlias(options *ListOptions, startIndex int, alias string) filterResult {
 	var conditions []string
 	var args []interface{}
 	argIndex := startIndex
 
-	// PPM Status Filter (no parameterized args needed)
+	prefix := ""
+	if alias != "" {
+		prefix = alias + "."
+	}
+
 	if options.PpmStatusFilter != "" {
-		if cond := getPpmStatusCondition(options.PpmStatusFilter); cond != "" {
+		if cond := getPpmStatusConditionWithAlias(options.PpmStatusFilter, alias); cond != "" {
 			conditions = append(conditions, cond)
 		}
 	}
 
-	// PPM Date Range Filter (inclusive)
 	if options.PpmDateFrom != nil {
-		conditions = append(conditions, fmt.Sprintf(`"ppmDate" >= $%d`, argIndex))
+		conditions = append(conditions, fmt.Sprintf(`%s"ppmDate" >= $%d`, prefix, argIndex))
 		args = append(args, *options.PpmDateFrom)
 		argIndex++
 	}
 	if options.PpmDateTo != nil {
-		conditions = append(conditions, fmt.Sprintf(`"ppmDate" <= $%d`, argIndex))
+		conditions = append(conditions, fmt.Sprintf(`%s"ppmDate" <= $%d`, prefix, argIndex))
 		args = append(args, *options.PpmDateTo)
 		argIndex++
 	}
 
-	// TNC Date Range Filter (inclusive)
 	if options.TncDateFrom != nil {
-		conditions = append(conditions, fmt.Sprintf(`"tncDate" >= $%d`, argIndex))
+		conditions = append(conditions, fmt.Sprintf(`%s"tncDate" >= $%d`, prefix, argIndex))
 		args = append(args, *options.TncDateFrom)
 		argIndex++
 	}
 	if options.TncDateTo != nil {
-		conditions = append(conditions, fmt.Sprintf(`"tncDate" <= $%d`, argIndex))
+		conditions = append(conditions, fmt.Sprintf(`%s"tncDate" <= $%d`, prefix, argIndex))
 		args = append(args, *options.TncDateTo)
 		argIndex++
 	}
@@ -127,11 +136,22 @@ var sqlPpmStatusExtra = map[PPMStatus]string{
 
 // getPpmStatusCondition returns the SQL WHERE fragment for filtering by computed PPM bucket.
 func getPpmStatusCondition(status PPMStatus) string {
+	return getPpmStatusConditionWithAlias(status, "")
+}
+
+// getPpmStatusConditionWithAlias mirrors getPpmStatusCondition but prefixes the
+// column reference with the given table alias when non-empty.
+func getPpmStatusConditionWithAlias(status PPMStatus, alias string) string {
 	extra, ok := sqlPpmStatusExtra[status]
 	if !ok {
 		return ""
 	}
-	return sqlPpmDateEligibleForStatus + ` AND ` + extra
+	base := sqlPpmDateEligibleForStatus + ` AND ` + extra
+	if alias == "" {
+		return base
+	}
+	prefix := alias + "."
+	return strings.ReplaceAll(base, `"ppmDate"`, prefix+`"ppmDate"`)
 }
 
 // buildOrderByClause returns the ORDER BY clause for the given sort option
@@ -142,19 +162,19 @@ func buildOrderByClause(sort SortOrder, includeRank bool) string {
 
 	switch sort {
 	case SortOrderUpdatedAtAsc:
-		column, direction = `"updatedAt"`, "ASC"
+		column, direction = `m."updatedAt"`, "ASC"
 	case SortOrderUpdatedAtDesc:
-		column, direction = `"updatedAt"`, "DESC"
+		column, direction = `m."updatedAt"`, "DESC"
 	case SortOrderPpmDateAsc:
-		column, direction = `"ppmDate"`, "ASC"
+		column, direction = `m."ppmDate"`, "ASC"
 	case SortOrderPpmDateDesc:
-		column, direction = `"ppmDate"`, "DESC"
+		column, direction = `m."ppmDate"`, "DESC"
 	case SortOrderTncDateAsc:
-		column, direction = `"tncDate"`, "ASC"
+		column, direction = `m."tncDate"`, "ASC"
 	case SortOrderTncDateDesc:
-		column, direction = `"tncDate"`, "DESC"
+		column, direction = `m."tncDate"`, "DESC"
 	default:
-		column, direction = `"updatedAt"`, "DESC"
+		column, direction = `m."updatedAt"`, "DESC"
 	}
 
 	if includeRank {
@@ -190,27 +210,61 @@ func NewRepository(client *pgxpool.Pool) Repository {
 	}
 }
 
-func (r *db) GetBySerialNumber(ctx context.Context, serialNumber string) (*Machine, error) {
-	query := `
-		SELECT id, "serialNumber", COALESCE(customer, ''), COALESCE(state, ''), COALESCE("accountType", ''), 
-		       COALESCE(model, ''), COALESCE(status, ''), COALESCE(brand, ''), 
-		       COALESCE(district, ''), COALESCE("personInCharge", ''), COALESCE("reportedBy", ''), 
-		       COALESCE("additionalNotes", ''), COALESCE(attachment, ''), 
-		       COALESCE("tncDate", '0001-01-01'::date), COALESCE("ppmDate", '0001-01-01'::date), "createdAt", "updatedAt",
-		       COALESCE("updatedBy", '')
-		FROM machines 
-		WHERE "serialNumber" = $1
-	`
+// selectMachineColumns is the shared column list for machine reads. It joins
+// users to project a slim assignee summary so callers don't need a second
+// query. The order here must match the Scan calls below and in scanMachineRow.
+const selectMachineColumns = `
+	m.id, m."serialNumber", COALESCE(m.customer, ''), COALESCE(m.state, ''), COALESCE(m."accountType", ''),
+	COALESCE(m.model, ''), COALESCE(m.status, ''), COALESCE(m.brand, ''),
+	COALESCE(m.district, ''), COALESCE(m."personInCharge", ''), COALESCE(m."reportedBy", ''),
+	COALESCE(m."additionalNotes", ''), COALESCE(m.attachment, ''),
+	COALESCE(m."tncDate", '0001-01-01'::date), COALESCE(m."ppmDate", '0001-01-01'::date), m."createdAt", m."updatedAt",
+	COALESCE(m."updatedBy", ''),
+	m."assignedUserId", u.username, u.email
+`
 
-	var machine Machine
-	err := r.client.QueryRow(ctx, query, serialNumber).Scan(
+// scanMachineRow scans a row that projects selectMachineColumns into a Machine
+// and populates the embedded AssignedUser when the FK is set.
+func scanMachineRow(row pgx.Row, machine *Machine, extra ...any) error {
+	var assignedUserID *int64
+	var assigneeUsername, assigneeEmail *string
+	dest := []any{
 		&machine.ID, &machine.SerialNumber, &machine.Customer, &machine.State,
 		&machine.AccountType, &machine.Model, &machine.Status, &machine.Brand,
 		&machine.District, &machine.PersonInCharge, &machine.ReportedBy,
 		&machine.AdditionalNotes, &machine.Attachment,
 		&machine.TncDate, &machine.PpmDate, &machine.CreatedAt, &machine.UpdatedAt,
 		&machine.UpdatedBy,
-	)
+		&assignedUserID, &assigneeUsername, &assigneeEmail,
+	}
+	dest = append(dest, extra...)
+	if err := row.Scan(dest...); err != nil {
+		return err
+	}
+	machine.AssignedUserID = assignedUserID
+	if assignedUserID != nil {
+		au := &AssignedUser{ID: *assignedUserID}
+		if assigneeUsername != nil {
+			au.Username = *assigneeUsername
+		}
+		if assigneeEmail != nil {
+			au.Email = *assigneeEmail
+		}
+		machine.AssignedUser = au
+	}
+	return nil
+}
+
+func (r *db) GetBySerialNumber(ctx context.Context, serialNumber string) (*Machine, error) {
+	query := `
+		SELECT ` + selectMachineColumns + `
+		FROM machines m
+		LEFT JOIN users u ON u.id = m."assignedUserId"
+		WHERE m."serialNumber" = $1
+	`
+
+	var machine Machine
+	err := scanMachineRow(r.client.QueryRow(ctx, query, serialNumber), &machine)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, fmt.Errorf("%w", ErrNotFound)
@@ -219,42 +273,33 @@ func (r *db) GetBySerialNumber(ctx context.Context, serialNumber string) (*Machi
 		return nil, fmt.Errorf("failed to get machine: %w", err)
 	}
 
-	// Set PPM status based on the PPM date
 	machine.PpmStatus = string(r.calculatePPMStatus(machine.PpmDate))
 
 	return &machine, nil
 }
 
 func (r *db) List(ctx context.Context, options *ListOptions) ([]*Machine, error) {
-	// Use default options if none provided
 	if options == nil {
 		options = DefaultListOptions()
 	}
 
-	// Build ORDER BY and WHERE clauses using helpers
 	orderByClause := buildOrderByClause(options.Sort, false)
 	filter := buildFilterConditions(options, 1)
 
-	// Build WHERE clause
 	var whereClause string
 	if len(filter.conditions) > 0 {
 		whereClause = "WHERE " + strings.Join(filter.conditions, " AND ")
 	}
 
 	query := fmt.Sprintf(`
-		SELECT id, "serialNumber", COALESCE(customer, ''), COALESCE(state, ''), COALESCE("accountType", ''), 
-		       COALESCE(model, ''), COALESCE(status, ''), COALESCE(brand, ''), 
-		       COALESCE(district, ''), COALESCE("personInCharge", ''), COALESCE("reportedBy", ''), 
-		       COALESCE("additionalNotes", ''), COALESCE(attachment, ''), 
-		       COALESCE("tncDate", '0001-01-01'::date), COALESCE("ppmDate", '0001-01-01'::date), "createdAt", "updatedAt",
-		       COALESCE("updatedBy", '')
-		FROM machines 
+		SELECT `+selectMachineColumns+`
+		FROM machines m
+		LEFT JOIN users u ON u.id = m."assignedUserId"
 		%s
 		%s
 		LIMIT $%d OFFSET $%d
 	`, whereClause, orderByClause, filter.nextIndex, filter.nextIndex+1)
 
-	// Add limit and offset to args
 	args := append(filter.args, options.Limit, options.Offset)
 
 	rows, err := r.client.Query(ctx, query, args...)
@@ -266,19 +311,9 @@ func (r *db) List(ctx context.Context, options *ListOptions) ([]*Machine, error)
 	var machines []*Machine
 	for rows.Next() {
 		var machine Machine
-		err := rows.Scan(
-			&machine.ID, &machine.SerialNumber, &machine.Customer, &machine.State,
-			&machine.AccountType, &machine.Model, &machine.Status, &machine.Brand,
-			&machine.District, &machine.PersonInCharge, &machine.ReportedBy,
-			&machine.AdditionalNotes, &machine.Attachment,
-			&machine.TncDate, &machine.PpmDate, &machine.CreatedAt, &machine.UpdatedAt,
-			&machine.UpdatedBy,
-		)
-		if err != nil {
+		if err := scanMachineRow(rows, &machine); err != nil {
 			return nil, fmt.Errorf("failed to scan machine: %w", err)
 		}
-
-		// Set PPM status based on the PPM date
 		machine.PpmStatus = string(r.calculatePPMStatus(machine.PpmDate))
 		machines = append(machines, &machine)
 	}
@@ -297,9 +332,9 @@ func (r *db) Create(ctx context.Context, machine *Machine) error {
 		INSERT INTO machines (
 			"serialNumber", customer, state, "accountType", model, status, brand,
 			district, "personInCharge", "reportedBy", "additionalNotes", attachment,
-			"tncDate", "ppmDate", "createdAt", "updatedAt", "updatedBy"
+			"tncDate", "ppmDate", "createdAt", "updatedAt", "updatedBy", "assignedUserId"
 		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18
 		) RETURNING id
 	`
 
@@ -308,7 +343,7 @@ func (r *db) Create(ctx context.Context, machine *Machine) error {
 		machine.Model, machine.Status, machine.Brand, machine.District,
 		machine.PersonInCharge, machine.ReportedBy, machine.AdditionalNotes,
 		machine.Attachment, machine.TncDate, machine.PpmDate,
-		machine.CreatedAt, machine.UpdatedAt, machine.UpdatedBy,
+		machine.CreatedAt, machine.UpdatedAt, machine.UpdatedBy, machine.AssignedUserID,
 	).Scan(&machine.ID)
 
 	if err != nil {
@@ -326,8 +361,9 @@ func (r *db) Update(ctx context.Context, machine *Machine) error {
 			customer = $1, state = $2, "accountType" = $3, model = $4, status = $5,
 			brand = $6, district = $7, "personInCharge" = $8, "reportedBy" = $9,
 			"additionalNotes" = $10, attachment = $11,
-			"tncDate" = $12, "ppmDate" = $13, "updatedAt" = $14, "updatedBy" = $15
-		WHERE "serialNumber" = $16
+			"tncDate" = $12, "ppmDate" = $13, "updatedAt" = $14, "updatedBy" = $15,
+			"assignedUserId" = $16
+		WHERE "serialNumber" = $17
 	`
 
 	result, err := r.client.Exec(ctx, query,
@@ -335,7 +371,7 @@ func (r *db) Update(ctx context.Context, machine *Machine) error {
 		machine.Status, machine.Brand, machine.District, machine.PersonInCharge,
 		machine.ReportedBy, machine.AdditionalNotes, machine.Attachment,
 		machine.TncDate, machine.PpmDate, machine.UpdatedAt, machine.UpdatedBy,
-		machine.SerialNumber,
+		machine.AssignedUserID, machine.SerialNumber,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to update machine: %w", err)
@@ -374,7 +410,7 @@ func (r *db) Count(ctx context.Context, options *ListOptions) (int, error) {
 		whereClause = "WHERE " + strings.Join(filter.conditions, " AND ")
 	}
 
-	query := fmt.Sprintf(`SELECT COUNT(*) FROM machines %s`, whereClause)
+	query := fmt.Sprintf(`SELECT COUNT(*) FROM machines m %s`, whereClause)
 
 	var count int
 	err := r.client.QueryRow(ctx, query, filter.args...).Scan(&count)
@@ -404,39 +440,28 @@ func (r *db) CountByStatus(ctx context.Context) (int32, int32, int32, error) {
 }
 
 func (r *db) Search(ctx context.Context, query string, options *ListOptions) ([]*Machine, error) {
-	// Use default options if none provided
 	if options == nil {
 		options = DefaultListOptions()
 	}
 
-	// Build the base query with trigram fuzzy search
 	baseQuery := `
-		SELECT id, "serialNumber", COALESCE(customer, ''), COALESCE(state, ''), COALESCE("accountType", ''), 
-		       COALESCE(model, ''), COALESCE(status, ''), COALESCE(brand, ''), 
-		       COALESCE(district, ''), COALESCE("personInCharge", ''), COALESCE("reportedBy", ''), 
-		       COALESCE("additionalNotes", ''), COALESCE(attachment, ''), 
-		       COALESCE("tncDate", '0001-01-01'::date), COALESCE("ppmDate", '0001-01-01'::date), "createdAt", "updatedAt",
-		       COALESCE("updatedBy", ''),
-		       word_similarity($1, search_text) as rank
-		FROM machines 
-		WHERE $1 <% search_text
+		SELECT ` + selectMachineColumns + `,
+		       word_similarity($1, m.search_text) as rank
+		FROM machines m
+		LEFT JOIN users u ON u.id = m."assignedUserId"
+		WHERE $1 <% m.search_text
 	`
 
-	// Build filter conditions using helper (start at $2 since $1 is used for search query)
 	filter := buildFilterConditions(options, 2)
 
-	// Append filter conditions to base query
 	for _, cond := range filter.conditions {
 		baseQuery += " AND " + cond
 	}
 
-	// Build args: search query first, then filter args
 	args := append([]interface{}{query}, filter.args...)
 
-	// Build ORDER BY clause with rank for search relevance
 	orderByClause := buildOrderByClause(options.Sort, true)
 
-	// Add pagination
 	finalQuery := fmt.Sprintf("%s %s LIMIT $%d OFFSET $%d", baseQuery, orderByClause, filter.nextIndex, filter.nextIndex+1)
 	args = append(args, options.Limit, options.Offset)
 
@@ -450,20 +475,9 @@ func (r *db) Search(ctx context.Context, query string, options *ListOptions) ([]
 	for rows.Next() {
 		var machine Machine
 		var rank float32
-		err := rows.Scan(
-			&machine.ID, &machine.SerialNumber, &machine.Customer, &machine.State,
-			&machine.AccountType, &machine.Model, &machine.Status, &machine.Brand,
-			&machine.District, &machine.PersonInCharge, &machine.ReportedBy,
-			&machine.AdditionalNotes, &machine.Attachment,
-			&machine.TncDate, &machine.PpmDate, &machine.CreatedAt, &machine.UpdatedAt,
-			&machine.UpdatedBy,
-			&rank,
-		)
-		if err != nil {
+		if err := scanMachineRow(rows, &machine, &rank); err != nil {
 			return nil, fmt.Errorf("failed to scan machine: %w", err)
 		}
-
-		// Set PPM status based on the PPM date
 		machine.PpmStatus = string(r.calculatePPMStatus(machine.PpmDate))
 		machines = append(machines, &machine)
 	}
@@ -476,27 +490,22 @@ func (r *db) Search(ctx context.Context, query string, options *ListOptions) ([]
 }
 
 func (r *db) CountSearch(ctx context.Context, query string, options *ListOptions) (int, error) {
-	// Use default options if none provided
 	if options == nil {
 		options = DefaultListOptions()
 	}
 
-	// Build the base query for counting search results
 	baseQuery := `
 		SELECT COUNT(*)
-		FROM machines 
-		WHERE $1 <% search_text
+		FROM machines m
+		WHERE $1 <% m.search_text
 	`
 
-	// Build filter conditions using helper (start at $2 since $1 is used for search query)
 	filter := buildFilterConditions(options, 2)
 
-	// Append filter conditions to base query
 	for _, cond := range filter.conditions {
 		baseQuery += " AND " + cond
 	}
 
-	// Build args: search query first, then filter args
 	args := append([]interface{}{query}, filter.args...)
 
 	var count int

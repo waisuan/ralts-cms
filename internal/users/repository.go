@@ -12,6 +12,14 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// DirectoryEntry is a slim projection of a user for pickers/dropdowns.
+// It intentionally omits password, salt, and role details.
+type DirectoryEntry struct {
+	ID       int64  `json:"id"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
+}
+
 // Repository defines the interface for user data access operations
 //
 //go:generate mockgen -destination=../users/mock_users_repository.go -package=users -source=repository.go
@@ -20,6 +28,8 @@ type Repository interface {
 	Login(ctx context.Context, username string, password string) (*User, error)
 	GetByUsername(ctx context.Context, username string) (*User, error)
 	ListUsers(ctx context.Context, limit, offset int) ([]*User, int, error)
+	// ListDirectory returns approved+active users for assignee pickers.
+	ListDirectory(ctx context.Context) ([]*DirectoryEntry, error)
 	GetByID(ctx context.Context, id int64) (*User, error)
 	UpdateStatus(ctx context.Context, userID int64, status string) error
 	UpdateMultipleStatuses(ctx context.Context, userIDs []int64, status string) error
@@ -188,6 +198,36 @@ func (r *db) ListUsers(ctx context.Context, limit, offset int) ([]*User, int, er
 	}
 
 	return users, totalCount, nil
+}
+
+// ListDirectory returns approved, active users usable as machine assignees.
+// The result is ordered by username to make dropdowns predictable.
+func (r *db) ListDirectory(ctx context.Context) ([]*DirectoryEntry, error) {
+	query := `
+		SELECT id, username, email
+		FROM users
+		WHERE approved = true AND status = $1
+		ORDER BY username ASC
+	`
+
+	rows, err := r.client.Query(ctx, query, StatusApproved)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list user directory: %w", err)
+	}
+	defer rows.Close()
+
+	var entries []*DirectoryEntry
+	for rows.Next() {
+		var e DirectoryEntry
+		if err := rows.Scan(&e.ID, &e.Username, &e.Email); err != nil {
+			return nil, fmt.Errorf("failed to scan directory entry: %w", err)
+		}
+		entries = append(entries, &e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating directory entries: %w", err)
+	}
+	return entries, nil
 }
 
 func (r *db) GetByID(ctx context.Context, id int64) (*User, error) {

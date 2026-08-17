@@ -10,6 +10,12 @@ jest.mock('../services/attachmentService', () => ({
   },
 }));
 
+jest.mock('../services/flagService', () => ({
+  FlagService: {
+    listOpenByMachine: jest.fn().mockResolvedValue({ data: { flags: {} } }),
+  },
+}));
+
 function baseMachine(overrides: Partial<Machine> = {}): Machine {
   return {
     serial_number: 'SN-1',

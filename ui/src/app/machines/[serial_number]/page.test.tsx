@@ -14,16 +14,19 @@ jest.mock('@/components/MaintenanceHistory', () => {
     machine,
     onEdit,
     onDelete,
+    onFlag,
   }: {
     machine: { serial_number: string };
     onEdit?: () => void;
     onDelete?: () => void;
+    onFlag?: () => void;
   }) {
     return (
       <div data-testid="maintenance-history">
         <h1>Maintenance History for {machine?.serial_number || 'Unknown'}</h1>
         {onEdit && <button onClick={onEdit}>Edit Machine</button>}
         {onDelete && <button onClick={onDelete}>Delete Machine</button>}
+        {onFlag && <button onClick={onFlag}>Flag Machine</button>}
       </div>
     );
   };

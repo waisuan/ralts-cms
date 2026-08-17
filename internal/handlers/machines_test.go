@@ -14,6 +14,7 @@ import (
 	"ralts-cms/internal/machines"
 	"ralts-cms/internal/maintenance"
 	"ralts-cms/internal/users"
+	"strings"
 	"testing"
 	"time"
 
@@ -263,6 +264,234 @@ func (suite *MachinesHandlerTestSuite) TestCreateMachine() {
 
 		suite.Assert().Equal(http.StatusInternalServerError, w.Code)
 		suite.Assert().Contains(w.Body.String(), "Failed to create machine")
+	})
+}
+
+// assignableUser builds a user the assignee dropdown would offer: approved and
+// active. Only such an account may be named as a new assignee.
+func assignableUser(id int64, username string) *users.User {
+	status := users.StatusApproved
+	return &users.User{
+		ID:       id,
+		Username: username,
+		Email:    username + "@example.com",
+		Approved: true,
+		Status:   &status,
+	}
+}
+
+// TestCreateMachineAssignee covers the two ways a machine can be assigned: to a
+// registered user via assigned_user_id, or to a free-text name for someone who
+// has no account yet.
+func (suite *MachinesHandlerTestSuite) TestCreateMachineAssignee() {
+	createMachine := func(m machines.Machine) *httptest.ResponseRecorder {
+		body, _ := json.Marshal(m)
+		req := httptest.NewRequest("POST", "/machines", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		suite.handler.CreateMachine(w, req)
+		return w
+	}
+
+	suite.Run("derives personInCharge from the assigned user when assigned_user_id is set", func() {
+		assigneeID := int64(11)
+		suite.mockUsersRepo.EXPECT().GetByID(gomock.Any(), assigneeID).
+			Return(assignableUser(assigneeID, "tech.one"), nil)
+		suite.mockMachinesRepo.EXPECT().Create(gomock.Any(), gomock.Any()).
+			DoAndReturn(func(_ context.Context, m *machines.Machine) error {
+				suite.Assert().Equal("tech.one", m.PersonInCharge, "client-supplied text must be overwritten")
+				suite.Require().NotNil(m.AssignedUserID)
+				suite.Assert().Equal(assigneeID, *m.AssignedUserID)
+				return nil
+			})
+
+		w := createMachine(machines.Machine{
+			SerialNumber:   "ASSIGN-FK",
+			AssignedUserID: &assigneeID,
+			PersonInCharge: "ignored text",
+		})
+		suite.Require().Equal(http.StatusCreated, w.Code)
+
+		var response machines.Machine
+		suite.Require().NoError(json.Unmarshal(w.Body.Bytes(), &response))
+		suite.Require().NotNil(response.AssignedUser)
+		suite.Assert().Equal("tech.one", response.AssignedUser.Username)
+	})
+
+	suite.Run("keeps free-text personInCharge when no assigned_user_id is given", func() {
+		suite.mockMachinesRepo.EXPECT().Create(gomock.Any(), gomock.Any()).
+			DoAndReturn(func(_ context.Context, m *machines.Machine) error {
+				suite.Assert().Equal("New Starter", m.PersonInCharge)
+				suite.Assert().Nil(m.AssignedUserID)
+				return nil
+			})
+
+		w := createMachine(machines.Machine{
+			SerialNumber:   "ASSIGN-GHOST",
+			PersonInCharge: "  New Starter  ",
+		})
+		suite.Require().Equal(http.StatusCreated, w.Code)
+
+		var response machines.Machine
+		suite.Require().NoError(json.Unmarshal(w.Body.Bytes(), &response))
+		suite.Assert().Equal("New Starter", response.PersonInCharge)
+		suite.Assert().Nil(response.AssignedUser)
+	})
+
+	suite.Run("returns 400 when assigned_user_id does not resolve to a user", func() {
+		missingID := int64(999)
+		suite.mockUsersRepo.EXPECT().GetByID(gomock.Any(), missingID).
+			Return(nil, fmt.Errorf("not found"))
+
+		w := createMachine(machines.Machine{
+			SerialNumber:   "ASSIGN-BAD",
+			AssignedUserID: &missingID,
+		})
+		suite.Assert().Equal(http.StatusBadRequest, w.Code)
+		suite.Assert().Contains(w.Body.String(), "does not resolve to a user")
+	})
+
+	suite.Run("returns 400 when free-text assignee exceeds the column width", func() {
+		w := createMachine(machines.Machine{
+			SerialNumber:   "ASSIGN-LONG",
+			PersonInCharge: strings.Repeat("a", 201),
+		})
+		suite.Assert().Equal(http.StatusBadRequest, w.Code)
+		suite.Assert().Contains(w.Body.String(), "at most 200 characters")
+	})
+
+	// Accounts the dropdown does not offer cannot be assigned through the API
+	// either: they would be sent notifications they cannot come back and act on.
+	for _, tc := range []struct {
+		name   string
+		id     int64
+		mutate func(*users.User)
+		serial string
+	}{
+		{
+			name:   "awaiting approval",
+			id:     12,
+			serial: "ASSIGN-PENDING",
+			mutate: func(u *users.User) {
+				u.Approved = false
+				status := users.StatusPendingApproval
+				u.Status = &status
+			},
+		},
+		{
+			name:   "suspended",
+			id:     13,
+			serial: "ASSIGN-SUSPENDED",
+			mutate: func(u *users.User) {
+				status := users.StatusSuspended
+				u.Status = &status
+			},
+		},
+	} {
+		suite.Run("returns 400 when the assignee is "+tc.name, func() {
+			user := assignableUser(tc.id, "ineligible.user")
+			tc.mutate(user)
+			suite.mockUsersRepo.EXPECT().GetByID(gomock.Any(), tc.id).Return(user, nil)
+
+			id := tc.id
+			w := createMachine(machines.Machine{SerialNumber: tc.serial, AssignedUserID: &id})
+			suite.Assert().Equal(http.StatusBadRequest, w.Code)
+			suite.Assert().Contains(w.Body.String(), "not an approved, active account")
+		})
+	}
+}
+
+// TestUpdateMachineAssignee covers what an update does to an existing
+// assignment: a body that names no assignee leaves it alone, an explicit null
+// clears it, and an account that has since stopped being assignable can still be
+// saved as long as the request is not moving the machine to them.
+func (suite *MachinesHandlerTestSuite) TestUpdateMachineAssignee() {
+	updateMachine := func(serial string, body map[string]any) *httptest.ResponseRecorder {
+		raw, _ := json.Marshal(body)
+		req := httptest.NewRequest("PUT", "/machines/"+serial, bytes.NewBuffer(raw))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		router := mux.NewRouter()
+		router.HandleFunc("/machines/{serial_number}", suite.handler.UpdateMachine)
+		router.ServeHTTP(w, req)
+		return w
+	}
+
+	suite.Run("a body that names no assignee keeps the current one", func() {
+		assigneeID := int64(21)
+		suite.mockMachinesRepo.EXPECT().GetBySerialNumber(gomock.Any(), "KEEP-1").
+			Return(&machines.Machine{SerialNumber: "KEEP-1", AssignedUserID: &assigneeID, PersonInCharge: "tech.one"}, nil)
+		suite.mockUsersRepo.EXPECT().GetByID(gomock.Any(), assigneeID).
+			Return(assignableUser(assigneeID, "tech.one"), nil)
+		suite.mockMachinesRepo.EXPECT().Update(gomock.Any(), gomock.Any()).
+			DoAndReturn(func(_ context.Context, m *machines.Machine) error {
+				suite.Require().NotNil(m.AssignedUserID, "an unmentioned assignee must survive the update")
+				suite.Assert().Equal(assigneeID, *m.AssignedUserID)
+				suite.Assert().Equal("tech.one", m.PersonInCharge)
+				return nil
+			})
+
+		w := updateMachine("KEEP-1", map[string]any{
+			"serial_number": "KEEP-1",
+			"customer":      "Only the customer changed",
+		})
+		suite.Assert().Equal(http.StatusOK, w.Code)
+	})
+
+	suite.Run("a null assigned_user_id hands the machine to a free-text name", func() {
+		assigneeID := int64(22)
+		suite.mockMachinesRepo.EXPECT().GetBySerialNumber(gomock.Any(), "CLEAR-1").
+			Return(&machines.Machine{SerialNumber: "CLEAR-1", AssignedUserID: &assigneeID, PersonInCharge: "tech.one"}, nil)
+		suite.mockMachinesRepo.EXPECT().Update(gomock.Any(), gomock.Any()).
+			DoAndReturn(func(_ context.Context, m *machines.Machine) error {
+				suite.Assert().Nil(m.AssignedUserID)
+				suite.Assert().Equal("Ghost Contractor", m.PersonInCharge)
+				return nil
+			})
+
+		w := updateMachine("CLEAR-1", map[string]any{
+			"serial_number":    "CLEAR-1",
+			"assigned_user_id": nil,
+			"person_in_charge": "Ghost Contractor",
+		})
+		suite.Assert().Equal(http.StatusOK, w.Code)
+	})
+
+	suite.Run("an assignee suspended since being assigned is still saveable", func() {
+		assigneeID := int64(23)
+		suspended := assignableUser(assigneeID, "suspended.user")
+		status := users.StatusSuspended
+		suspended.Status = &status
+
+		suite.mockMachinesRepo.EXPECT().GetBySerialNumber(gomock.Any(), "SUSPENDED-1").
+			Return(&machines.Machine{SerialNumber: "SUSPENDED-1", AssignedUserID: &assigneeID}, nil)
+		suite.mockUsersRepo.EXPECT().GetByID(gomock.Any(), assigneeID).Return(suspended, nil)
+		suite.mockMachinesRepo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(nil)
+
+		w := updateMachine("SUSPENDED-1", map[string]any{
+			"serial_number":    "SUSPENDED-1",
+			"assigned_user_id": assigneeID,
+		})
+		suite.Assert().Equal(http.StatusOK, w.Code)
+	})
+
+	suite.Run("moving a machine to a suspended account is rejected", func() {
+		previousID := int64(24)
+		suspendedID := int64(25)
+		suspended := assignableUser(suspendedID, "suspended.user")
+		status := users.StatusSuspended
+		suspended.Status = &status
+
+		suite.mockMachinesRepo.EXPECT().GetBySerialNumber(gomock.Any(), "SUSPENDED-2").
+			Return(&machines.Machine{SerialNumber: "SUSPENDED-2", AssignedUserID: &previousID}, nil)
+		suite.mockUsersRepo.EXPECT().GetByID(gomock.Any(), suspendedID).Return(suspended, nil)
+
+		w := updateMachine("SUSPENDED-2", map[string]any{
+			"serial_number":    "SUSPENDED-2",
+			"assigned_user_id": suspendedID,
+		})
+		suite.Assert().Equal(http.StatusBadRequest, w.Code)
+		suite.Assert().Contains(w.Body.String(), "not an approved, active account")
 	})
 }
 

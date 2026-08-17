@@ -15,7 +15,12 @@ interface MachineInfoCardProps {
   machine: Machine;
   onEdit?: () => void;
   onDelete?: () => void;
+  /** Only provided for admins, who are the only ones able to raise a flag. */
+  onFlag?: () => void;
 }
+
+const FLAG_ICON_PATH =
+  'M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9';
 
 function formatMachineLocation(district: string, state: string): string {
   const parts = [district?.trim(), state?.trim()].filter(Boolean);
@@ -42,7 +47,12 @@ function setSessionExpanded(serialNumber: string, expanded: boolean): void {
   }
 }
 
-export default function MachineInfoCard({ machine, onEdit, onDelete }: MachineInfoCardProps) {
+export default function MachineInfoCard({
+  machine,
+  onEdit,
+  onDelete,
+  onFlag,
+}: MachineInfoCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const ppmStatus = getPPMStatusDisplay(machine.ppm_status);
@@ -136,7 +146,7 @@ export default function MachineInfoCard({ machine, onEdit, onDelete }: MachineIn
               </div>
             )}
           </div>
-          {!expanded && (onEdit || onDelete) && (
+          {!expanded && (onEdit || onDelete || onFlag) && (
             <div className="flex flex-shrink-0 flex-wrap items-center gap-2 sm:justify-end">
               {onEdit && (
                 <button
@@ -153,6 +163,23 @@ export default function MachineInfoCard({ machine, onEdit, onDelete }: MachineIn
                     />
                   </svg>
                   Edit Machine
+                </button>
+              )}
+              {onFlag && (
+                <button
+                  type="button"
+                  onClick={onFlag}
+                  className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 text-sm"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d={FLAG_ICON_PATH}
+                    />
+                  </svg>
+                  Flag Machine
                 </button>
               )}
               {onDelete && (
@@ -211,8 +238,10 @@ export default function MachineInfoCard({ machine, onEdit, onDelete }: MachineIn
                 <div className="font-medium text-gray-900">{locationSummary}</div>
               </div>
               <div>
-                <span className="text-sm text-gray-500">Person in Charge:</span>
-                <div className="font-medium text-gray-900">{machine.person_in_charge}</div>
+                <span className="text-sm text-gray-500">Assignee:</span>
+                <div className="font-medium text-gray-900">
+                  {machine.assigned_user?.username || machine.person_in_charge || '-'}
+                </div>
               </div>
             </div>
             <div className="space-y-2">
@@ -337,7 +366,7 @@ export default function MachineInfoCard({ machine, onEdit, onDelete }: MachineIn
           )}
 
           {/* Machine Actions */}
-          {(onEdit || onDelete) && (
+          {(onEdit || onDelete || onFlag) && (
             <div className="mt-6 pt-4 border-t border-gray-200 flex items-center gap-3">
               {onEdit && (
                 <button
@@ -354,6 +383,23 @@ export default function MachineInfoCard({ machine, onEdit, onDelete }: MachineIn
                     />
                   </svg>
                   Edit Machine
+                </button>
+              )}
+              {onFlag && (
+                <button
+                  type="button"
+                  onClick={onFlag}
+                  className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 text-sm"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d={FLAG_ICON_PATH}
+                    />
+                  </svg>
+                  Flag Machine
                 </button>
               )}
               {onDelete && (

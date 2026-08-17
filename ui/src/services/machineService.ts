@@ -61,7 +61,11 @@ export interface CreateMachineRequest {
   status: string;
   brand: string;
   district: string;
-  person_in_charge: string;
+  // An assignee is either a registered user (send assigned_user_id, and the
+  // server derives person_in_charge from their username) or a free-text name
+  // (send person_in_charge only; such an assignee gets no notifications).
+  assigned_user_id?: number | null;
+  person_in_charge?: string;
   reported_by: string;
   additional_notes?: string;
   attachment?: string;

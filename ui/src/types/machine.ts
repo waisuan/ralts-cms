@@ -1,3 +1,9 @@
+export interface AssignedUser {
+  id: number;
+  username: string;
+  email: string;
+}
+
 export interface Machine {
   serial_number: string;
   customer: string;
@@ -7,7 +13,14 @@ export interface Machine {
   status: string;
   brand: string;
   district: string;
+  // person_in_charge always holds the assignee's display name. When
+  // assigned_user_id is set the server derives it from that user's username;
+  // otherwise it is the free text entered for an assignee who has no account.
   person_in_charge: string;
+  // assigned_user_id links the machine to a registered user, which is what makes
+  // notifications possible. Null for free-text assignees.
+  assigned_user_id?: number | null;
+  assigned_user?: AssignedUser | null;
   reported_by: string;
   additional_notes: string;
   attachment: string;

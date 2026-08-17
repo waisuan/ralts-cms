@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect, useMemo, useCallback, Fragment } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, Fragment } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -24,6 +24,8 @@ import {
   machineDateUnsetClassName,
 } from '../utils/formatters';
 import { machineDetailHref } from '../utils/machineRoutes';
+import { useOpenFlagsForMachines } from '../hooks/useOpenFlagsForMachines';
+import FlagBadge from './FlagBadge';
 import PaginationControls from './PaginationControls';
 
 interface RecordsTableProps {
@@ -39,6 +41,10 @@ interface RecordsTableProps {
   onPageSizeChange: (size: number) => void;
   onEdit: (serialNumber: string) => void;
   onDelete: (serialNumber: string) => void;
+  /** Only provided for admins, who are the only ones able to raise a flag. */
+  onFlag?: (serialNumber: string) => void;
+  /** Bumped by the parent after a flag is raised so badges refresh. */
+  flagsReloadToken?: number;
 }
 
 const columnHelper = createColumnHelper<Machine>();
@@ -133,10 +139,12 @@ function ActionMenu({
   serial,
   onEdit,
   onDelete,
+  onFlag,
 }: {
   serial: string;
   onEdit: (s: string) => void;
   onDelete: (s: string) => void;
+  onFlag?: (s: string) => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -183,6 +191,14 @@ function ActionMenu({
             >
               Edit
             </button>
+            {onFlag && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setIsOpen(false); onFlag(serial); }}
+                className="w-full text-left px-4 py-2 text-sm text-orange-700 hover:bg-orange-50"
+              >
+                Flag
+              </button>
+            )}
             <button
               onClick={(e) => { e.stopPropagation(); setIsOpen(false); onDelete(serial); }}
               className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
@@ -353,10 +369,20 @@ export default function RecordsTable({
   onPageSizeChange,
   onEdit,
   onDelete,
+  onFlag,
+  flagsReloadToken = 0,
 }: RecordsTableProps) {
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(loadColumnVisibility);
   const [expanded, setExpanded] = useState<ExpandedState>({});
   const [showColumnMenu, setShowColumnMenu] = useState(false);
+
+  const serialsForFlags = useMemo(() => machines.map((m) => m.serial_number), [machines]);
+  const { flagsBySerial } = useOpenFlagsForMachines(serialsForFlags, flagsReloadToken);
+  // Keep the latest flags map in a ref so the memoized column definitions can
+  // read it without listing it as a dependency (which would rebuild the columns
+  // on every async fetch and reset table row state such as expansion).
+  const flagsRef = useRef(flagsBySerial);
+  flagsRef.current = flagsBySerial;
 
   const handleColumnVisibilityChange = useCallback((updater: VisibilityState | ((old: VisibilityState) => VisibilityState)) => {
     setColumnVisibility((prev) => {
@@ -424,21 +450,25 @@ export default function RecordsTable({
       },
       columnHelper.accessor('serial_number', {
         header: 'Serial No',
-        size: 130,
+        size: 150,
         cell: (info) => {
           const value = info.getValue();
+          const rowFlags = flagsRef.current[value] || [];
           return (
-            <Link
-              href={machineDetailHref(value)}
-              prefetch={false}
-              onClick={(e) => {
-                e.stopPropagation();
-              }}
-              className="font-medium text-blue-600 hover:text-blue-800 hover:underline truncate block text-left w-full"
-              title={value}
-            >
-              {value}
-            </Link>
+            <div className="flex items-center gap-2 min-w-0">
+              <Link
+                href={machineDetailHref(value)}
+                prefetch={false}
+                onClick={(e) => {
+                  e.stopPropagation();
+                }}
+                className="font-medium text-blue-600 hover:text-blue-800 hover:underline truncate block text-left"
+                title={value}
+              >
+                {value}
+              </Link>
+              {rowFlags.length > 0 && <FlagBadge flags={rowFlags} compact />}
+            </div>
           );
         },
         enableSorting: false,
@@ -551,14 +581,18 @@ export default function RecordsTable({
         },
         enableSorting: true,
       }),
-      columnHelper.accessor('person_in_charge', {
+      columnHelper.accessor((row) => row.assigned_user?.username || row.person_in_charge || '', {
+        id: 'assignee',
         header: 'Assignee',
         size: 130,
-        cell: (info) => (
-          <span className="text-gray-700 truncate block" title={info.getValue() || undefined}>
-            {info.getValue() || '-'}
-          </span>
-        ),
+        cell: (info) => {
+          const value = info.getValue();
+          return (
+            <span className="text-gray-700 truncate block" title={value || undefined}>
+              {value || '-'}
+            </span>
+          );
+        },
         enableSorting: false,
       }),
       columnHelper.accessor('reported_by', {
@@ -603,13 +637,14 @@ export default function RecordsTable({
             serial={row.original.serial_number}
             onEdit={onEdit}
             onDelete={onDelete}
+            onFlag={onFlag}
           />
         ),
         size: 44,
         enableSorting: false,
       },
     ],
-    [onEdit, onDelete]
+    [onEdit, onDelete, onFlag]
   );
 
   const table = useReactTable({

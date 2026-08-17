@@ -5,6 +5,7 @@ import { Machine } from '../types/machine';
 import { MALAYSIAN_STATES } from '../utils/constants';
 import { backendDateToHtmlDate, htmlDateToBackendDate, isMachineDateUnset } from '../utils/dateUtils';
 import { AttachmentService } from '../services/attachmentService';
+import { DirectoryEntry, UserDirectoryService } from '../services/userDirectoryService';
 import { useLockBodyScroll } from '../hooks/useLockBodyScroll';
 
 type MachineModalMode = 'add' | 'edit';
@@ -16,6 +17,16 @@ interface MachineModalProps {
   onClose: () => void;
   onSubmit: (machine: Machine | Omit<Machine, 'created_at' | 'updated_at' | 'updated_by'>) => Promise<void>;
 }
+
+/**
+ * Sentinel value of the assignee dropdown's last entry. Selecting it reveals a
+ * text input for an assignee who has no account yet, so free text is only ever
+ * used when explicitly asked for.
+ */
+const FREE_TEXT_ASSIGNEE = '__free_text__';
+
+/** Which of the two assignee inputs the form is currently using. */
+type AssigneeMode = 'user' | 'free';
 
 /** Edit mode: API sent a sentinel date (shown as empty in the date input) — border highlight until user picks a date. */
 function editSentinelDateNeedsPick(
@@ -45,6 +56,8 @@ export default function MachineModal({
     status: '',
     brand: '',
     district: '',
+    // Display name of the assignee: either the selected user's username or the
+    // free text typed for someone who has no account yet.
     person_in_charge: '',
     reported_by: '',
     additional_notes: '',
@@ -53,6 +66,17 @@ export default function MachineModal({
     tnc_date: '',
     ppm_date: '',
   });
+
+  // Assignee dropdown source. Loaded lazily when the modal opens so users added
+  // while the app is open show up next time it's opened.
+  const [directory, setDirectory] = useState<DirectoryEntry[]>([]);
+  const [directoryError, setDirectoryError] = useState<string | null>(null);
+  const [directoryLoading, setDirectoryLoading] = useState<boolean>(false);
+
+  // Assignee selection: a registered user (who gets notified) or, only when the
+  // user explicitly asks for it, a free-text name for someone with no account.
+  const [assigneeMode, setAssigneeMode] = useState<AssigneeMode>('user');
+  const [assigneeUserId, setAssigneeUserId] = useState<number | null>(null);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -87,7 +111,7 @@ export default function MachineModal({
         status: machine.status,
         brand: machine.brand,
         district: machine.district,
-        person_in_charge: machine.person_in_charge,
+        person_in_charge: machine.assigned_user?.username ?? machine.person_in_charge ?? '',
         reported_by: machine.reported_by,
         additional_notes: machine.additional_notes,
         attachment: machine.attachment,
@@ -95,12 +119,17 @@ export default function MachineModal({
         tnc_date: backendDateToHtmlDate(machine.tnc_date),
         ppm_date: backendDateToHtmlDate(machine.ppm_date),
       });
+      // A machine with no linked user but a name on file was assigned by free
+      // text, so reopen the form the way it was filled in.
+      const linkedUserId = machine.assigned_user_id ?? null;
+      const freeTextName = !linkedUserId && !!machine.person_in_charge?.trim();
+      setAssigneeMode(freeTextName ? 'free' : 'user');
+      setAssigneeUserId(linkedUserId);
       // Reset submission state when opening modal
       setIsSubmitting(false);
       setSubmitError(null);
       setAttachmentChanged(false);
     } else if (mode === 'add' && isOpen) {
-      // Reset form for add mode
       setFormData({
         serial_number: '',
         customer: '',
@@ -118,12 +147,38 @@ export default function MachineModal({
         tnc_date: '',
         ppm_date: '',
       });
-      // Reset submission state when opening modal
+      setAssigneeMode('user');
+      setAssigneeUserId(null);
       setIsSubmitting(false);
       setSubmitError(null);
       setAttachmentChanged(false);
     }
   }, [mode, machine, isOpen]);
+
+  // Load the assignee dropdown source when the modal opens.
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    setDirectoryLoading(true);
+    setDirectoryError(null);
+    UserDirectoryService.list()
+      .then((res) => {
+        if (cancelled) return;
+        setDirectory(res.data?.users ?? []);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error('Failed to load user directory:', err);
+        setDirectoryError('Could not load users for assignee picker');
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setDirectoryLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
 
 
 
@@ -145,6 +200,41 @@ export default function MachineModal({
       };
     }
   }, [mode]);
+
+  // A machine can be linked to a user who is no longer in the directory (for
+  // example after their account was disabled). Keep them selectable so editing
+  // an unrelated field doesn't silently unlink the assignee.
+  const assigneeOptions = useMemo<DirectoryEntry[]>(() => {
+    const linked = machine?.assigned_user;
+    if (mode === 'edit' && linked && !directory.some((u) => u.id === linked.id)) {
+      return [linked, ...directory];
+    }
+    return directory;
+  }, [directory, machine, mode]);
+
+  const selectedAssignee = useMemo(
+    () => assigneeOptions.find((u) => u.id === assigneeUserId),
+    [assigneeOptions, assigneeUserId]
+  );
+
+  const handleAssigneeSelect = (value: string) => {
+    setErrors((prev) => ({ ...prev, person_in_charge: '' }));
+    if (value === FREE_TEXT_ASSIGNEE) {
+      setAssigneeMode('free');
+      setAssigneeUserId(null);
+      setFormData((prev) => ({ ...prev, person_in_charge: '' }));
+      return;
+    }
+    setAssigneeMode('user');
+    if (value === '') {
+      setAssigneeUserId(null);
+      setFormData((prev) => ({ ...prev, person_in_charge: '' }));
+      return;
+    }
+    const picked = assigneeOptions.find((u) => String(u.id) === value);
+    setAssigneeUserId(picked ? picked.id : null);
+    setFormData((prev) => ({ ...prev, person_in_charge: picked ? picked.username : '' }));
+  };
 
   const tncNeedsAttention = editSentinelDateNeedsPick(mode, machine, machine?.tnc_date ?? '', formData.tnc_date);
   const ppmNeedsAttention = editSentinelDateNeedsPick(mode, machine, machine?.ppm_date ?? '', formData.ppm_date);
@@ -187,11 +277,16 @@ export default function MachineModal({
       newErrors.district = 'District must not exceed 50 characters';
     }
     
-    if (!formData.person_in_charge.trim()) {
-      newErrors.person_in_charge = 'Person in charge is required';
-    } else if (formData.person_in_charge.length > 50) {
-      newErrors.person_in_charge = 'Person in charge must not exceed 50 characters';
+    if (assigneeMode === 'user') {
+      if (assigneeUserId === null) {
+        newErrors.person_in_charge = 'Assignee is required';
+      }
+    } else if (!formData.person_in_charge.trim()) {
+      newErrors.person_in_charge = 'Enter the assignee name';
+    } else if (formData.person_in_charge.trim().length > 200) {
+      newErrors.person_in_charge = 'Assignee must not exceed 200 characters';
     }
+
     
     if (!formData.reported_by.trim()) {
       newErrors.reported_by = 'Reported by is required';
@@ -235,9 +330,15 @@ export default function MachineModal({
     setSubmitError(null);
 
     try {
-      // Convert HTML date format back to backend format
+      // A selected user is linked by id (which is what makes notifications
+      // possible); free text is saved as a name only.
+      const linkedUser = assigneeMode === 'user' ? selectedAssignee : undefined;
+
       const submissionData = {
         ...formData,
+        assigned_user_id: linkedUser ? linkedUser.id : null,
+        person_in_charge: linkedUser ? linkedUser.username : formData.person_in_charge.trim(),
+        assigned_user: linkedUser ?? null,
         tnc_date: htmlDateToBackendDate(formData.tnc_date),
         ppm_date: htmlDateToBackendDate(formData.ppm_date),
         // For now, just set attachment to filename if file is selected
@@ -258,9 +359,7 @@ export default function MachineModal({
         await onSubmit(updatedMachine);
         savedMachine = updatedMachine;
       } else {
-        // Create new machine (timestamps and updated_by will be added by the server)
         await onSubmit(submissionData);
-        // For new machines, we need to use the submissionData with a serial number
         savedMachine = {
           ...submissionData,
           created_at: new Date().toISOString(),
@@ -702,27 +801,70 @@ export default function MachineModal({
                 {errors.district && <p className="mt-1 text-sm text-red-600">{errors.district}</p>}
               </div>
 
-              {/* Person in Charge */}
+              {/* Assignee: pick a registered user, or opt into free text */}
               <div>
                 <label
-                  htmlFor="person_in_charge"
+                  htmlFor="assigned_user_id"
                   className="block text-sm font-medium text-gray-700 mb-2"
                 >
-                  Person in Charge <span className="text-red-500">*</span>
+                  Assignee <span className="text-red-500">*</span>
                 </label>
-                <input
-                  id="person_in_charge"
-                  type="text"
-                  value={formData.person_in_charge}
-                  onChange={(e) => handleInputChange('person_in_charge', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-600 text-gray-900 ${
+                <select
+                  id="assigned_user_id"
+                  value={
+                    assigneeMode === 'free'
+                      ? FREE_TEXT_ASSIGNEE
+                      : assigneeUserId !== null
+                        ? String(assigneeUserId)
+                        : ''
+                  }
+                  onChange={(e) => handleAssigneeSelect(e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 ${
                     errors.person_in_charge ? 'border-red-500' : 'border-gray-300'
                   }`}
-                  placeholder="Enter person in charge"
-                />
-                <p className="mt-1 text-sm text-gray-500">
-                  {formData.person_in_charge.length}/50 characters
-                </p>
+                >
+                  <option value="">
+                    {directoryLoading ? 'Loading users...' : 'Select a user'}
+                  </option>
+                  {assigneeOptions.map((u) => (
+                    <option key={u.id} value={String(u.id)}>
+                      {u.username} ({u.email})
+                    </option>
+                  ))}
+                  <option value={FREE_TEXT_ASSIGNEE}>Someone else (enter a name)</option>
+                </select>
+
+                {assigneeMode === 'free' && (
+                  <input
+                    id="person_in_charge"
+                    type="text"
+                    aria-label="Assignee name"
+                    autoComplete="off"
+                    autoFocus
+                    maxLength={200}
+                    value={formData.person_in_charge}
+                    onChange={(e) => handleInputChange('person_in_charge', e.target.value)}
+                    className={`mt-2 w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-600 text-gray-900 ${
+                      errors.person_in_charge ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="Assignee name"
+                  />
+                )}
+
+                {assigneeMode === 'free' ? (
+                  <p className="mt-1 text-sm text-gray-500">
+                    This assignee has no account, so they will not receive notifications.
+                  </p>
+                ) : (
+                  selectedAssignee && (
+                    <p className="mt-1 text-sm text-gray-500">
+                      {`Notifications will go to ${selectedAssignee.username} (${selectedAssignee.email}).`}
+                    </p>
+                  )
+                )}
+                {directoryError && (
+                  <p className="mt-1 text-sm text-amber-600">{directoryError}</p>
+                )}
                 {errors.person_in_charge && (
                   <p className="mt-1 text-sm text-red-600">{errors.person_in_charge}</p>
                 )}

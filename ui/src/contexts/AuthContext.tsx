@@ -127,3 +127,12 @@ export function useAuth() {
   }
   return context;
 }
+
+/**
+ * Like useAuth but returns null instead of throwing when there is no provider
+ * above. For components and hooks that merely tailor a supplementary detail to
+ * the signed-in user and can safely fall back to showing nothing.
+ */
+export function useOptionalAuth(): AuthContextType | null {
+  return useContext(AuthContext) ?? null;
+}

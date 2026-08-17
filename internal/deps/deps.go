@@ -8,8 +8,10 @@ import (
 
 	"ralts-cms/internal/attachments"
 	"ralts-cms/internal/audit"
+	"ralts-cms/internal/flags"
 	"ralts-cms/internal/machines"
 	"ralts-cms/internal/maintenance"
+	"ralts-cms/internal/notifications"
 	"ralts-cms/internal/refreshtokens"
 	"ralts-cms/internal/users"
 
@@ -28,15 +30,19 @@ type Dependencies struct {
 	S3Client       pkgs3.Client
 
 	// Repositories
-	MachinesRepository    machines.Repository
-	MaintenanceRepository maintenance.Repository
-	UsersRepository         users.Repository
-	RefreshTokenRepository  refreshtokens.Repository
-	AuditRepository         audit.Repository
+	MachinesRepository     machines.Repository
+	MaintenanceRepository  maintenance.Repository
+	UsersRepository        users.Repository
+	RefreshTokenRepository refreshtokens.Repository
+	AuditRepository        audit.Repository
+	NotificationRepository notifications.Repository
+	FlagsRepository        flags.Repository
 
 	// Services
-	AttachmentService attachments.AttachmentService
-	AuditService      audit.AuditService
+	AttachmentService   attachments.AttachmentService
+	AuditService        audit.AuditService
+	NotificationService notifications.Service
+	FlagsService        flags.Service
 }
 
 // Initialise creates and returns a new Dependencies instance with all required
@@ -73,6 +79,8 @@ func Initialise() *Dependencies {
 	usersRepo := users.NewRepository(pgClient)
 	refreshTokenRepo := refreshtokens.NewRepository(pgClient)
 	auditRepo := audit.NewRepository(pgClient)
+	notificationRepo := notifications.NewRepository(pgClient)
+	flagsRepo := flags.NewRepository(pgClient)
 
 	// Initialize services
 	attachmentService := attachments.NewService(s3Client, cfg.AWSS3BucketName)
@@ -86,18 +94,27 @@ func Initialise() *Dependencies {
 	auditService := audit.NewServiceWithConfig(auditRepo, logger, auditConfig)
 	auditService.Start()
 
+	// Notifications is fire-and-forget; the flags service depends on it to
+	// notify assignees when their machine is flagged.
+	notificationService := notifications.NewService(notificationRepo, logger)
+	flagsService := flags.NewService(flagsRepo, machinesRepo, notificationService, logger)
+
 	return &Dependencies{
-		Config:                cfg,
-		Logger:                logger,
-		PostgresClient:        pgClient,
-		S3Client:              s3Client,
-		MachinesRepository:    machinesRepo,
-		MaintenanceRepository: maintenanceRepo,
-		UsersRepository:         usersRepo,
-		RefreshTokenRepository:  refreshTokenRepo,
-		AuditRepository:         auditRepo,
-		AttachmentService:     attachmentService,
-		AuditService:          auditService,
+		Config:                 cfg,
+		Logger:                 logger,
+		PostgresClient:         pgClient,
+		S3Client:               s3Client,
+		MachinesRepository:     machinesRepo,
+		MaintenanceRepository:  maintenanceRepo,
+		UsersRepository:        usersRepo,
+		RefreshTokenRepository: refreshTokenRepo,
+		AuditRepository:        auditRepo,
+		NotificationRepository: notificationRepo,
+		FlagsRepository:        flagsRepo,
+		AttachmentService:      attachmentService,
+		AuditService:           auditService,
+		NotificationService:    notificationService,
+		FlagsService:           flagsService,
 	}
 }
 

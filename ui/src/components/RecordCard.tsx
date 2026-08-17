@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { Machine } from '../types/machine';
 import { AttachmentService } from '../services/attachmentService';
+import { useOpenFlagsForMachines } from '../hooks/useOpenFlagsForMachines';
+import FlagBadge from './FlagBadge';
 import {
   formatDate,
   formatDateTime,
@@ -19,6 +21,10 @@ interface RecordCardProps {
   machine: Machine;
   onEdit: (serial_number: string) => void;
   onDelete: (serial_number: string) => void;
+  /** Only provided for admins, who are the only ones able to raise a flag. */
+  onFlag?: (serial_number: string) => void;
+  /** Bumped by the parent after a flag is raised so badges refresh. */
+  flagsReloadToken?: number;
 }
 
 function DetailField({
@@ -67,11 +73,19 @@ function MachineDetailLink({
   );
 }
 
-export default function RecordCard({ machine, onEdit, onDelete }: RecordCardProps) {
+export default function RecordCard({
+  machine,
+  onEdit,
+  onDelete,
+  onFlag,
+  flagsReloadToken = 0,
+}: RecordCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [showNotesModal, setShowNotesModal] = useState(false);
   const isMobile = useIsMobile();
+  const { flagsBySerial } = useOpenFlagsForMachines([machine.serial_number], flagsReloadToken);
+  const openFlags = flagsBySerial[machine.serial_number] || [];
   const status = getPPMStatusDisplay(machine.ppm_status);
   const showPpmServerPill = status && !isMachineDateUnset(machine.ppm_date);
   const tncDisplay = formatMachineDateDisplay(machine.tnc_date);
@@ -138,6 +152,7 @@ export default function RecordCard({ machine, onEdit, onDelete }: RecordCardProp
                     {status.label}
                   </span>
                 )}
+                {openFlags.length > 0 && <FlagBadge flags={openFlags} compact />}
               </div>
               <p className="text-xs text-gray-500 mt-1">
                 {machine.customer} &middot; {machine.state}
@@ -186,7 +201,7 @@ export default function RecordCard({ machine, onEdit, onDelete }: RecordCardProp
               <DetailField label="District" value={machine.district || '-'} />
               <DetailField label="Status" value={machine.status || '-'} />
               <DetailField label="Account Type" value={machine.account_type || '-'} />
-              <DetailField label="Person In Charge" value={machine.person_in_charge || '-'} />
+              <DetailField label="Assignee" value={machine.assigned_user?.username || machine.person_in_charge || '-'} />
               <DetailField label="Reported By" value={machine.reported_by || '-'} />
               {machine.updated_by && <DetailField label="Updated By" value={machine.updated_by} />}
               <div>
@@ -237,6 +252,9 @@ export default function RecordCard({ machine, onEdit, onDelete }: RecordCardProp
                 View
               </Link>
               <button onClick={(e) => { e.stopPropagation(); onEdit(machine.serial_number); }} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-yellow-700 bg-yellow-50 hover:bg-yellow-100 rounded-lg transition-colors">Edit</button>
+              {onFlag && (
+                <button onClick={(e) => { e.stopPropagation(); onFlag(machine.serial_number); }} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors">Flag</button>
+              )}
               <button onClick={(e) => { e.stopPropagation(); onDelete(machine.serial_number); }} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors">Delete</button>
             </div>
           </div>
@@ -252,9 +270,12 @@ export default function RecordCard({ machine, onEdit, onDelete }: RecordCardProp
         <div className="p-6">
           <div className="flex justify-between items-start mb-4">
             <div className="flex-1 min-w-0">
-              <h3 className="text-lg font-semibold text-gray-900 truncate" title={machine.serial_number}>
-                {machine.serial_number}
-              </h3>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-lg font-semibold text-gray-900 truncate" title={machine.serial_number}>
+                  {machine.serial_number}
+                </h3>
+                {openFlags.length > 0 && <FlagBadge flags={openFlags} compact />}
+              </div>
               {machine.model && (
                 <p className="text-sm text-gray-600 truncate" title={machine.model}>
                   {machine.model}
@@ -321,7 +342,7 @@ export default function RecordCard({ machine, onEdit, onDelete }: RecordCardProp
               Account Type: <span className="font-normal">{machine.account_type || 'Not specified'}</span>
             </div>
             <div className="text-sm text-gray-700 font-medium">
-              Person In Charge: <span className="font-normal">{machine.person_in_charge}</span>
+              Assignee: <span className="font-normal">{machine.assigned_user?.username || machine.person_in_charge || '-'}</span>
             </div>
           </div>
 
@@ -357,6 +378,9 @@ export default function RecordCard({ machine, onEdit, onDelete }: RecordCardProp
               View
             </Link>
             <button onClick={() => onEdit(machine.serial_number)} className="flex-1 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 px-3 py-2 rounded-md text-sm font-medium transition-colors">Edit</button>
+            {onFlag && (
+              <button onClick={() => onFlag(machine.serial_number)} className="flex-1 bg-orange-50 hover:bg-orange-100 text-orange-700 px-3 py-2 rounded-md text-sm font-medium transition-colors">Flag</button>
+            )}
             <button onClick={() => onDelete(machine.serial_number)} className="flex-1 bg-red-50 hover:bg-red-100 text-red-700 px-3 py-2 rounded-md text-sm font-medium transition-colors">Delete</button>
           </div>
 
