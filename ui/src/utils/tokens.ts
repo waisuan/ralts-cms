@@ -51,12 +51,22 @@ export function isPublicAuthPath(endpoint: string): boolean {
   return false;
 }
 
-/** 401 here means invalid current password, not always "re-login"; keep user on the page. */
+/**
+ * Endpoints whose 401 must not end the session: either the status means
+ * something other than "sign in again" (a wrong current password), or the call
+ * is a background one whose failure the user should never be shown.
+ */
 export function shouldSuppressAuthRedirectOn401(endpoint: string): boolean {
   if (isPublicAuthPath(endpoint)) {
     return true;
   }
   if (endpoint.includes('/users/password')) {
+    return true;
+  }
+  // The unread badge fetches on every navigation and is decorative; a stale
+  // token here should not tear the page the user is reading out from under them.
+  // Token refresh is still attempted, and the next real request decides.
+  if (endpoint.includes('/notifications/unread-count')) {
     return true;
   }
   return false;

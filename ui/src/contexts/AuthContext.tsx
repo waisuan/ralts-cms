@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { UserService } from '../services/userService';
-import { isAuthError } from '../utils/auth';
+import { isAuthError, SESSION_EXPIRED_EVENT } from '../utils/auth';
 import { setSessionTokens, clearSessionAuthKeys } from '../utils/tokens';
 
 interface AuthUser {
@@ -44,6 +44,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
     setIsLoading(false);
+  }, []);
+
+  // The API client ends the session when the server stops accepting our
+  // credentials. Dropping the user here swaps in the sign-in screen without a
+  // page load, and unmounts the pages whose fetches would keep 401ing.
+  useEffect(() => {
+    const handleExpiry = () => setUser(null);
+    window.addEventListener(SESSION_EXPIRED_EVENT, handleExpiry);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, handleExpiry);
   }, []);
 
   const login = async (username: string, password: string): Promise<{ success: boolean; error?: string }> => {

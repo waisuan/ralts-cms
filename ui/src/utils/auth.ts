@@ -2,19 +2,28 @@
 import { clearSessionAuthKeys } from './tokens';
 
 /**
- * Redirects the user to the login page and clears authentication data
+ * Dispatched on window when the API rejects a request because the session is
+ * over. AuthProvider listens for it and forgets the signed-in user.
  */
-export function redirectToLogin(): void {
-  // Clear authentication data
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('ralts_user');
-    clearSessionAuthKeys();
+export const SESSION_EXPIRED_EVENT = 'ralts:session-expired';
+
+/**
+ * Ends the session: forgets the stored user and tokens, then asks the app to
+ * show the sign-in screen.
+ *
+ * This deliberately leaves window.location alone. Assigning a location is a
+ * full page load, and when the target is the page that is still loading it
+ * aborts that page's own script requests, so the user is left staring at
+ * "Loading..." forever. Keeping the URL also means signing back in returns them
+ * to the page they were on.
+ */
+export function endSession(): void {
+  if (typeof window === 'undefined') {
+    return;
   }
-  
-  // Redirect to login page
-  if (typeof window !== 'undefined') {
-    window.location.href = '/';
-  }
+  localStorage.removeItem('ralts_user');
+  clearSessionAuthKeys();
+  window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
 }
 
 /**

@@ -1,7 +1,8 @@
 import { ApiClient, ApiError, handleApiError } from './api';
+import { endSession, isAuthError } from './auth';
 
 jest.mock('./auth', () => ({
-  redirectToLogin: jest.fn(),
+  endSession: jest.fn(),
   isAuthError: jest.fn(() => false),
 }));
 
@@ -175,5 +176,15 @@ describe('handleApiError', () => {
     const out = handleApiError(new Error('boom'));
     expect(out).toBeInstanceOf(ApiError);
     expect(out.message).toBe('boom');
+  });
+
+  it('formats a 401 without ending the session', () => {
+    (isAuthError as jest.Mock).mockReturnValue(true);
+    const err = new ApiError('nope', 401);
+
+    expect(handleApiError(err)).toBe(err);
+    expect(endSession).not.toHaveBeenCalled();
+
+    (isAuthError as jest.Mock).mockReturnValue(false);
   });
 });

@@ -24,8 +24,14 @@ describe('tokens', () => {
     it('suppresses for password change so wrong current password does not log user out', () => {
       expect(shouldSuppressAuthRedirectOn401('/api/v1/users/password')).toBe(true);
     });
+    it('suppresses for the unread badge so a decorative fetch cannot log the user out', () => {
+      expect(
+        shouldSuppressAuthRedirectOn401('/api/v1/notifications/unread-count')
+      ).toBe(true);
+    });
     it('allows redirect for typical API 401', () => {
       expect(shouldSuppressAuthRedirectOn401('/api/v1/machines')).toBe(false);
+      expect(shouldSuppressAuthRedirectOn401('/api/v1/notifications')).toBe(false);
     });
   });
 });

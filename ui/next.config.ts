@@ -22,6 +22,10 @@ const nextConfig: NextConfig = {
     ],
   },
   poweredByHeader: false,
+  // The browser reaches this dev server through the WSL localhost relay, so dev
+  // resource requests arrive as localhost or 127.0.0.1 and Next 16 blocks them
+  // (including the HMR endpoint) unless the origin is listed here.
+  allowedDevOrigins: ['localhost', '127.0.0.1'],
   async rewrites() {
     return [
       { source: '/api/:path*', destination: `${apiTarget}/api/:path*` },

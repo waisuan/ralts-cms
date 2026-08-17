@@ -1,5 +1,5 @@
 // API client utilities for making HTTP requests to the backend
-import { redirectToLogin, isAuthError } from './auth';
+import { endSession, isAuthError } from './auth';
 import {
   getAccessToken,
   getRefreshToken,
@@ -182,10 +182,8 @@ export class ApiClient {
         // Check if this is a 401 authentication error
         if (isAuthError(error)) {
           if (!shouldSuppressAuthRedirectOn401(endpoint)) {
-            console.log('🔐 Authentication error detected, redirecting to login');
-            redirectToLogin();
-            // Don't throw the error since we're redirecting
-            throw new ApiError('Redirecting to login...', 401);
+            endSession();
+            throw new ApiError('Your session has expired. Please sign in again.', 401);
           }
         }
         throw error;
@@ -250,9 +248,8 @@ export class ApiClient {
 
       if (!response.ok) {
         if (response.status === 401 && !shouldSuppressAuthRedirectOn401(endpoint)) {
-          console.log('🔐 Authentication error detected, redirecting to login');
-          redirectToLogin();
-          throw new ApiError('Redirecting to login...', 401);
+          endSession();
+          throw new ApiError('Your session has expired. Please sign in again.', 401);
         }
         const { errorData, fromBody } = await readHttpErrorPayload(response);
         throw new ApiError(
@@ -321,8 +318,8 @@ export class ApiClient {
 
       if (!response.ok) {
         if (response.status === 401 && !shouldSuppressAuthRedirectOn401(path)) {
-          redirectToLogin();
-          throw new ApiError('Redirecting to login...', 401);
+          endSession();
+          throw new ApiError('Your session has expired. Please sign in again.', 401);
         }
         const errorText = await response.text();
         throw new ApiError(
@@ -350,23 +347,15 @@ export class ApiClient {
 // Global API client instance
 export const apiClient = new ApiClient();
 
-// Helper function to handle API errors
+/**
+ * Normalises anything thrown by a request into an ApiError for display.
+ *
+ * It never ends the session: the request methods above already do that where a
+ * 401 means the session is over, and they know which endpoint was called, which
+ * this does not.
+ */
 export function handleApiError(error: unknown): ApiError {
   if (error instanceof ApiError) {
-    // Check if this is a 401 authentication error and redirect
-    if (isAuthError(error)) {
-      // For handleApiError, we don't have endpoint context, so we'll be more conservative
-      // Only redirect if we're not on a login-related page
-      const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
-      const isLoginPage = currentPath === '/' || currentPath === '/login' || currentPath === '/register';
-      
-      if (!isLoginPage) {
-        console.log('🔐 Authentication error detected in handleApiError, redirecting to login');
-        redirectToLogin();
-        // Return a generic error since we're redirecting
-        return new ApiError('Redirecting to login...', 401);
-      }
-    }
     return error;
   }
   
