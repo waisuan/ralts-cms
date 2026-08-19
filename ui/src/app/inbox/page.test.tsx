@@ -1,7 +1,8 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import InboxPage from './page';
 import { NotificationService, Notification } from '@/services/notificationService';
+import { NOTIFICATIONS_READ_EVENT } from '@/hooks/useNotificationReadSync';
 import { useAuth } from '@/contexts/AuthContext';
 
 jest.mock('@/services/notificationService', () => ({
@@ -147,5 +148,58 @@ describe('InboxPage', () => {
     await waitFor(() => {
       expect(screen.queryByRole('button', { name: /mark all read/i })).not.toBeInTheDocument();
     });
+  });
+
+  it('announces its own mark-all-read so the bell can follow', async () => {
+    const user = userEvent.setup();
+    mockList([flagNotification({ read_at: null })]);
+    (NotificationService.markAllRead as jest.Mock).mockResolvedValue({});
+    const heard = jest.fn();
+    window.addEventListener(NOTIFICATIONS_READ_EVENT, heard);
+
+    try {
+      render(<InboxPage />);
+      await user.click(await screen.findByRole('button', { name: /mark all read/i }));
+
+      await waitFor(() => expect(heard).toHaveBeenCalledTimes(1));
+    } finally {
+      window.removeEventListener(NOTIFICATIONS_READ_EVENT, heard);
+    }
+  });
+
+  it('follows a mark-all-read done from the bell', async () => {
+    mockList([flagNotification({ read_at: null })]);
+
+    render(<InboxPage />);
+    expect(await screen.findByRole('button', { name: /mark all read/i })).toBeInTheDocument();
+
+    mockList([flagNotification({ read_at: '2024-06-02T00:00:00Z' })]);
+    await act(async () => {
+      window.dispatchEvent(new Event(NOTIFICATIONS_READ_EVENT));
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /mark all read/i })).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('All caught up')).toBeInTheDocument();
+    // The reload is quiet: the row the user was reading never left the screen
+    // for a spinner.
+    expect(screen.getByText(/machine sn-1 flagged/i)).toBeInTheDocument();
+  });
+
+  it('keeps the current rows when a quiet reload fails', async () => {
+    mockList([flagNotification({ read_at: null })]);
+
+    render(<InboxPage />);
+    await screen.findByText(/machine sn-1 flagged/i);
+
+    (NotificationService.list as jest.Mock).mockRejectedValue(new Error('offline'));
+    await act(async () => {
+      window.dispatchEvent(new Event(NOTIFICATIONS_READ_EVENT));
+    });
+
+    // Nobody asked for this fetch, so its failure is not their problem.
+    expect(screen.getByText(/machine sn-1 flagged/i)).toBeInTheDocument();
+    expect(screen.queryByText('Failed to load notifications')).not.toBeInTheDocument();
   });
 });

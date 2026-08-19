@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event';
 import RecordsTable from './RecordsTable';
 import { Machine } from '@/types/machine';
 import { FIXTURE_MACHINES } from '@/__fixtures__/machines';
+import { USER_ROLE, type UserRole } from '../services/adminUserService';
+import { useOptionalAuth } from '../contexts/AuthContext';
 
 jest.mock('../services/attachmentService', () => ({
   AttachmentService: {
@@ -10,11 +12,14 @@ jest.mock('../services/attachmentService', () => ({
   },
 }));
 
-jest.mock('../services/flagService', () => ({
-  FlagService: {
-    listOpenByMachine: jest.fn().mockResolvedValue({ data: { flags: {} } }),
-  },
+jest.mock('../contexts/AuthContext', () => ({
+  useOptionalAuth: jest.fn(),
 }));
+
+const signedInAs = (id: number, role: UserRole) =>
+  (useOptionalAuth as jest.Mock).mockReturnValue({
+    user: { id, username: 'u', email: 'e', role, approved: true },
+  });
 
 function baseMachine(overrides: Partial<Machine> = {}): Machine {
   return {
@@ -210,6 +215,69 @@ describe('RecordsTable', () => {
 
       const table = screen.getByRole('table');
       expect(table).toHaveClass('table-fixed');
+    });
+  });
+
+  describe('resolving a flag from the row actions', () => {
+    const openFlag = {
+      id: 'f-1',
+      machine_serial_number: 'SN-FLAGGED',
+      reason: 'missing_values' as const,
+      status: 'open' as const,
+      created_at: '2024-01-01T00:00:00Z',
+    };
+    const flaggedMachine = baseMachine({ serial_number: 'SN-FLAGGED', assigned_user_id: 7 });
+
+    const openActionsOn = async (
+      user: ReturnType<typeof userEvent.setup>,
+      { onResolveFlag = jest.fn(), flagged = true } = {}
+    ) => {
+      render(
+        <RecordsTable
+          {...defaultProps}
+          machines={[flaggedMachine]}
+          total={1}
+          onResolveFlag={onResolveFlag}
+          flagsBySerial={flagged ? { 'SN-FLAGGED': [openFlag] } : {}}
+        />
+      );
+      await user.click(screen.getByTitle('Actions'));
+      return onResolveFlag;
+    };
+
+    it('hands the assignee the open flag to resolve', async () => {
+      const user = userEvent.setup();
+      signedInAs(7, USER_ROLE.NON_ADMIN);
+      const onResolveFlag = await openActionsOn(user);
+
+      await user.click(screen.getByRole('button', { name: 'Resolve flag' }));
+
+      expect(onResolveFlag).toHaveBeenCalledWith(openFlag);
+    });
+
+    it('offers it to an admin on a machine assigned to somebody else', async () => {
+      const user = userEvent.setup();
+      signedInAs(99, USER_ROLE.ADMIN);
+      await openActionsOn(user);
+
+      expect(screen.getByRole('button', { name: 'Resolve flag' })).toBeInTheDocument();
+    });
+
+    it('withholds it from a user the machine is not assigned to', async () => {
+      const user = userEvent.setup();
+      signedInAs(8, USER_ROLE.NON_ADMIN);
+      await openActionsOn(user);
+
+      expect(screen.queryByRole('button', { name: 'Resolve flag' })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument();
+    });
+
+    it('shows nothing to resolve on a machine without an open flag', async () => {
+      const user = userEvent.setup();
+      signedInAs(7, USER_ROLE.NON_ADMIN);
+      await openActionsOn(user, { flagged: false });
+
+      expect(screen.queryByRole('button', { name: 'Resolve flag' })).not.toBeInTheDocument();
     });
   });
 });

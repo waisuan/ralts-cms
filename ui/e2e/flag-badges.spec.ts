@@ -67,6 +67,23 @@ test.describe('flag badges on the machines list', () => {
     expect(batchRequests).toBe(0);
   });
 
+  test('a page of cards is covered by a single batch request', async ({ page }) => {
+    await signInAs(page, ADMIN_USER);
+    await page.addInitScript(() => localStorage.setItem('ralts-view-mode', 'cards'));
+    let batchRequests = 0;
+    await page.route(isOpenFlagsBatch, (route) => {
+      batchRequests += 1;
+      return fulfilJSON(route, { flags: { 'SN-1': [flag()] } });
+    });
+
+    await page.goto('/');
+    await expect(page.getByTitle(/missing_values/)).toBeVisible();
+
+    // Cards render the flags the list fetched for the whole page rather than
+    // asking for their own, which would be a request per card.
+    expect(batchRequests).toBe(1);
+  });
+
   test('an admin viewing unflagged machines sees no badges', async ({ page }) => {
     await signInAs(page, ADMIN_USER);
     await page.route(isOpenFlagsBatch, (route) => fulfilJSON(route, { flags: {} }));

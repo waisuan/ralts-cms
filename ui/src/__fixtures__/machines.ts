@@ -27,9 +27,13 @@ const base: Machine = {
   updated_by: '',
 };
 
-function m(overrides: Partial<Machine>): Machine {
+/** Builds a machine with only the fields a test cares about set. */
+export function machineFixture(overrides: Partial<Machine> = {}): Machine {
   return { ...base, ...overrides };
 }
+
+// Shorthand for the fixture list below.
+const m = machineFixture;
 
 export const FIXTURE_MACHINES: Machine[] = [
   // Short serial, long customer, empty state/district, no assignee

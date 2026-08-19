@@ -12,7 +12,10 @@ import RecordsTable from './RecordsTable';
 import PaginationControls from './PaginationControls';
 import MachineModal from './MachineModal';
 import FlagMachineModal from './FlagMachineModal';
+import ResolveFlagModal from './ResolveFlagModal';
 import LoadingOverlay from './LoadingOverlay';
+import { Flag } from '../services/flagService';
+import { useOpenFlagsForMachines } from '../hooks/useOpenFlagsForMachines';
 import { useOptionalAuth } from '../contexts/AuthContext';
 import { USER_ROLE } from '../services/adminUserService';
 import { DateRangeValue } from './DateRangePicker';
@@ -87,9 +90,12 @@ export default function RecordsList({
   const [machineToEdit, setMachineToEdit] = useState<Machine | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [serialToFlag, setSerialToFlag] = useState<string | null>(null);
+  const [flagToResolve, setFlagToResolve] = useState<Flag | null>(null);
   const [flagsReloadToken, setFlagsReloadToken] = useState(0);
 
   // Raising a flag is admin-only, so non-admins get no flag action at all.
+  // Clearing one is not: the rows decide for themselves, since an assignee may
+  // resolve flags on their own machines.
   const auth = useOptionalAuth();
   const isAdmin = auth?.user?.role === USER_ROLE.ADMIN;
 
@@ -132,6 +138,13 @@ export default function RecordsList({
   });
 
   const { createMachine, updateMachine, deleteMachine } = useMachine();
+
+  // Open flags are fetched here, once per page of machines, and handed to
+  // whichever view is showing them. Fetching per row would be one request per
+  // card, repeated every time the token is bumped by a flag being raised or
+  // resolved.
+  const serialsOnPage = useMemo(() => machines.map((m) => m.serial_number), [machines]);
+  const { flagsBySerial } = useOpenFlagsForMachines(serialsOnPage, flagsReloadToken);
 
   useEffect(() => {
     if (onCountsUpdate) {
@@ -380,7 +393,8 @@ export default function RecordsList({
           onEdit={handleEdit}
           onDelete={handleDelete}
           onFlag={isAdmin ? handleFlag : undefined}
-          flagsReloadToken={flagsReloadToken}
+          onResolveFlag={setFlagToResolve}
+          flagsBySerial={flagsBySerial}
         />
       ) : (
         <>
@@ -406,7 +420,8 @@ export default function RecordsList({
                 onEdit={handleEdit}
                 onDelete={handleDelete}
                 onFlag={isAdmin ? handleFlag : undefined}
-                flagsReloadToken={flagsReloadToken}
+                onResolveFlag={setFlagToResolve}
+                openFlags={flagsBySerial[machine.serial_number]}
               />
             ))}
           </div>
@@ -451,6 +466,14 @@ export default function RecordsList({
         onClose={() => setSerialToFlag(null)}
         onCreated={() => setFlagsReloadToken((t) => t + 1)}
       />
+
+      {flagToResolve && (
+        <ResolveFlagModal
+          flag={flagToResolve}
+          onClose={() => setFlagToResolve(null)}
+          onResolved={() => setFlagsReloadToken((t) => t + 1)}
+        />
+      )}
 
       {showDeleteConfirm && machineToDelete && (
         <RecordsListDeleteModal

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import {
@@ -9,6 +9,7 @@ import {
   Notification,
   NotificationType,
 } from '@/services/notificationService';
+import { useNotificationReadSync } from '@/hooks/useNotificationReadSync';
 import { machineDetailHref } from '@/utils/machineRoutes';
 import LoadingSpinner from '@/components/LoadingSpinner';
 
@@ -33,6 +34,9 @@ function formatWhen(iso: string): string {
  * Inbox page — a read-only list of notifications with pagination and a filter.
  * Flags are resolved on the flagged records page, which each notification about
  * an open flag links to.
+ *
+ * Marking anything read here also updates the header bell, and vice versa, since
+ * both are on screen at once.
  */
 export default function InboxPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -45,6 +49,9 @@ export default function InboxPage() {
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Identifies the most recent list request, so a slower one it overtook cannot
+  // put its stale page back on screen.
+  const latestRequest = useRef(0);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -52,9 +59,15 @@ export default function InboxPage() {
     }
   }, [authLoading, user, router]);
 
-  const load = useCallback(async (nextPage: number, filterUnreadOnly: boolean) => {
-    setIsLoading(true);
-    setError(null);
+  const load = useCallback(async (nextPage: number, filterUnreadOnly: boolean, quiet = false) => {
+    // A quiet load is a refresh of something the user did elsewhere on the page,
+    // so it leaves the rows they are reading alone: no spinner in their place,
+    // and no error banner if the refresh fails, since they asked for nothing.
+    if (!quiet) {
+      setIsLoading(true);
+      setError(null);
+    }
+    const request = ++latestRequest.current;
     try {
       const offset = (nextPage - 1) * PAGE_SIZE;
       const res = await NotificationService.list({
@@ -62,14 +75,16 @@ export default function InboxPage() {
         offset,
         unread_only: filterUnreadOnly,
       });
+      // A newer load has since been asked for; its answer is the current one.
+      if (request !== latestRequest.current) return;
       setItems(res.data?.notifications ?? []);
       setCount(res.data?.count ?? 0);
       setUnreadCount(res.data?.unread_count ?? 0);
     } catch (err) {
       console.error('Failed to load notifications:', err);
-      setError('Failed to load notifications');
+      if (!quiet) setError('Failed to load notifications');
     } finally {
-      setIsLoading(false);
+      if (!quiet) setIsLoading(false);
     }
   }, []);
 
@@ -77,6 +92,12 @@ export default function InboxPage() {
     if (!user) return;
     load(page, unreadOnly);
   }, [user, page, unreadOnly, load]);
+
+  // The header bell can mark notifications read while this page is open, so
+  // re-read the list when it does rather than leaving these rows looking unread.
+  const announceRead = useNotificationReadSync(() => {
+    void load(page, unreadOnly, true);
+  });
 
   const totalPages = Math.max(1, Math.ceil(count / PAGE_SIZE));
 
@@ -87,6 +108,7 @@ export default function InboxPage() {
         prev.map((n) => (n.id === id ? { ...n, read_at: new Date().toISOString() } : n))
       );
       setUnreadCount((u) => Math.max(0, u - 1));
+      announceRead();
     } catch (err) {
       console.error('markRead failed', err);
     }
@@ -98,6 +120,7 @@ export default function InboxPage() {
       const now = new Date().toISOString();
       setItems((prev) => prev.map((n) => ({ ...n, read_at: n.read_at ?? now })));
       setUnreadCount(0);
+      announceRead();
     } catch (err) {
       console.error('markAllRead failed', err);
     }

@@ -1,6 +1,17 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import RecordCard from './RecordCard';
 import { Machine } from '../types/machine';
+import { USER_ROLE, type UserRole } from '../services/adminUserService';
+import { useOptionalAuth } from '../contexts/AuthContext';
+
+jest.mock('../contexts/AuthContext', () => ({
+  useOptionalAuth: jest.fn(),
+}));
+
+const signedInAs = (id: number, role: UserRole) =>
+  (useOptionalAuth as jest.Mock).mockReturnValue({
+    user: { id, username: 'u', email: 'e', role, approved: true },
+  });
 
 describe('RecordCard', () => {
   const baseMachine: Machine = {
@@ -138,5 +149,55 @@ describe('RecordCard', () => {
     expect(screen.queryByText('Overdue')).not.toBeInTheDocument();
     expect(screen.queryByText('Due')).not.toBeInTheDocument();
     expect(screen.queryByText('Upcoming')).not.toBeInTheDocument();
+  });
+
+  describe('resolving the machine\u2019s flag', () => {
+    const openFlag = {
+      id: 'f-1',
+      machine_serial_number: 'SN-TEST',
+      reason: 'missing_values' as const,
+      status: 'open' as const,
+      created_at: '2024-01-01T00:00:00Z',
+    };
+    const assignedToMe = { ...baseMachine, assigned_user_id: 7 };
+
+    const expandCard = ({ onResolveFlag = jest.fn(), flagged = true } = {}) => {
+      render(
+        <RecordCard
+          machine={assignedToMe}
+          onEdit={mockOnEdit}
+          onDelete={mockOnDelete}
+          onResolveFlag={onResolveFlag}
+          openFlags={flagged ? [openFlag] : []}
+        />
+      );
+      fireEvent.click(screen.getByRole('button', { expanded: false }));
+      return onResolveFlag;
+    };
+
+    it('hands the assignee the open flag to resolve', () => {
+      signedInAs(7, USER_ROLE.NON_ADMIN);
+      const onResolveFlag = expandCard();
+
+      fireEvent.click(screen.getByText('Resolve'));
+
+      expect(onResolveFlag).toHaveBeenCalledWith(openFlag);
+    });
+
+    it('withholds the action from a user the machine is not assigned to', () => {
+      signedInAs(8, USER_ROLE.NON_ADMIN);
+      expandCard();
+
+      // The badge shows regardless: reading a flag is open to everyone.
+      expect(screen.getByTitle(/missing_values/)).toBeInTheDocument();
+      expect(screen.queryByText('Resolve')).not.toBeInTheDocument();
+    });
+
+    it('offers nothing to resolve on an unflagged machine', () => {
+      signedInAs(7, USER_ROLE.NON_ADMIN);
+      expandCard({ flagged: false });
+
+      expect(screen.queryByText('Resolve')).not.toBeInTheDocument();
+    });
   });
 });

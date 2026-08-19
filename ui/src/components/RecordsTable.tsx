@@ -24,7 +24,8 @@ import {
   machineDateUnsetClassName,
 } from '../utils/formatters';
 import { machineDetailHref } from '../utils/machineRoutes';
-import { useOpenFlagsForMachines } from '../hooks/useOpenFlagsForMachines';
+import { useCanResolveFlags } from '../hooks/useCanResolveFlags';
+import { Flag } from '../services/flagService';
 import FlagBadge from './FlagBadge';
 import PaginationControls from './PaginationControls';
 
@@ -43,8 +44,14 @@ interface RecordsTableProps {
   onDelete: (serialNumber: string) => void;
   /** Only provided for admins, who are the only ones able to raise a flag. */
   onFlag?: (serialNumber: string) => void;
-  /** Bumped by the parent after a flag is raised so badges refresh. */
-  flagsReloadToken?: number;
+  /**
+   * Called with a machine's open flag when the user asks to resolve it. The
+   * action is offered only on rows the caller is allowed to resolve, so a
+   * non-admin sees it on their own machines and nowhere else.
+   */
+  onResolveFlag?: (flag: Flag) => void;
+  /** Open flags for the machines on this page, keyed by serial number. */
+  flagsBySerial?: Record<string, Flag[]>;
 }
 
 const columnHelper = createColumnHelper<Machine>();
@@ -140,11 +147,13 @@ function ActionMenu({
   onEdit,
   onDelete,
   onFlag,
+  onResolveFlag,
 }: {
   serial: string;
   onEdit: (s: string) => void;
   onDelete: (s: string) => void;
   onFlag?: (s: string) => void;
+  onResolveFlag?: () => void;
 }) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -197,6 +206,14 @@ function ActionMenu({
                 className="w-full text-left px-4 py-2 text-sm text-orange-700 hover:bg-orange-50"
               >
                 Flag
+              </button>
+            )}
+            {onResolveFlag && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setIsOpen(false); onResolveFlag(); }}
+                className="w-full text-left px-4 py-2 text-sm text-green-700 hover:bg-green-50"
+              >
+                Resolve flag
               </button>
             )}
             <button
@@ -370,19 +387,19 @@ export default function RecordsTable({
   onEdit,
   onDelete,
   onFlag,
-  flagsReloadToken = 0,
+  onResolveFlag,
+  flagsBySerial = {},
 }: RecordsTableProps) {
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(loadColumnVisibility);
   const [expanded, setExpanded] = useState<ExpandedState>({});
   const [showColumnMenu, setShowColumnMenu] = useState(false);
 
-  const serialsForFlags = useMemo(() => machines.map((m) => m.serial_number), [machines]);
-  const { flagsBySerial } = useOpenFlagsForMachines(serialsForFlags, flagsReloadToken);
   // Keep the latest flags map in a ref so the memoized column definitions can
-  // read it without listing it as a dependency (which would rebuild the columns
-  // on every async fetch and reset table row state such as expansion).
+  // read it without listing it as a dependency, which would rebuild all of them
+  // each time the parent's flag fetch settles.
   const flagsRef = useRef(flagsBySerial);
   flagsRef.current = flagsBySerial;
+  const canResolveFlags = useCanResolveFlags();
 
   const handleColumnVisibilityChange = useCallback((updater: VisibilityState | ((old: VisibilityState) => VisibilityState)) => {
     setColumnVisibility((prev) => {
@@ -632,19 +649,31 @@ export default function RecordsTable({
       {
         id: 'actions',
         header: () => null,
-        cell: ({ row }) => (
-          <ActionMenu
-            serial={row.original.serial_number}
-            onEdit={onEdit}
-            onDelete={onDelete}
-            onFlag={onFlag}
-          />
-        ),
+        cell: ({ row }) => {
+          const machine = row.original;
+          // A machine carries at most one open flag, so the first is the one to
+          // resolve.
+          const openFlag = flagsRef.current[machine.serial_number]?.[0];
+          const resolveFlag =
+            onResolveFlag && openFlag && canResolveFlags(machine)
+              ? () => onResolveFlag(openFlag)
+              : undefined;
+
+          return (
+            <ActionMenu
+              serial={machine.serial_number}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onFlag={onFlag}
+              onResolveFlag={resolveFlag}
+            />
+          );
+        },
         size: 44,
         enableSorting: false,
       },
     ],
-    [onEdit, onDelete, onFlag]
+    [onEdit, onDelete, onFlag, onResolveFlag, canResolveFlags]
   );
 
   const table = useReactTable({

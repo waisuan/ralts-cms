@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { NotificationService, Notification } from '../services/notificationService';
+import { useNotificationReadSync } from '../hooks/useNotificationReadSync';
 import { machineDetailHref } from '../utils/machineRoutes';
 
 function formatRelativeTime(iso: string): string {
@@ -27,7 +28,8 @@ function formatRelativeTime(iso: string): string {
  * There is no background timer: the unread count is read once per page load and
  * again on each navigation, so the badge always reflects the state as of the
  * page the user is looking at. The dropdown fetches the latest few
- * notifications when it is opened.
+ * notifications when it is opened. The count is also re-read when something is
+ * marked read elsewhere in the app, which in practice means the inbox page.
  */
 export default function NotificationBell() {
   const { isAuthenticated } = useAuth();
@@ -85,6 +87,11 @@ export default function NotificationBell() {
     }
   }, []);
 
+  // The inbox page marks things read too, and it sits behind this bell rather
+  // than replacing it, so the badge follows what happens there instead of
+  // waiting for a navigation to catch up.
+  const announceRead = useNotificationReadSync(refreshUnread);
+
   const handleToggle = () => {
     setIsOpen((prev) => {
       const next = !prev;
@@ -95,16 +102,19 @@ export default function NotificationBell() {
 
   const handleItemClick = async (n: Notification) => {
     if (n.read_at) return;
-    // Optimistically mark as read; refresh unread count after.
     try {
       await NotificationService.markRead(n.id);
     } catch (err) {
+      // Leave the row unread rather than announcing a change that did not
+      // happen, which would have the inbox and this badge disagree.
       console.debug('markRead failed', err);
+      return;
     }
     setItems((prev) =>
       prev.map((x) => (x.id === n.id ? { ...x, read_at: new Date().toISOString() } : x)),
     );
     setUnread((u) => Math.max(0, u - 1));
+    announceRead();
   };
 
   const handleMarkAll = async () => {
@@ -112,6 +122,7 @@ export default function NotificationBell() {
       await NotificationService.markAllRead();
       setUnread(0);
       setItems((prev) => prev.map((x) => ({ ...x, read_at: x.read_at ?? new Date().toISOString() })));
+      announceRead();
     } catch (err) {
       console.error('markAllRead failed', err);
     }

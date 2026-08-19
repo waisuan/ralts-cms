@@ -39,6 +39,22 @@ export function machine(overrides: Record<string, unknown> = {}) {
   };
 }
 
+/**
+ * A machine assigned to a registered user, which is what makes them its
+ * notification recipient and lets them resolve its flags.
+ */
+export function machineAssignedTo(
+  user: { id: number; username: string; email: string },
+  overrides: Record<string, unknown> = {}
+) {
+  return machine({
+    assigned_user_id: user.id,
+    assigned_user: { id: user.id, username: user.username, email: user.email },
+    person_in_charge: user.username,
+    ...overrides,
+  });
+}
+
 export function machinesListBody(machines: ReturnType<typeof machine>[]) {
   return {
     machines,

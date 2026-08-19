@@ -1,5 +1,12 @@
 import { test, expect, signInAs, ADMIN_USER, NON_ADMIN_USER } from './fixtures';
-import { fulfilJSON, emptyMaintenanceBody, flag, machine, machinesListBody } from './factories';
+import {
+  fulfilJSON,
+  emptyMaintenanceBody,
+  flag,
+  machine,
+  machineAssignedTo,
+  machinesListBody,
+} from './factories';
 
 const isUnreadCount = (url: URL) => url.pathname === '/api/v1/notifications/unread-count';
 const isMachinesList = (url: URL) => url.pathname === '/api/v1/machines';
@@ -8,16 +15,7 @@ const isMaintenanceList = (url: URL) => url.pathname === '/api/v1/machines/SN-1/
 const isMachineFlags = (url: URL) => url.pathname === '/api/v1/machines/SN-1/flags';
 const isOpenFlagsBatch = (url: URL) => url.pathname === '/api/v1/machines/flags/open-by-machine';
 
-const assignedMachine = machine({
-  serial_number: 'SN-1',
-  assigned_user_id: NON_ADMIN_USER.id,
-  assigned_user: {
-    id: NON_ADMIN_USER.id,
-    username: NON_ADMIN_USER.username,
-    email: NON_ADMIN_USER.email,
-  },
-  person_in_charge: NON_ADMIN_USER.username,
-});
+const assignedMachine = machineAssignedTo(NON_ADMIN_USER);
 
 test.describe('flagging a machine from the record actions', () => {
   test.beforeEach(async ({ page }) => {

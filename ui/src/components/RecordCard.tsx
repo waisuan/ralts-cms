@@ -4,7 +4,8 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { Machine } from '../types/machine';
 import { AttachmentService } from '../services/attachmentService';
-import { useOpenFlagsForMachines } from '../hooks/useOpenFlagsForMachines';
+import { useCanResolveFlags } from '../hooks/useCanResolveFlags';
+import { Flag } from '../services/flagService';
 import FlagBadge from './FlagBadge';
 import {
   formatDate,
@@ -23,9 +24,23 @@ interface RecordCardProps {
   onDelete: (serial_number: string) => void;
   /** Only provided for admins, who are the only ones able to raise a flag. */
   onFlag?: (serial_number: string) => void;
-  /** Bumped by the parent after a flag is raised so badges refresh. */
-  flagsReloadToken?: number;
+  /**
+   * Called with the machine's open flag when the user asks to resolve it. The
+   * action appears only while the machine is flagged and this user is allowed to
+   * clear it: an admin anywhere, anyone else on their own machines.
+   */
+  onResolveFlag?: (flag: Flag) => void;
+  /** The machine's open flags, fetched by the parent for the whole page. */
+  openFlags?: Flag[];
 }
+
+// Shape shared by the card actions, colours aside. The minimum width is what
+// lets a card carrying both a flag and a resolve action wrap onto a second line
+// instead of squeezing five labels into one.
+const MOBILE_ACTION_CLASS =
+  'flex-1 min-w-[4.5rem] flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors text-center';
+const DESKTOP_ACTION_CLASS =
+  'flex-1 min-w-[4.5rem] px-3 py-2 rounded-md text-sm font-medium transition-colors text-center';
 
 function DetailField({
   label,
@@ -78,14 +93,20 @@ export default function RecordCard({
   onEdit,
   onDelete,
   onFlag,
-  flagsReloadToken = 0,
+  onResolveFlag,
+  openFlags = [],
 }: RecordCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [showNotesModal, setShowNotesModal] = useState(false);
   const isMobile = useIsMobile();
-  const { flagsBySerial } = useOpenFlagsForMachines([machine.serial_number], flagsReloadToken);
-  const openFlags = flagsBySerial[machine.serial_number] || [];
+  const canResolveFlags = useCanResolveFlags();
+  // A machine holds one open flag at a time, so the first is the one to clear.
+  const openFlag = openFlags[0];
+  const resolveFlag =
+    onResolveFlag && openFlag && canResolveFlags(machine)
+      ? () => onResolveFlag(openFlag)
+      : undefined;
   const status = getPPMStatusDisplay(machine.ppm_status);
   const showPpmServerPill = status && !isMachineDateUnset(machine.ppm_date);
   const tncDisplay = formatMachineDateDisplay(machine.tnc_date);
@@ -242,20 +263,23 @@ export default function RecordCard({
               </div>
             )}
 
-            <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100">
               <Link
                 href={machineDetailHref(machine.serial_number)}
                 prefetch={false}
                 onClick={(e) => { e.stopPropagation(); }}
-                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors text-center"
+                className={`${MOBILE_ACTION_CLASS} text-blue-700 bg-blue-50 hover:bg-blue-100`}
               >
                 View
               </Link>
-              <button onClick={(e) => { e.stopPropagation(); onEdit(machine.serial_number); }} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-yellow-700 bg-yellow-50 hover:bg-yellow-100 rounded-lg transition-colors">Edit</button>
+              <button onClick={(e) => { e.stopPropagation(); onEdit(machine.serial_number); }} className={`${MOBILE_ACTION_CLASS} text-yellow-700 bg-yellow-50 hover:bg-yellow-100`}>Edit</button>
               {onFlag && (
-                <button onClick={(e) => { e.stopPropagation(); onFlag(machine.serial_number); }} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-orange-700 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors">Flag</button>
+                <button onClick={(e) => { e.stopPropagation(); onFlag(machine.serial_number); }} className={`${MOBILE_ACTION_CLASS} text-orange-700 bg-orange-50 hover:bg-orange-100`}>Flag</button>
               )}
-              <button onClick={(e) => { e.stopPropagation(); onDelete(machine.serial_number); }} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100 rounded-lg transition-colors">Delete</button>
+              {resolveFlag && (
+                <button onClick={(e) => { e.stopPropagation(); resolveFlag(); }} className={`${MOBILE_ACTION_CLASS} text-green-700 bg-green-50 hover:bg-green-100`}>Resolve</button>
+              )}
+              <button onClick={(e) => { e.stopPropagation(); onDelete(machine.serial_number); }} className={`${MOBILE_ACTION_CLASS} text-red-700 bg-red-50 hover:bg-red-100`}>Delete</button>
             </div>
           </div>
         )}
@@ -369,19 +393,22 @@ export default function RecordCard({
             )}
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Link
               href={machineDetailHref(machine.serial_number)}
               prefetch={false}
-              className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-md text-sm font-medium transition-colors text-center"
+              className={`${DESKTOP_ACTION_CLASS} bg-blue-50 hover:bg-blue-100 text-blue-700`}
             >
               View
             </Link>
-            <button onClick={() => onEdit(machine.serial_number)} className="flex-1 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 px-3 py-2 rounded-md text-sm font-medium transition-colors">Edit</button>
+            <button onClick={() => onEdit(machine.serial_number)} className={`${DESKTOP_ACTION_CLASS} bg-yellow-50 hover:bg-yellow-100 text-yellow-700`}>Edit</button>
             {onFlag && (
-              <button onClick={() => onFlag(machine.serial_number)} className="flex-1 bg-orange-50 hover:bg-orange-100 text-orange-700 px-3 py-2 rounded-md text-sm font-medium transition-colors">Flag</button>
+              <button onClick={() => onFlag(machine.serial_number)} className={`${DESKTOP_ACTION_CLASS} bg-orange-50 hover:bg-orange-100 text-orange-700`}>Flag</button>
             )}
-            <button onClick={() => onDelete(machine.serial_number)} className="flex-1 bg-red-50 hover:bg-red-100 text-red-700 px-3 py-2 rounded-md text-sm font-medium transition-colors">Delete</button>
+            {resolveFlag && (
+              <button onClick={resolveFlag} className={`${DESKTOP_ACTION_CLASS} bg-green-50 hover:bg-green-100 text-green-700`}>Resolve</button>
+            )}
+            <button onClick={() => onDelete(machine.serial_number)} className={`${DESKTOP_ACTION_CLASS} bg-red-50 hover:bg-red-100 text-red-700`}>Delete</button>
           </div>
 
           <div className="text-center text-xs mt-3 pt-3 border-t border-gray-100 flex items-center justify-center gap-3">

@@ -33,6 +33,8 @@ Saving with a registered assignee sends them an `assigned` notification, unless 
 
 **Receiving notifications.** The bell in the header shows an unread count read once per page load and again on each navigation. Opening it lists the 10 most recent notifications; clicking one marks it read and jumps to the relevant machine. *Mark all read* clears the badge. The `/inbox` page shows everything with 25 per page, an *Unread only* filter, and per-row and bulk mark-as-read. *Mark all read* is only rendered while something is unread.
 
+**The bell and the inbox agree with each other.** Both are on screen at the same time on `/inbox`, so marking anything read in one is reflected in the other straight away, with no reload: clearing the inbox empties the badge, and *Mark all read* in the bell restyles the rows behind it, drops the *N unread* subtitle and removes the page's own mark-read controls. Whichever view acted keeps its own optimistic update, which it only applies once the server has accepted the change; the other re-reads from the API.
+
 The inbox is **read-only** as far as the work itself goes: it tells you what happened and, for a notification about a flag that is still open, links to the flagged records page where the flag can be cleared. Rows whose flag has since been resolved say so.
 
 **Flagging a machine (admin only).** Admins get a *Flag* action wherever a machine can be edited or deleted: the row action menu in the records table, the buttons on a record card, and *Flag Machine* on the machine detail page. It opens a modal in the same style as adding or editing a record: choose a reason, add a note, submit. The machine's current assignee is notified if they are a registered user. Non-admins have no flag action at all.
@@ -54,11 +56,13 @@ Either way the rows are newest first and show the machine, reason and note. Tabs
 
 *Mark resolved* opens a confirmation modal that repeats why the machine was flagged and offers an **optional resolution note** — a line about what was actually done. Cancelling leaves the flag untouched; confirming with the note blank resolves it with no note. Resolved flags stay listed for the audit trail with `resolved_by`, `resolved_at` and the resolution note, which is shown on the row under the original note.
 
+**Resolving straight from the records views.** A flagged machine also carries a *Resolve* action beside view, edit and delete — in the row action menu of the records table and on the card actions — which opens that same modal. It appears only when there is an open flag and you are allowed to clear it, which mirrors the API: an admin on any machine, anyone else on machines assigned to them. So a technician asked to fix three machines can work through the list itself instead of going to the flagged records page first, and the badge disappears as soon as the flag is closed. Raising a flag stays admin-only, and a machine nobody has flagged shows no resolve action at all.
+
 **Reporting back.** When a non-admin resolves a flag, the admin who raised it gets a `flag_resolved` notification carrying the resolution note as its body, closing the loop on the request they made. Resolutions by admins notify nobody: admins work off the same page across every machine, and reporting each clearance to whichever colleague raised it would be noise rather than news.
 
-Because the scope matches the resolve permission exactly, everything on your page is something you can act on, and there is nothing to resolve anywhere else: machine pages deliberately carry no flags list, and the inbox only points here.
+Because the scope matches the resolve permission exactly, everything on your page is something you can act on. The page is the complete view of outstanding flags rather than the only way to close one: the records table and cards can resolve too, machine pages deliberately carry no flags list, and the inbox only points here.
 
-**Spotting flags at a glance.** Machines with open flags show an orange badge with the open-flag count on the records table and card view. Every signed-in user sees it, on any machine and not just their own, because knowing a machine is flagged is useful to whoever is looking at it — raising a flag stays admin-only, reading one does not. Signed-out visitors see no badges and the batch request that backs them is not issued. Hovering shows each reason, when it was flagged, and the note.
+**Spotting flags at a glance.** Machines with open flags show an orange badge with the open-flag count on the records table and card view. Every signed-in user sees it, on any machine and not just their own, because knowing a machine is flagged is useful to whoever is looking at it — raising a flag stays admin-only, reading one does not. Signed-out visitors see no badges and the batch request that backs them is not issued. Hovering shows each reason, when it was flagged, and the note. Where the badge is on a machine you may clear, the row's actions include *Resolve*.
 
 ## Flag reasons
 
@@ -86,7 +90,7 @@ Every flag is raised deliberately by an admin — nothing in the system opens on
 
 Three rules apply throughout: a notification is **never** sent to the user who caused it (actor equals recipient is dropped), a machine with **no assignee** produces no `assigned`/`flagged` notifications, and a machine with a **free-text assignee** produces none either, because there is no user to address.
 
-The first rule covers the admin-flags-their-own-machine case: the flag itself is created, badged and listed as normal, and can be resolved from the flags page — only the inbox notification is skipped, since it would tell you something you just did.
+The first rule covers the admin-flags-their-own-machine case: the flag itself is created, badged and listed as normal, and can be resolved from the flags page or the record's own actions — only the inbox notification is skipped, since it would tell you something you just did.
 
 ## API
 
@@ -143,9 +147,11 @@ Deletion behaviour worth knowing: deleting a **machine** cascades to its flags a
 
 - `ui/src/components/NotificationBell.tsx` — bell, unread badge, dropdown. Reads the unread count on mount and again on each pathname change, so the badge is current as of the page you are on. A failed read is logged at debug level and retried on the next page load.
 - `ui/src/app/inbox/page.tsx` — full list, 25 per page, unread filter, mark-read controls, and a link to `/flags` on rows whose flag is still open. No flag is ever mutated from here.
+- `ui/src/hooks/useNotificationReadSync.ts` — keeps those two in step. Each announces after the server accepts a mark-read and re-reads on hearing the other, ignoring its own announcement since it has already updated itself. The inbox's reaction is a quiet reload that leaves the current rows up rather than flashing a spinner. A window event rather than shared context, because the two views have no common ancestor short of the app shell and neither needs the other to exist.
 - `ui/src/app/flags/page.tsx` — the *Flagged Records* page, for any signed-in user. It words its own heading from the `scope` the API reports rather than deciding who sees what.
 - `ui/src/components/FlagMachineModal.tsx` — the flag dialog, opened from the record actions in `RecordsList`, `RecordsTable`, `RecordCard` and `MachineInfoCard`. Those components render a flag action only when handed an `onFlag` callback, which the parents supply for admins only.
-- `ui/src/components/FlagBadge.tsx` + `ui/src/hooks/useOpenFlagsForMachines.ts` — badges, batch-fetched per page of machines. The hook skips the request when nobody is signed in, so that rule lives in one place rather than in each consumer. Its `reloadToken` argument is bumped after a flag is raised so the new badge appears immediately.
+- `ui/src/components/ResolveFlagModal.tsx` + `ui/src/hooks/useCanResolveFlags.ts` — the resolve dialog and the rule for who may open it. `RecordsList` passes `onResolveFlag` to the table and the cards unconditionally; each row decides whether to show the action by pairing its open flag with that hook, so the permission lives in one place rather than being re-derived per view.
+- `ui/src/components/FlagBadge.tsx` + `ui/src/hooks/useOpenFlagsForMachines.ts` — badges, batch-fetched once per page of machines by `RecordsList` and handed to the table or the cards, which render but never fetch them. The hook skips the request when nobody is signed in, so that rule lives in one place rather than in each consumer. Its `reloadToken` argument is bumped after a flag is raised or resolved, so badges appear and disappear immediately.
 - `ui/src/components/MachineModal.tsx` — assignee dropdown of directory users, loaded when the modal opens so newly approved users appear without a reload, plus the explicit free-text option. A machine linked to a user who has dropped out of the directory keeps that user as a selectable option, so editing another field cannot silently unlink them.
 - Services: `ui/src/services/notificationService.ts`, `flagService.ts`, `userDirectoryService.ts`.
 
@@ -166,6 +172,7 @@ Deletion behaviour worth knowing: deleting a **machine** cascades to its flags a
 |--------|-----------|-------|
 | See flag badges on the records table and cards | Yes, on any machine | Yes |
 | Open the *Flagged Records* page | Yes, listing open flags on machines assigned to them plus resolutions of their own | Yes, listing every flag |
+| Resolve a flag from the records table or cards | Yes, on flagged machines assigned to them | Yes, on any flagged machine |
 | Assign a machine | Yes | Yes |
 | Raise a manual flag | No (no action shown; `403` from the API) | Yes |
 | Resolve a flag | Only on machines assigned to them, from the *Flagged Records* page | Any flag |
@@ -180,7 +187,7 @@ Deletion behaviour worth knowing: deleting a **machine** cascades to its flags a
 - The *Flagged Records* page paginates in blocks of 50 with no search or filtering beyond status, on the assumption that open flags stay few. An admin cannot narrow it to a single assignee or machine.
 - A non-admin's page follows the **current** assignee, not who was assigned when the flag was raised. Reassigning a machine moves its open flags to the new assignee's page, even though the notification stays in the original assignee's inbox.
 - A resolution is reported to the admin who raised the flag and to nobody else. Other admins find out from the *Flagged Records* page, and a flag raised by a since-deleted account has no one to report to.
-- Inbox state is only as fresh as the last page load. A notification arriving while you sit on a page will not appear until you navigate or reload.
+- Inbox state is only as fresh as the last page load. A notification arriving while you sit on a page will not appear until you navigate or reload. Read state is the exception: marking things read is reflected across the bell and the inbox as it happens, though only within the one tab — a second tab still shows the count it loaded with.
 
 ## Related code
 
@@ -189,14 +196,14 @@ Deletion behaviour worth knowing: deleting a **machine** cascades to its flags a
 - Assignee wiring: `internal/machines/machine.go`, `internal/machines/repository.go`, `resolveAssignee` in `internal/handlers/machines.go`
 - Service wiring: `internal/deps/deps.go`
 - Router: `internal/router/router.go`
-- Unit tests: `internal/flags/{repository,service}_test.go`, `internal/notifications/{repository,service}_test.go`, `internal/handlers/{flags,notifications,machines}_test.go`, `ui/src/app/inbox/page.test.tsx`, `ui/src/app/flags/page.test.tsx`, `ui/src/components/{NotificationBell,MachineModal,FlagMachineModal,ResolveFlagModal}.test.tsx`, `ui/src/hooks/useOpenFlagsForMachines.test.tsx`
+- Unit tests: `internal/flags/{repository,service}_test.go`, `internal/notifications/{repository,service}_test.go`, `internal/handlers/{flags,notifications,machines}_test.go`, `ui/src/app/inbox/page.test.tsx`, `ui/src/app/flags/page.test.tsx`, `ui/src/components/{NotificationBell,MachineModal,FlagMachineModal,ResolveFlagModal,RecordsTable,RecordCard}.test.tsx`, `ui/src/hooks/{useOpenFlagsForMachines,useCanResolveFlags,useNotificationReadSync}.test.tsx`
 - Integration tests: `internal/integration/notifications_flags_test.go` — the assignee, flag permission, and notification delivery flows end to end against Postgres. Docker required:
 
 ```bash
 go test -tags=integration -count=1 -timeout=15m ./internal/integration/...
 ```
 
-- Browser tests: `ui/e2e/{notification-bell,inbox-flags,flag-badges,flag-machine-modal,flags-page,machine-assignee}.spec.ts` — the bell, the read-only inbox, badges for both roles, the flag modal and where it can be opened from, the flagged-records page for both roles, and the assignee dropdown, all against mocked API responses:
+- Browser tests: `ui/e2e/{notification-bell,inbox-flags,flag-badges,flag-machine-modal,flag-resolve-actions,flags-page,machine-assignee}.spec.ts` — the bell, the read-only inbox, badges for both roles, the flag modal and where it can be opened from, resolving from the table and card actions for both roles, the flagged-records page for both roles, and the assignee dropdown, all against mocked API responses:
 
 ```bash
 cd ui && npm run build && npm run test:e2e

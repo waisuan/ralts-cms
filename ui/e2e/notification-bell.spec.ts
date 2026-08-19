@@ -99,6 +99,65 @@ test.describe('notification bell', () => {
     await expect(page.getByRole('button', { name: 'Mark all read' })).toBeDisabled();
   });
 
+  test('the badge clears when the inbox page marks everything read', async ({ page }) => {
+    let unread = 1;
+    await page.route(isUnreadCount, (route) => fulfilJSON(route, { unread_count: unread }));
+    await page.route(isNotificationsList, (route) =>
+      fulfilJSON(route, notificationsBody([notification({ read_at: null })], unread))
+    );
+    await page.route(isMarkAllRead, (route) => {
+      unread = 0;
+      return fulfilJSON(route, { updated: 1 });
+    });
+
+    await page.goto('/inbox');
+    const bell = page.getByRole('button', { name: 'Notifications' });
+    await expect(bell).toContainText('1');
+
+    // The page's own button, the only one on screen while the bell is closed.
+    await page.getByRole('button', { name: 'Mark all read' }).click();
+
+    // No navigation involved: the bell hears about it and re-reads the count.
+    await expect(bell).not.toContainText('1');
+    await expect(page.getByText('All caught up')).toBeVisible();
+  });
+
+  test('marking all read from the bell updates the inbox list behind it', async ({ page }) => {
+    let unread = 1;
+    await page.route(isUnreadCount, (route) => fulfilJSON(route, { unread_count: unread }));
+    await page.route(isNotificationsList, (route) =>
+      fulfilJSON(
+        route,
+        notificationsBody(
+          [notification({ read_at: unread === 0 ? '2026-01-15T11:00:00Z' : null })],
+          unread
+        )
+      )
+    );
+    await page.route(isMarkAllRead, (route) => {
+      unread = 0;
+      return fulfilJSON(route, { updated: 1 });
+    });
+
+    await page.goto('/inbox');
+    await expect(page.getByText('1 unread')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Mark as read' })).toBeVisible();
+
+    const bell = page.getByRole('button', { name: 'Notifications' });
+    await bell.click();
+    // Both the dropdown and the page have a "Mark all read", so reach for the
+    // one inside the bell's own container.
+    await bell.locator('xpath=..').getByRole('button', { name: 'Mark all read' }).click();
+    // Close the dropdown, whose own button is only disabled rather than removed,
+    // so the assertions below are about the page's controls.
+    await page.getByRole('heading', { name: 'Inbox' }).click();
+
+    // The page re-read its list, so its rows and header agree with the bell.
+    await expect(page.getByText('All caught up')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Mark as read' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Mark all read' })).toHaveCount(0);
+  });
+
   test('is hidden when nobody is signed in', async ({ page }) => {
     await page.addInitScript(() => localStorage.removeItem('ralts_user'));
     let unreadRequests = 0;
