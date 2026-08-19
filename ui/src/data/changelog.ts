@@ -19,6 +19,43 @@ export type ChangelogEntry = {
 
 const changelogEntries: ChangelogEntry[] = [
   {
+    date: '2026-08-19',
+    title: 'Assign machines to people, flag the ones needing attention, and get an inbox',
+    summary:
+      'A machine can now be assigned to someone with an account, so the app can tell them when it needs doing something. Admins can flag a machine that needs attention, and whoever it is assigned to sees it in a new inbox and can clear the flag once it is sorted.',
+    sections: [
+      {
+        heading: 'Assigning machines',
+        items: [
+          'Pick an assignee from the list of users when adding or editing a machine, and they are notified straight away — unless you assigned it to yourself.',
+          'Someone without an account yet? Choose "Someone else (enter a name)" and type it in as before. Those names still show on the record, but there is nobody to notify.',
+        ],
+      },
+      {
+        heading: 'Flagging a machine (admins)',
+        items: [
+          'A Flag action sits alongside View, Edit and Delete in the records table, on record cards, and on the machine detail page. Choose a reason — missing values, or something else you describe — and add a note of up to 500 characters.',
+          'The machine\u2019s assignee is notified if they have an account. A machine carries one flag at a time, so flagging an already-flagged machine updates it rather than adding a second one.',
+        ],
+      },
+      {
+        heading: 'Spotting and clearing flags',
+        items: [
+          'Flagged machines carry an orange badge in the records list and on their card, visible to everyone; hover it for the reason, when it was raised, and the note.',
+          'The new Flagged Records page, under your account menu, lists what is outstanding. Admins see every flag; everyone else sees the ones on machines assigned to them.',
+          'Resolve a flag from that page or straight from the machine\u2019s row or card, adding a note about what you did if it is worth saying. When you clear a flag an admin raised, they are told it is done.',
+        ],
+      },
+      {
+        heading: 'Your inbox',
+        items: [
+          'A bell in the header shows how many notifications you have not read yet, with the ten most recent a click away. The Inbox page has the full history, 25 at a time, with an Unread only filter.',
+          'The inbox is for reading: a notification about a flag that is still open links to where you can clear it.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-08-02',
     title: 'See who last updated a machine or maintenance record',
     summary:
