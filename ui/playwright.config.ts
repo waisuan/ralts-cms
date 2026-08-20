@@ -8,9 +8,8 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  // ubuntu-latest has 4 cores; one worker left the suite serial for no gain
-  // in stability, since these tests mock the API rather than sharing a backend.
-  workers: process.env.CI ? 2 : undefined,
+  // Sequential on GitHub-hosted runners, as Playwright recommends for CI.
+  workers: process.env.CI ? 1 : undefined,
   reporter: process.env.CI ? 'github' : 'list',
   use: {
     baseURL,
