@@ -40,11 +40,8 @@ CI (`.github/workflows/ci.yml`) runs: go vet, revive, build, unit tests, integra
 
 ## Backend architecture
 
-- `cmd/web/main.go` → `deps.Initialise()` → `router.NewRouter(deps)`. `internal/deps` is the single composition root: it loads config from env (`.env.<APP_ENV>`), builds the pgx pool and S3 client, and wires every repository and service into one `*deps.Dependencies` struct.
-- Handlers (`internal/handlers`) take `*deps.Dependencies` and reach repositories/services through it. There is no separate handler interface layer.
 - Routing is **gorilla/mux**, not the Go 1.22 ServeMux (the `.cursor/rules` text says otherwise; follow the code). In `internal/router/router.go`, static segments such as `/machines/export/csv` and `/machines/flags/open-by-machine` must be registered **before** `/machines/{serial_number}` routes.
 - Three route tiers: public (`/health`, login, register, refresh, logout), `/api/v1/` with `AuthenticationMiddleware` (JWT), `/api/v1/admin/` with auth + `AdminOnlyMiddleware`. Finer permissions (flag create = admin, flag resolve = admin or assignee, flags list scoped to assigned machines) are enforced inside handlers, not middleware. The authenticated user comes from `internal/context`.
-- Domain packages (`machines`, `maintenance`, `users`, `flags`, `notifications`, `audit`, `refreshtokens`, `attachments`) each own a `Repository` interface + pgx implementation, and a `Service` where there is business logic. Flags create notifications; audit is an async buffered-channel service with retention cleanup, drained in `deps.Shutdown`.
 - Auth uses short-lived access JWTs plus rotated refresh tokens stored in the DB (`pkg/auth`, `internal/refreshtokens`); see `docs/auth-refresh-tokens.md`. Flag/notification rules: `docs/notifications-and-flagging.md`.
 - Migrations: numbered `db/migrations/0000NN_name.{up,down}.sql` (golang-migrate). Always add both files; testcontainers tests apply them automatically.
 
